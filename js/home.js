@@ -22,7 +22,7 @@
   const ROOT = ((document.querySelector('link[href*="home.css"]') || {}).href || "").replace(/css\/home\.css.*$/, "");
   const PHOTO = { RRT: { src: ROOT + "images/brand/otter-rrt.jpg", alt: "A sea otter in the bay holding a wooden CRT/RRT sign" },
                   SDS: { src: ROOT + "images/brand/otter-sds.jpg", alt: "A sleepy sea otter floating in the bay holding a wooden SDS sign" },
-                  CNA: { src: ROOT + "images/brand/otter-cna.jpg", alt: "A sea otter in the bay holding a wooden CNA sign" } };
+                  CNA: { src: ROOT + "images/brand/otter-cna.jpg?v=2", alt: "A sea otter in the bay holding a wooden CNA sign" } };
   const TH = THEMES[window.EXAM || "RRT"];
   const PH = PHOTO[window.EXAM || "RRT"];
   const themeVars = () => `--bay:${TH.bay};--tide:${TH.tide};--buoy:${TH.accent};--glass:${TH.glass};--mid:${TH.mid};--low:${TH.low};--accentInk:${TH.accentInk}`;
