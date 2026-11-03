@@ -164,7 +164,7 @@ function render() {
       <ul>
         <li><span class="num">1</span><span><b>Thinking about wrong answers helps you remember more.</b> When practice questions have believable wrong answers, working out why they're wrong helps you retain related facts, not just the one being tested. <span class="cite">(Little &amp; Bjork, 2015)</span></span></li>
         <li><span class="num">2</span><span><b>It shows what you partly know.</b> Ruling out even one choice reflects real knowledge. Students tested this way guessed less and reported feeling less stressed than with single-answer questions. <span class="cite">(Bond et al., 2013; Vanderoost et al., 2018)</span></span></li>
-        <li><span class="num">3</span><span><b>Use it when it helps.</b> Ruling out takes extra effort, and the NBRC exam only asks for one best answer, so it's optional. Turn on "Require ruling out" in Settings if you want the practice.</span></li>
+        <li><span class="num">3</span><span><b>Use it when it helps.</b> Ruling out takes extra effort, and the real exam only asks for one best answer, so it's optional. Turn on "Require ruling out" in Settings if you want the practice.</span></li>
       </ul>
       <p class="tip"><b>Tip:</b> Read the question and predict the answer before you look at the choices. Then check the other choices and ask why each one is wrong.</p>
       <details><summary>Sources</summary><ol>

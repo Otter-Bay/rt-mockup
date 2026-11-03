@@ -1,13 +1,14 @@
 /* Home and Products pages (Otter Bay theme). Owner: Ken + Claude.
    Adds pages to app.js through window.PAGES / window.PAGE_ACTIONS. Uses globals from app.js (S, QS, ALL, newRun, render)
-   and progress.js (RL, ST, load, save). Each exam site sets window.EXAM ("RRT", "SDS") and window.EXAM_LINKS. */
+   and progress.js (RL, ST, load, save). Each exam site sets window.EXAM ("RRT", "SDS", "RPSGT", "CNA") and window.EXAM_LINKS. */
 (function () {
   const EXAMS = [
     { key: "RRT", name: "CRT/RRT Ready", sub: "Respiratory therapy", href: (window.EXAM_LINKS || {}).RRT },
     { key: "SDS", name: "SDS Ready", sub: "Sleep disorders specialist", href: (window.EXAM_LINKS || {}).SDS },
     { key: "RPSGT", name: "RPSGT Ready", sub: "Sleep technologist", href: (window.EXAM_LINKS || {}).RPSGT },
+    { key: "CNA", name: "CNA Ready", sub: "Nurse assistant", href: (window.EXAM_LINKS || {}).CNA },
   ];
-  // Each app has its own look on the same Otter Bay bones: daytime bay for CRT/RRT, night bay for SDS, dusk kelp forest for RPSGT.
+  // Each app has its own look on the same Otter Bay bones: daytime bay for CRT/RRT, night bay for SDS, dusk kelp forest for RPSGT, sunrise tide pool for CNA.
   const THEMES = {
     RRT: { app: "CRT/RRT Ready", hi: ["Let's get your feet wet.", "Ready to pick up where you left off?"], bay: "#0A4A63", mid: "#0E6E8C", low: "#2A9FA6", tide: "#3FB8B3", accent: "#F5B83D", accentInk: "#3A2600", glass: "#E7F4F3",
            sky: '<circle cx="330" cy="40" r="22" fill="#FFE3A1" opacity=".9"/><circle cx="330" cy="40" r="34" fill="#FFE3A1" opacity=".15"/>' },
@@ -15,6 +16,8 @@
            sky: '<path d="M342 22a20 20 0 1 0 14 34a16 16 0 0 1-14-34z" fill="#F4EBC6"/>' + [[40, 30], [90, 16], [150, 40], [210, 14], [262, 34], [300, 70], [120, 74], [24, 80]].map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 3 ? 1.4 : 2.2}" fill="#fff" opacity=".85"/>`).join("") },
     RPSGT: { app: "RPSGT Ready", hi: ["Let's dive into the tracings.", "Ready for more tracings?"], bay: "#123B2E", mid: "#1F5A45", low: "#3F8668", tide: "#7CC4A0", accent: "#F2A65A", accentInk: "#3A1E00", glass: "#EAF4EE",
              sky: '<path d="M0 70h60l8-18 10 34 10-26 8 10h40l8-18 10 34 10-26 8 10h200" fill="none" stroke="#BFEAD3" stroke-width="2" opacity=".55"/>' },
+    CNA: { app: "CNA Ready", hi: ["Let's start your first shift.", "Ready for another shift?"], bay: "#5A2340", mid: "#8A3A5C", low: "#C0607A", tide: "#F2A3A0", accent: "#FFD37A", accentInk: "#3A2400", glass: "#FBEFF0",
+           sky: '<circle cx="335" cy="58" r="24" fill="#FFD9A0" opacity=".9"/><circle cx="335" cy="58" r="38" fill="#FFD9A0" opacity=".18"/>' + [[262, 26], [290, 16], [300, 38]].map(([x, y]) => `<path d="M${x - 8} ${y}q8-7 16 0" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>`).join("") },
   };
   const ROOT = ((document.querySelector('link[href*="home.css"]') || {}).href || "").replace(/css\/home\.css.*$/, "");
   const PHOTO = { RRT: { src: ROOT + "images/brand/otter-rrt.jpg", alt: "A sea otter in the bay holding a wooden CRT/RRT sign" },
@@ -143,6 +146,7 @@
     { key: "RRT", name: "CRT/RRT Ready", color: "#0E6E8C", mark: '<path d="M4 34c6 0 6-8 12-8s6 8 12 8 6-8 12-8 6 8 12 8" />', blurb: "Practice for the NBRC Respiratory Therapist exam: blood gases, ventilator graphics, rhythm strips, and case-based questions in the same format as the test.", facts: ["Questions written to the January 2027 outline", "Rule-out answers, review list, exam mode", "Images and data lists like the real exam"], status: "In development", sample: (window.EXAM_LINKS || {}).RRT },
     { key: "SDS", name: "SDS Ready", color: "#24306B", mark: '<path d="M38 12a16 16 0 1 0 10 28a13 13 0 0 1-10-28z" />', blurb: "Practice for the NBRC Sleep Disorders Specialty exam: staging epochs, respiratory event scoring, PAP titration, and treatment follow-up.", facts: ["Original PSG tracings and PAP reports", "AASM scoring and CMS rule cards", "Questions written to the SDS outline"], status: "In development", sample: (window.EXAM_LINKS || {}).SDS },
     { key: "RPSGT", name: "RPSGT Ready", color: "#1F5A45", mark: '<path d="M4 28h8l4-12 6 24 6-18 4 6h16" />', blurb: "Practice for the BRPT Registered Polysomnographic Technologist exam, built around the tracings and scoring you use on every shift.", facts: ["Written to the BRPT blueprint", "Scoring, instrumentation, and PAP therapy", "Pediatric and infant scoring practice"], status: "In development", sample: (window.EXAM_LINKS || {}).RPSGT },
+    { key: "CNA", name: "CNA Ready", color: "#8A3A5C", mark: '<path d="M26 40s-13-8-13-17a7 7 0 0 1 13-4 7 7 0 0 1 13 4c0 9-13 17-13 17z" />', blurb: "Practice for the California nurse assistant certification exam: daily care, safety and infection control, resident rights, and communication.", facts: ["Written to the California written exam outline", "Rule cards for vital signs, PPE, positions and more", "English now; Spanish planned"], status: "In development", sample: (window.EXAM_LINKS || {}).CNA },
   ];
 
   function products() {
@@ -151,7 +155,7 @@
       <div class="obscroll">
         <section class="obsec">
           <h1 class="ph">The Otter Bay apps</h1>
-          <p class="lede">Exam prep for the people who keep patients breathing and sleeping safely. Pick the app for the credential you're working toward.</p>
+          <p class="lede">Exam prep for the people who care for patients and keep them breathing and sleeping safely. Pick the app for the credential you're working toward.</p>
         </section>
         ${PRODUCTS.map((p) => `<article class="prod" style="--pc:${p.color}">
           <div class="phead">${PHOTO[p.key] ? `<img class="pphoto" src="${PHOTO[p.key].src}" alt="" width="52" height="52">` : `<svg class="pmark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="25" fill="var(--pc)"/><g fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${p.mark}</g></svg>`}
@@ -165,10 +169,10 @@
         <article class="prod raft2" style="--pc:#7A4E2D">
           <div class="phead"><svg class="pmark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="25" fill="var(--pc)"/><g fill="#fff"><circle cx="19" cy="27" r="6"/><circle cx="33" cy="27" r="6"/><rect x="18" y="25" width="16" height="4" rx="2"/></g></svg>
             <div><h2>The Raft</h2><span class="pstat soon">Bundle idea</span></div></div>
-          <p>Sea otters hold paws while they sleep so they don't drift apart. The Raft keeps all three apps together for programs that teach both respiratory care and sleep technology.</p>
+          <p>Sea otters hold paws while they sleep so they don't drift apart. The Raft keeps the apps together for programs that teach more than one of these fields.</p>
           <div class="pfoot"><span class="price">Pricing not set yet</span><span class="pbtn off" aria-disabled="true">Coming later</span></div>
         </article>
-        <p class="fine pad">Questions are drafts under expert review. Not affiliated with the NBRC or BRPT.</p>
+        <p class="fine pad">Questions are drafts under expert review. Not affiliated with the NBRC, BRPT, Credentia, or the California Department of Public Health.</p>
       </div>
       ${nav("products")}
     </div>`;
