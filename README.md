@@ -1,8 +1,8 @@
 # CRT/RRT App – Mock-up
 
-> **Team home base:** start at the private [Otter Bay Hub](https://github.com/kccook23-rt/otter-bay-hub) for the map of every repo, how-to guides, and the decision log.
+> **Team home base:** start at the private [Otter Bay Hub](https://github.com/Otter-Bay/otter-bay-hub) for the map of every repo, how-to guides, and the decision log.
 
-Live: https://kccook23-rt.github.io/rt-mockup/
+Live: https://otter-bay.github.io/rt-mockup/
 
 **This is the team's mock-up.** New mock-up features go here (not in one-off artifacts), so everyone on Discord sees the same version at the link above.
 

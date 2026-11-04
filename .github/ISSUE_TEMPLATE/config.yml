@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Problem with a specific question?
-    url: https://github.com/kccook23-rt/otter-bay-hub/blob/main/how-to/report-a-problem.md
+    url: https://github.com/Otter-Bay/otter-bay-hub/blob/main/how-to/report-a-problem.md
     about: Report question problems in the private question-bank repo instead, so questions stay private.
