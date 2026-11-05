@@ -332,5 +332,5 @@ fit();
 render();
 (window.EMBEDDED_QUESTIONS ? Promise.resolve(window.EMBEDDED_QUESTIONS) : fetch("data/questions.json", { cache: "no-cache" })
   .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }))
-  .then((d) => { QS = d.questions.map(adapt); ALL = QS.map((_, i) => i); S.set = ALL.slice(); newRun(); render(); if (window.vetAfterLoad) vetAfterLoad(); })
+  .then((d) => { QS = d.questions.map(adapt); ALL = QS.map((_, i) => i); S.set = ALL.slice(); newRun(); (window.AFTER_LOAD || []).forEach((f) => f()); render(); if (window.vetAfterLoad) vetAfterLoad(); })
   .catch((e) => { S.loadError = String(e); render(); });
