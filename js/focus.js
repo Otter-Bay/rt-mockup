@@ -115,7 +115,7 @@
     }).join("");
     return `<div class="scrim fwscrim"><div class="dialog fwdlg" role="dialog" aria-modal="true" aria-labelledby="fwT">
       <div class="schead"><h2 id="fwT">Why ${esc(r.name || sec)}?</h2><button type="button" class="vb fwx" aria-label="Close">${ICON.x}</button></div>
-      <div class="fwtop">${ring(p, "Your score here", r.att ? `${r.cor} of ${r.att} correct` : "Not tried yet", { big: true, early: r.att > 0 && r.att < MIN_ATT })}
+      <div class="fwtop">${ring(p, "Your score here", r.att ? `${r.cor} of ${r.att} correct` : "Not tried yet", { big: true, early: r.att > 0 && r.att < MIN_ATT, color: "#3A4654" })}
         <div class="fwshare"><b>About ${w}% of the exam</b><small>How much of the real test comes from this area (exam outline)</small>
           <span class="fwbar" role="img" aria-label="About ${w}% of the exam"><i style="width:${Math.max(2, Math.min(100, w))}%"></i></span></div></div>
       <p class="fwwhy">${reason}</p>
