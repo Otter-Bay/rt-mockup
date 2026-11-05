@@ -215,7 +215,9 @@
       <div class="schead"><h2 id="fwT">Practice ${esc(fname)}</h2><button type="button" class="vb fwx" aria-label="Close">${ICON.x}</button></div>
       <p class="fcq"><b>Want to add any other areas?</b> Tick as many as you like. They're listed by practice priority: #1 is where practice should help your score most.</p>
       <div class="seg fwseg" role="tablist" aria-label="Group by">${TABS(by)}</div>
-      <div class="fclist">${rows}</div>
+      <div class="fclist">${(() => { const allOn = list.every((x) => sel.has(by + "|" + x.key));
+        return `<button type="button" class="fcrow fcall ${allOn ? "on" : ""}" data-all="${by}" role="checkbox" aria-checked="${allOn}"><span class="fcbox" aria-hidden="true">${allOn ? "✓" : ""}</span>
+          <span class="fcname"><b>All ${NOUN[by][1]}</b><small>${allOn ? "Tap to clear them all" : `Tick all ${list.length} at once`}</small></span><span></span></button>`; })()}${rows}</div>
       <button type="button" class="fcjust">Just ${esc(fname)}</button>
     </div>${tray()}</div>`;
   }
@@ -259,7 +261,11 @@
     if (cr && WHY) {
       e.stopPropagation();
       if (cr.classList.contains("fcjust")) { const sec = WHY.choose; closeWhy(); window.PAGE_ACTIONS.focusgo({ dataset: { sec, src: "all" } }); render(); return; }
-      const S2 = SEL(), k = cr.dataset.s; S2.has(k) ? S2.delete(k) : S2.add(k); WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy();
+      const S2 = SEL();
+      if (cr.dataset.all) { const by = cr.dataset.all, keys = ranked(by).map((x) => by + "|" + x.key), allOn = keys.every((k) => S2.has(k));
+        keys.forEach((k) => allOn ? S2.delete(k) : S2.add(k)); if (allOn && WHY.choose) S2.add("task|" + WHY.choose);
+        WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); const a2 = document.querySelector(".fcall"); if (a2) a2.focus(); return; }
+      const k = cr.dataset.s; S2.has(k) ? S2.delete(k) : S2.add(k); WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy();
       const again = document.querySelector(`.fcrow[data-s="${CSS.escape(k)}"]`); if (again) again.focus(); return;
     }
     const pk = e.target.closest && e.target.closest(".fpick, .fpx, .fpgo, .fpadd, .fwchip, .fwsetgo, .fpscrim");
@@ -365,6 +371,7 @@
 .fcrow.on .fcbox { background: #3A4654; border-color: #3A4654; }
 .fcname b { font-size: 14px; } .fcname small { display: block; font-size: 12px; color: #5B6672; }
 .fcname i { display: inline-block; margin-left: 6px; font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #6A4A00; background: #FFF3D1; padding: 1px 5px; border-radius: 5px; box-shadow: inset 0 0 0 1.5px #E8B13A; }
+.fcall { border-style: dashed; } .fcall.on { border-style: solid; }
 .fcpri { font-size: 13px; font-weight: 800; color: #5B6672; }
 .fcjust { min-height: 44px; border: 0; background: none; color: #3A4654; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .fwdot { display: inline-block; width: 9px; height: 9px; border-radius: 5px; margin-right: 5px; vertical-align: 1px; }
