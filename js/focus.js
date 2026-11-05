@@ -55,7 +55,8 @@
   statsBody = function () {
     const h = base();
     const i = h.indexOf("</div>");   // after the page heading block
-    return i < 0 ? card() + h : h.slice(0, i + 6) + card() + h.slice(i + 6);
+    const btn = `<button type="button" class="fwhy fcharts" data-all="1"><span class="fcring" aria-hidden="true"></span><span><b>See your charts</b><small>Your scores by domain, task and topic</small></span><span class="fcgo" aria-hidden="true">›</span></button>`;
+    return i < 0 ? btn + card() + h : h.slice(0, i + 6) + btn + card() + h.slice(i + 6);
   };
 
   window.PAGE_ACTIONS = Object.assign(window.PAGE_ACTIONS || {}, {
@@ -95,8 +96,17 @@
   }
   // Each view gets its own ring color so Domain, Task and Topic are easy to tell apart (checked for color-blind safety).
   const BYCOLOR = { domain: "#008F86", task: "#3D5AD6", topic: "#6E4BC2" };
+  const KEY = () => `<div class="fwkey" id="fwkey" hidden><b>How to read these charts</b><ul>
+        <li><b>Ring or bar</b> = your % correct in that area.</li>
+        <li><b>Faded</b> = early result. You've answered fewer than ${MIN_ATT} there, so the number could change a lot. Answer a few more to firm it up.</li>
+        <li><b>Dashed</b> = not tried yet.</li>
+        <li><b>Gold box, "Suggested"</b> = where we recommend practicing next.</li>
+        <li><b>Colors</b> = which view you're on: <span class="fwdot" style="background:${BYCOLOR.domain}"></span>Domain, <span class="fwdot" style="background:${BYCOLOR.task}"></span>Task, <span class="fwdot" style="background:${BYCOLOR.topic}"></span>Topic.</li>
+        <li><b>Weakest first</b> = the areas needing the most work are at the top.</li></ul></div>`;
+  const TABS = (by) => [["domain", "Domain"], ["task", "Task"], ["topic", "Topic"]].map(([k, l]) => `<button type="button" role="tab" class="fwtab" data-by="${k}" aria-selected="${by === k}"><span class="fwdot" style="background:${BYCOLOR[k]}"></span>${l}</button>`).join("");
   let WHY = null;   // { sec, by }
   function whySheet() {
+    if (WHY.all) return allSheet();
     const sec = WHY.sec, by = WHY.by, rows = sectionRows(), r = rows.find((x) => x.sec === sec) || { sec, name: sec, total: 0, tried: 0, att: 0, cor: 0 };
     const w = weightOf(sec, r.total, QS.length), p = r.att ? r.cor / r.att * 100 : null;
     const q0 = QS.find((q) => q.sec === sec) || {}, dW = DOMW();
@@ -127,19 +137,47 @@
           <span class="fwbar" role="img" aria-label="About ${w}% of the exam"><i style="width:${Math.max(2, Math.min(100, w))}%"></i></span></div></div>
       <p class="fwwhy">${reason}</p>
       <div class="fwhrow"><h3 class="fwh">Your scores by area</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
-      <div class="fwkey" id="fwkey" hidden><b>How to read these charts</b><ul>
-        <li><b>Ring or bar</b> = your % correct in that area.</li>
-        <li><b>Faded</b> = early result. You've answered fewer than ${MIN_ATT} there, so the number could change a lot. Answer a few more to firm it up.</li>
-        <li><b>Dashed</b> = not tried yet.</li>
-        <li><b>Gold box, "Suggested"</b> = where we recommend practicing next.</li>
-        <li><b>Colors</b> = which view you're on: <span class="fwdot" style="background:${BYCOLOR.domain}"></span>Domain, <span class="fwdot" style="background:${BYCOLOR.task}"></span>Task, <span class="fwdot" style="background:${BYCOLOR.topic}"></span>Topic.</li>
-        <li><b>Weakest first</b> = the areas needing the most work are at the top.</li></ul></div>
-      <div class="seg fwseg" role="tablist" aria-label="Group by">${[["domain", "Domain"], ["task", "Task"], ["topic", "Topic"]].map(([k, l]) => `<button type="button" role="tab" class="fwtab" data-by="${k}" aria-selected="${by === k}"><span class="fwdot" style="background:${BYCOLOR[k]}"></span>${l}</button>`).join("")}</div>
+      ${KEY()}
+      <div class="seg fwseg" role="tablist" aria-label="Group by">${TABS(by)}</div>
       <p class="fwhint">${by === "topic" ? `Your % correct by topic, weakest first. Faded bars are early results (under ${MIN_ATT} answers); dashed: not tried yet.` : `Each ring is your % correct, weakest first. Faded rings are early results (under ${MIN_ATT} answers); dashed rings: not tried yet.`}</p>
       ${by === "topic" ? grid : `<div class="fwgrid">${grid}</div>`}
       <button type="button" class="btn fwgo" data-sec="${esc(sec)}">Practice ${esc(r.name || sec)}</button>
     </div></div>`;
   }
+  function gridFor(by, isHl) {
+    const g = groups(by).sort((a, b) => { const pa = a.att ? a.cor / a.att : 2, pb = b.att ? b.cor / b.att : 2; return pa - pb || b.total - a.total; });
+    const dW = DOMW();
+    if (by === "topic") return `<div class="ftbars">${g.map((x) => {
+      const pc = x.att ? Math.round(x.cor / x.att * 100) : null, early = x.att > 0 && x.att < MIN_ATT, hl = isHl(x.key);
+      return `<div class="ftb ${hl ? "hl" : ""} ${early ? "early" : ""} ${pc == null ? "nt" : ""}" role="img" aria-label="${esc(x.name)}: ${pc == null ? "not tried yet" : pc + "%, " + x.cor + " of " + x.att + " correct"}${early ? " (early result)" : ""}">
+        <span class="ftn">${esc(x.name)}${hl ? "<i>Suggested</i>" : ""}</span><b class="ftp">${pc == null ? "–" : pc + "%"}</b>
+        <span class="ftt"><i style="width:${pc || 0}%;background:${BYCOLOR.topic}"></i></span>
+        <small class="fts">${pc == null ? "Not tried" : `${x.cor} of ${x.att}${early ? " · early" : ""}`}</small></div>`; }).join("")}</div>`;
+    return `<div class="fwgrid">${g.map((x) => {
+      const pc = x.att ? x.cor / x.att * 100 : null;
+      const share = by === "domain" ? (dW[x.key] != null ? `${dW[x.key]}% of exam` : "") : `${weightOf(x.key, x.total, QS.length)}% of exam`;
+      return ring(pc, by === "domain" ? `${x.key}. ${x.name}` : x.name, (x.att ? `${x.att} answered · ` : "Not tried · ") + share, { hl: isHl(x.key), early: x.att > 0 && x.att < MIN_ATT, color: BYCOLOR[by] });
+    }).join("")}</div>`;
+  }
+  function allSheet() {   // "See your charts": the whole picture, with the suggested areas highlighted
+    const by = WHY.by, { list } = suggestions(), secs = new Set(list.map((x) => x.sec));
+    const keys = new Set();
+    if (by === "topic") groups("topic").filter((x) => x.att >= MIN_ATT && x.cor / x.att < 0.8).sort((a, b) => a.cor / a.att - b.cor / b.att).slice(0, 2).forEach((x) => keys.add(x.key));   // 2 weakest topics
+    else for (const q of QS) if (secs.has(q.sec)) keys.add(by === "domain" ? q.domain : q.sec);
+    const att = Object.values(ST).reduce((a, x) => a + x.attempts, 0), cor = Object.values(ST).reduce((a, x) => a + x.correct, 0);
+    const tried = QS.filter((q) => ST[q.id]).length, p = att ? cor / att * 100 : null;
+    return `<div class="scrim fwscrim"><div class="dialog fwdlg" role="dialog" aria-modal="true" aria-labelledby="fwT">
+      <div class="schead"><h2 id="fwT">Your charts</h2><button type="button" class="vb fwx" aria-label="Close">${ICON.x}</button></div>
+      <div class="fwtop">${ring(p, "Overall", att ? `${cor} of ${att} correct` : "Not started yet", { big: true, color: "#3A4654" })}
+        <div class="fwshare"><b>${tried} of ${QS.length} questions tried</b><small>${list.length ? "Gold boxes are the areas we suggest practicing next." : "Answer more questions to get suggestions."}</small>
+          <span class="fwbar" role="img" aria-label="${tried} of ${QS.length} tried"><i style="width:${Math.max(2, Math.round(tried / Math.max(1, QS.length) * 100))}%"></i></span></div></div>
+      <div class="fwhrow"><h3 class="fwh">Your scores by area</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
+      ${KEY()}
+      <div class="seg fwseg" role="tablist" aria-label="Group by">${TABS(by)}</div>
+      ${gridFor(by, (k) => keys.has(k))}
+    </div></div>`;
+  }
+  window.openCharts = function () { WHY = { all: true, by: "task" }; openWhy(); };
   function openWhy() {
     const ph = document.getElementById("phone"); if (!ph) return;
     let box = document.getElementById("fwbox"); if (box) box.remove();
@@ -154,7 +192,7 @@
     if (inf) { e.stopPropagation(); const k = document.getElementById("fwkey"), open = k.hidden; k.hidden = !open; inf.setAttribute("aria-expanded", String(open)); return; }
     const t = e.target.closest && e.target.closest(".fwhy, .fwx, .fwtab, .fwgo, .fwscrim");
     if (!t) return;
-    if (t.classList.contains("fwhy")) { e.stopPropagation(); WHY = { sec: t.dataset.sec, by: "task" }; openWhy(); return; }
+    if (t.classList.contains("fwhy")) { e.stopPropagation(); WHY = t.dataset.all ? { all: true, by: "task" } : { sec: t.dataset.sec, by: "task" }; openWhy(); return; }
     e.stopPropagation();
     if (t.classList.contains("fwx") || (t.classList.contains("fwscrim") && e.target === t)) return closeWhy();
     if (t.classList.contains("fwtab")) { WHY.by = t.dataset.by; openWhy(); return; }
@@ -197,6 +235,11 @@
 .fwinfo:focus-visible { outline: 3px solid #8CC4FF; outline-offset: 2px; }
 .fwkey { background: #F3F5F7; border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.45; color: #24313E; }
 .fwkey ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.fcharts { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; min-height: 64px; padding: 10px 14px; margin: 0 0 12px; border-radius: 14px; border: 2px solid #3A4654; background: #fff; color: #12202E; font: inherit; cursor: pointer; box-shadow: 0 2px 8px rgba(18,32,46,.08); }
+.fcharts b { display: block; font-size: 16px; } .fcharts small { display: block; font-size: 12px; color: #5B6672; font-weight: 400; }
+.fcharts > span:nth-child(2) { flex: 1; }
+.fcring { width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: conic-gradient(#008F86 0 33%, #3D5AD6 0 66%, #6E4BC2 0); -webkit-mask: radial-gradient(circle, transparent 10px, #000 11px); mask: radial-gradient(circle, transparent 10px, #000 11px); }
+.fcgo { font-size: 26px; color: #5B6672; line-height: 1; }
 .fwdot { display: inline-block; width: 9px; height: 9px; border-radius: 5px; margin-right: 5px; vertical-align: 1px; }
 .fring figcaption em { display: block; font-style: normal; font-size: 10px; color: #5B6672; margin-top: 2px; }
 .fwwhy { margin: 0; font-size: 15px; line-height: 1.45; color: #24313E; }

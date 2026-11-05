@@ -43,20 +43,25 @@
 .demobar button { flex-shrink: 0; min-height: 36px; padding: 0 12px; border-radius: 9px; border: 1.5px solid #6E7BD6; background: #fff; color: #22295A; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .demobar.off { background: #F3F5F7; border-color: #C9D0D6; color: #3A4654; }
 .demobar.off button { border-color: #C9D0D6; color: #3A4654; }
-.obsec > .demobar { margin: 0; }`;
+.obsec > .demobar { margin: 0; }
+.demotop { padding-bottom: 4px; }
+.demonew { width: 100%; margin-top: 10px; display: grid; grid-template-columns: 1fr auto; text-align: left; padding: 12px 14px; border-radius: 14px; border: 0; background: #3A4654; color: #fff; font: inherit; cursor: pointer; }
+.demonew b { font-size: 16px; } .demonew small { grid-row: 2; font-size: 12px; opacity: .85; } .demonew span { grid-row: 1 / 3; grid-column: 2; align-self: center; font-size: 28px; }`;
   document.head.appendChild(css);
   const n = D.stubs.length;
-  const bar = () => on
-    ? `<div class="demobar" role="note"><span><b>Example stats</b>Pretend answers on a ${n}-question bank. Nothing you answer is saved while this is on. Practice uses the 20 sample questions.</span><button type="button" data-act="demooff">Use my own</button></div>`
+  const bar = (where) => on
+    ? `<div class="demobar" role="note"><span><b>Example stats</b>Pretend answers on a ${n}-question bank. Nothing you answer is saved while this is on. Practice uses the 20 sample questions.</span><button type="button" data-act="demooff">Use my own</button></div>
+       ${where === "home" && window.openCharts ? `<button type="button" class="demonew" data-act="democharts"><b>New: see your charts</b><small>Scores by domain, task and topic, plus where to focus next</small><span aria-hidden="true">›</span></button>` : ""}`
     : `<div class="demobar off" role="note"><span>Showing your own answers.</span><button type="button" data-act="demoon">Show example stats</button></div>`;
 
-  window.PAGE_ACTIONS = Object.assign(window.PAGE_ACTIONS || {}, { demooff: () => setOn(false), demoon: () => setOn(true) });
+  window.PAGE_ACTIONS = Object.assign(window.PAGE_ACTIONS || {}, { demooff: () => setOn(false), demoon: () => setOn(true),
+    democharts: () => { S.page = "stats"; setTimeout(() => window.openCharts && window.openCharts(), 0); } });
 
   // Put the banner on top of the Practice page and the Home page (wrapping, so stats.js and home.js stay unchanged).
   document.addEventListener("DOMContentLoaded", () => {
     if (typeof statsBody === "function") { const base = statsBody; statsBody = function () { return bar() + base(); }; }
     const P = window.PAGES || {};
-    if (P.home) { const h = P.home; P.home = function () { return h().replace('<section class="obsec">', `<section class="obsec">${bar()}</section><section class="obsec">`); }; }
+    if (P.home) { const h = P.home; P.home = function () { return h().replace('<div class="obscroll">', `<div class="obscroll"><section class="obsec demotop">${bar("home")}</section>`); }; }
     if (typeof render === "function") render();
   });
 })();
