@@ -93,6 +93,8 @@
     const rows = Object.values(o);
     return by === "topic" ? rows.sort((a, b) => b.total - a.total) : rows.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
   }
+  // Each view gets its own ring color so Domain, Task and Topic are easy to tell apart (checked for color-blind safety).
+  const BYCOLOR = { domain: "#008F86", task: "#3D5AD6", topic: "#C25A0A" };
   let WHY = null;   // { sec, by }
   function whySheet() {
     const sec = WHY.sec, by = WHY.by, rows = sectionRows(), r = rows.find((x) => x.sec === sec) || { sec, name: sec, total: 0, tried: 0, att: 0, cor: 0 };
@@ -109,7 +111,7 @@
       const pc = x.att ? x.cor / x.att * 100 : null;
       const share = by === "domain" ? (dW[x.key] != null ? `${dW[x.key]}% of exam` : "") : by === "task" ? `${weightOf(x.key, x.total, QS.length)}% of exam` : `${x.total} question${x.total === 1 ? "" : "s"}`;
       const lab = by === "domain" ? `${x.key}. ${x.name}` : x.name;
-      return ring(pc, lab, (x.att ? `${x.att} answered · ` : "Not tried · ") + share, { hl: x.key === hlKey, early: x.att > 0 && x.att < MIN_ATT });
+      return ring(pc, lab, (x.att ? `${x.att} answered · ` : "Not tried · ") + share, { hl: x.key === hlKey, early: x.att > 0 && x.att < MIN_ATT, color: BYCOLOR[by] });
     }).join("");
     return `<div class="scrim fwscrim"><div class="dialog fwdlg" role="dialog" aria-modal="true" aria-labelledby="fwT">
       <div class="schead"><h2 id="fwT">Why ${esc(r.name || sec)}?</h2><button type="button" class="vb fwx" aria-label="Close">${ICON.x}</button></div>
@@ -118,7 +120,7 @@
           <span class="fwbar" role="img" aria-label="About ${w}% of the exam"><i style="width:${Math.max(2, Math.min(100, w))}%"></i></span></div></div>
       <p class="fwwhy">${reason}</p>
       <h3 class="fwh">How you're doing by</h3>
-      <div class="seg fwseg" role="tablist" aria-label="Group by">${[["domain", "Domain"], ["task", "Task"], ["topic", "Topic"]].map(([k, l]) => `<button type="button" role="tab" class="fwtab" data-by="${k}" aria-selected="${by === k}">${l}</button>`).join("")}</div>
+      <div class="seg fwseg" role="tablist" aria-label="Group by">${[["domain", "Domain"], ["task", "Task"], ["topic", "Topic"]].map(([k, l]) => `<button type="button" role="tab" class="fwtab" data-by="${k}" aria-selected="${by === k}"><span class="fwdot" style="background:${BYCOLOR[k]}"></span>${l}</button>`).join("")}</div>
       <p class="fwhint">Each ring is your % correct, weakest first. Faded rings are early results (under ${MIN_ATT} answers); dashed rings: not tried yet.</p>
       <div class="fwgrid">${grid}</div>
       <button type="button" class="btn fwgo" data-sec="${esc(sec)}">Practice ${esc(r.name || sec)}</button>
@@ -161,6 +163,7 @@
 .fwbar { display: block; height: 8px; border-radius: 4px; background: #E3E7EB; overflow: hidden; margin-top: 4px; }
 .fwbar i { display: block; height: 100%; border-radius: 4px; background: #8A939E; }
 .fring.early svg circle { opacity: .4; }
+.fwdot { display: inline-block; width: 9px; height: 9px; border-radius: 5px; margin-right: 5px; vertical-align: 1px; }
 .fring figcaption em { display: block; font-style: normal; font-size: 10px; color: #5B6672; margin-top: 2px; }
 .fwwhy { margin: 0; font-size: 15px; line-height: 1.45; color: #24313E; }
 .fwh { margin: 4px 0 0; font-size: 16px; }
