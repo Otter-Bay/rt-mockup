@@ -107,7 +107,14 @@
       return pa - pb || b.total - a.total;
     });
     const hlKey = by === "domain" ? q0.domain : by === "topic" ? q0.tgroup : sec;
-    const grid = g.map((x) => {
+    const tbar = (x) => {   // Topic view: one sorted bar per topic (20+ topics read better as a list than as rings)
+      const pc = x.att ? Math.round(x.cor / x.att * 100) : null, early = x.att > 0 && x.att < MIN_ATT, hl = x.key === hlKey;
+      return `<div class="ftb ${hl ? "hl" : ""} ${early ? "early" : ""} ${pc == null ? "nt" : ""}" role="img" aria-label="${esc(x.name)}: ${pc == null ? "not tried yet" : pc + "%, " + x.cor + " of " + x.att + " correct"}${early ? " (early result)" : ""}">
+        <span class="ftn">${esc(x.name)}${hl ? "<i>Suggested</i>" : ""}</span><b class="ftp">${pc == null ? "–" : pc + "%"}</b>
+        <span class="ftt"><i style="width:${pc || 0}%;background:${BYCOLOR.topic}"></i></span>
+        <small class="fts">${pc == null ? "Not tried" : `${x.cor} of ${x.att}${early ? " · early" : ""}`}</small></div>`;
+    };
+    const grid = by === "topic" ? `<div class="ftbars">${g.map(tbar).join("")}</div>` : g.map((x) => {
       const pc = x.att ? x.cor / x.att * 100 : null;
       const share = by === "domain" ? (dW[x.key] != null ? `${dW[x.key]}% of exam` : "") : by === "task" ? `${weightOf(x.key, x.total, QS.length)}% of exam` : `${x.total} question${x.total === 1 ? "" : "s"}`;
       const lab = by === "domain" ? `${x.key}. ${x.name}` : x.name;
@@ -121,8 +128,8 @@
       <p class="fwwhy">${reason}</p>
       <h3 class="fwh">How you're doing by</h3>
       <div class="seg fwseg" role="tablist" aria-label="Group by">${[["domain", "Domain"], ["task", "Task"], ["topic", "Topic"]].map(([k, l]) => `<button type="button" role="tab" class="fwtab" data-by="${k}" aria-selected="${by === k}"><span class="fwdot" style="background:${BYCOLOR[k]}"></span>${l}</button>`).join("")}</div>
-      <p class="fwhint">Each ring is your % correct, weakest first. Faded rings are early results (under ${MIN_ATT} answers); dashed rings: not tried yet.</p>
-      <div class="fwgrid">${grid}</div>
+      <p class="fwhint">${by === "topic" ? `Your % correct by topic, weakest first. Faded bars are early results (under ${MIN_ATT} answers); dashed: not tried yet.` : `Each ring is your % correct, weakest first. Faded rings are early results (under ${MIN_ATT} answers); dashed rings: not tried yet.`}</p>
+      ${by === "topic" ? grid : `<div class="fwgrid">${grid}</div>`}
       <button type="button" class="btn fwgo" data-sec="${esc(sec)}">Practice ${esc(r.name || sec)}</button>
     </div></div>`;
   }
@@ -163,6 +170,17 @@
 .fwbar { display: block; height: 8px; border-radius: 4px; background: #E3E7EB; overflow: hidden; margin-top: 4px; }
 .fwbar i { display: block; height: 100%; border-radius: 4px; background: #8A939E; }
 .fring.early svg circle { opacity: .4; }
+.ftbars { display: flex; flex-direction: column; gap: 2px; }
+.ftb { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "n p" "t s"; column-gap: 10px; row-gap: 4px; align-items: center; padding: 7px 8px; border-radius: 10px; }
+.ftb.hl { background: #FFF3D1; box-shadow: inset 0 0 0 2px #E8B13A; }
+.ftn { grid-area: n; font-size: 13px; font-weight: 700; color: #24313E; }
+.ftn i { display: inline-block; margin-left: 6px; font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #6A4A00; }
+.ftp { grid-area: p; font-size: 14px; color: #12202E; text-align: right; }
+.ftt { grid-area: t; height: 10px; border-radius: 5px; background: #E3E7EB; overflow: hidden; }
+.ftt i { display: block; height: 100%; border-radius: 5px; }
+.fts { grid-area: s; font-size: 11px; color: #5B6672; text-align: right; min-width: 52px; }
+.ftb.early .ftt i { opacity: .4; }
+.ftb.nt .ftt { background: none; border: 2px dashed #C9D0D6; height: 6px; }
 .fwdot { display: inline-block; width: 9px; height: 9px; border-radius: 5px; margin-right: 5px; vertical-align: 1px; }
 .fring figcaption em { display: block; font-style: normal; font-size: 10px; color: #5B6672; margin-top: 2px; }
 .fwwhy { margin: 0; font-size: 15px; line-height: 1.45; color: #24313E; }
