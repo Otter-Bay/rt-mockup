@@ -94,7 +94,7 @@
     return by === "topic" ? rows.sort((a, b) => b.total - a.total) : rows.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
   }
   // Each view gets its own ring color so Domain, Task and Topic are easy to tell apart (checked for color-blind safety).
-  const BYCOLOR = { domain: "#008F86", task: "#3D5AD6", topic: "#C25A0A" };
+  const BYCOLOR = { domain: "#008F86", task: "#3D5AD6", topic: "#A070E0" };
   let WHY = null;   // { sec, by }
   function whySheet() {
     const sec = WHY.sec, by = WHY.by, rows = sectionRows(), r = rows.find((x) => x.sec === sec) || { sec, name: sec, total: 0, tried: 0, att: 0, cor: 0 };
