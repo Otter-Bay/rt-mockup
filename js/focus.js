@@ -45,7 +45,7 @@
     } else if (!list.length) {
       body = `<p class="fhint">You're doing well everywhere you've practiced (80% or better). Keep mixing in new questions, or try Exam mode.</p>`;
     } else {
-      body = `<ol class="flist">${list.map((s) => `<li><p>${s.text}</p><div class="frow"><button type="button" class="fgo" data-act="focusgo" data-sec="${esc(s.sec)}" data-src="${s.src}">Practice this</button><button type="button" class="fwhy" data-sec="${esc(s.sec)}">Why? See the charts</button></div></li>`).join("")}</ol>
+      body = `<ol class="flist">${list.map((s) => `<li><p>${s.text}</p><div class="frow"><button type="button" class="fgo fchoose" data-sec="${esc(s.sec)}">Practice this</button><button type="button" class="fwhy" data-sec="${esc(s.sec)}">Why? See the charts</button></div></li>`).join("")}</ol>
         <p class="fnote">Based on your answers so far${W ? " and the exam outline" : ""}. It updates as you practice.</p>`;
     }
     return `<section class="step fcard" aria-label="Suggested focus"><h2>Suggested focus</h2>${body}</section>`;
@@ -61,7 +61,8 @@
 
   window.PAGE_ACTIONS = Object.assign(window.PAGE_ACTIONS || {}, {
     focusgo: (b) => {
-      S.build.focus = "task"; S.build.secs = { [b.dataset.sec]: true }; S.build.doms = {}; S.build.tops = {};
+      const by = b.dataset.by || "task", key = b.dataset.key || b.dataset.sec;
+      S.build.focus = by; S.build.secs = by === "task" ? { [key]: true } : {}; S.build.doms = by === "domain" ? { [key]: true } : {}; S.build.tops = by === "topic" ? { [key]: true } : {};
       S.build.src = b.dataset.src || "all";
       if (!matching().length) S.build.src = "all";
       const set = buildSet(); if (!set.length) return false;
@@ -75,7 +76,7 @@
     opts = opts || {};
     const size = opts.big ? 96 : 64, empty = pct == null, v = empty ? 0 : Math.max(0, Math.min(100, Math.round(pct)));
     const sw = opts.big ? 3.4 : 3.8;
-    return `<figure class="fring ${opts.hl ? "hl" : ""} ${opts.early ? "early" : ""}" role="img" aria-label="${esc(label)}: ${empty ? "not tried yet" : v + "%"}${opts.early ? " (early result)" : ""}${sub ? ", " + esc(sub) : ""}">
+    return `<figure class="fring ${opts.hl ? "hl" : ""} ${opts.early ? "early" : ""}" ${opts.deco ? 'aria-hidden="true" data-x="' : 'role="img" aria-label="'}${esc(label)}: ${empty ? "not tried yet" : v + "%"}${opts.early ? " (early result)" : ""}${sub ? ", " + esc(sub) : ""}">
       <svg width="${size}" height="${size}" viewBox="0 0 36 36" aria-hidden="true">
         <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#E3E7EB" stroke-width="${sw}" ${empty ? 'stroke-dasharray="2 2"' : ""}/>
         ${empty ? "" : `<circle cx="18" cy="18" r="15.9155" fill="none" stroke="${opts.color || "var(--bay, #0B5CAD)"}" stroke-width="${sw}" stroke-linecap="round"
@@ -107,29 +108,14 @@
   let WHY = null;   // { sec, by }
   function whySheet() {
     if (WHY.all) return allSheet();
+    if (WHY.choose) return chooseSheet();
     const sec = WHY.sec, by = WHY.by, rows = sectionRows(), r = rows.find((x) => x.sec === sec) || { sec, name: sec, total: 0, tried: 0, att: 0, cor: 0 };
     const w = weightOf(sec, r.total, QS.length), p = r.att ? r.cor / r.att * 100 : null;
     const q0 = QS.find((q) => q.sec === sec) || {}, dW = DOMW();
     const reason = p == null ? `You haven't tried ${esc(r.name || sec)} yet, and it's about ${w}% of the exam, so it's worth a look.`
       : `You're getting ${Math.round(p)}% right in ${esc(r.name || sec)} (${r.att} answer${r.att === 1 ? "" : "s"}), and it's about ${w}% of the exam. A low score in a big area costs the most points.`;
-    const g = groups(by).sort((a, b) => {   // weakest first; not-tried areas at the end
-      const pa = a.att ? a.cor / a.att : 2, pb = b.att ? b.cor / b.att : 2;
-      return pa - pb || b.total - a.total;
-    });
     const hlKey = by === "domain" ? q0.domain : by === "topic" ? q0.tgroup : sec;
-    const tbar = (x) => {   // Topic view: one sorted bar per topic (20+ topics read better as a list than as rings)
-      const pc = x.att ? Math.round(x.cor / x.att * 100) : null, early = x.att > 0 && x.att < MIN_ATT, hl = x.key === hlKey;
-      return `<div class="ftb ${hl ? "hl" : ""} ${early ? "early" : ""} ${pc == null ? "nt" : ""}" role="img" aria-label="${esc(x.name)}: ${pc == null ? "not tried yet" : pc + "%, " + x.cor + " of " + x.att + " correct"}${early ? " (early result)" : ""}">
-        <span class="ftn">${esc(x.name)}${hl ? "<i>Suggested</i>" : ""}</span><b class="ftp">${pc == null ? "–" : pc + "%"}</b>
-        <span class="ftt"><i style="width:${pc || 0}%;background:${BYCOLOR.topic}"></i></span>
-        <small class="fts">${pc == null ? "Not tried" : `${x.cor} of ${x.att}${early ? " · early" : ""}`}</small></div>`;
-    };
-    const grid = by === "topic" ? `<div class="ftbars">${g.map(tbar).join("")}</div>` : g.map((x) => {
-      const pc = x.att ? x.cor / x.att * 100 : null;
-      const share = by === "domain" ? (dW[x.key] != null ? `${dW[x.key]}% of exam` : "") : by === "task" ? `${weightOf(x.key, x.total, QS.length)}% of exam` : `${x.total} question${x.total === 1 ? "" : "s"}`;
-      const lab = by === "domain" ? `${x.key}. ${x.name}` : x.name;
-      return ring(pc, lab, (x.att ? `${x.att} answered · ` : "Not tried · ") + share, { hl: x.key === hlKey, early: x.att > 0 && x.att < MIN_ATT, color: BYCOLOR[by] });
-    }).join("");
+    const grid = gridFor(by, (k) => k === hlKey);
     return `<div class="scrim fwscrim"><div class="dialog fwdlg" role="dialog" aria-modal="true" aria-labelledby="fwT">
       <div class="schead"><h2 id="fwT">Why ${esc(r.name || sec)}?</h2><button type="button" class="vb fwx" aria-label="Close">${ICON.x}</button></div>
       <div class="fwtop">${ring(p, "Your score here", r.att ? `${r.cor} of ${r.att} correct` : "Not tried yet", { big: true, early: r.att > 0 && r.att < MIN_ATT, color: "#3A4654" })}
@@ -139,25 +125,99 @@
       <div class="fwhrow"><h3 class="fwh">Your scores by area</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
       ${KEY()}
       <div class="seg fwseg" role="tablist" aria-label="Group by">${TABS(by)}</div>
-      <p class="fwhint">${by === "topic" ? `Your % correct by topic, weakest first. Faded bars are early results (under ${MIN_ATT} answers); dashed: not tried yet.` : `Each ring is your % correct, weakest first. Faded rings are early results (under ${MIN_ATT} answers); dashed rings: not tried yet.`}</p>
-      ${by === "topic" ? grid : `<div class="fwgrid">${grid}</div>`}
+      <p class="fwhint">${by === "topic" ? `Your % correct by topic, weakest first. Tap any bar to see where it ranks and practice it.` : `Each ring is your % correct, weakest first. Tap any ring to see where it ranks and practice it.`}</p>
+      ${grid}
       <button type="button" class="btn fwgo" data-sec="${esc(sec)}">Practice ${esc(r.name || sec)}</button>
-    </div></div>`;
+    </div>${tray()}${pickCard()}</div>`;
+  }
+  let LASTHL = () => false;
+  // "My set": areas picked across Domain / Task / Topic, practiced together. Keys look like "task|I-B".
+  const SEL = () => (WHY.sel = WHY.sel || new Set());
+  const keyOf = (by, q) => by === "domain" ? q.domain : by === "topic" ? (q.tgroup || "Other") : q.sec;
+  function selIdx() { const out = []; const sel = [...SEL()].map((s) => s.split("|")); for (const ix of ALL) { const q = QS[ix]; if (sel.some(([by, k]) => keyOf(by, q) === k)) out.push(ix); } return out; }
+  function selName(s) { const [by, k] = s.split("|"); const g = groups(by).find((x) => x.key === k); return g ? (by === "domain" ? `${k}. ${g.name}` : g.name) : k; }
+  function tray() {
+    const sel = SEL(); if (!sel.size) return "";
+    const n = selIdx().length;
+    return `<div class="fwtray" role="region" aria-label="My practice set"><div class="fwchips">${[...sel].map((s) => `<button type="button" class="fwchip" data-s="${esc(s)}" aria-label="Remove ${esc(selName(s))}"><span class="fwdot" style="background:${BYCOLOR[s.split("|")[0]]}"></span>${esc(selName(s))} <b aria-hidden="true">×</b></button>`).join("")}</div>
+      <button type="button" class="btn fwsetgo" ${n ? "" : "disabled"}>${n ? `${sel.size === 1 ? "Practice this area" : `Practice these ${sel.size} areas`} (${n} question${n === 1 ? "" : "s"})` : "No sample questions in these yet"}</button></div>`;
   }
   function gridFor(by, isHl) {
+    LASTHL = isHl;
     const g = groups(by).sort((a, b) => { const pa = a.att ? a.cor / a.att : 2, pb = b.att ? b.cor / b.att : 2; return pa - pb || b.total - a.total; });
     const dW = DOMW();
+    const lbl = (x, pc) => `${esc(x.name)}: ${pc == null ? "not tried yet" : pc + "% correct, " + x.cor + " of " + x.att}${x.att > 0 && x.att < MIN_ATT ? " (early result)" : ""}${isHl(x.key) ? ", suggested" : ""}. Tap for details.`;
+    const btn = (x, pc, inner) => { const on = SEL().has(by + "|" + x.key); return `<button type="button" class="fpick ${on ? "picked" : ""}" data-by="${by}" data-key="${esc(x.key)}" aria-label="${lbl(x, pc)}${on ? " In your set." : ""}">${inner}${on ? '<span class="fpchk" aria-hidden="true">✓</span>' : ""}</button>`; };
     if (by === "topic") return `<div class="ftbars">${g.map((x) => {
       const pc = x.att ? Math.round(x.cor / x.att * 100) : null, early = x.att > 0 && x.att < MIN_ATT, hl = isHl(x.key);
-      return `<div class="ftb ${hl ? "hl" : ""} ${early ? "early" : ""} ${pc == null ? "nt" : ""}" role="img" aria-label="${esc(x.name)}: ${pc == null ? "not tried yet" : pc + "%, " + x.cor + " of " + x.att + " correct"}${early ? " (early result)" : ""}">
+      return btn(x, pc, `<div class="ftb ${hl ? "hl" : ""} ${early ? "early" : ""} ${pc == null ? "nt" : ""}" aria-hidden="true">
         <span class="ftn">${esc(x.name)}${hl ? "<i>Suggested</i>" : ""}</span><b class="ftp">${pc == null ? "–" : pc + "%"}</b>
         <span class="ftt"><i style="width:${pc || 0}%;background:${BYCOLOR.topic}"></i></span>
-        <small class="fts">${pc == null ? "Not tried" : `${x.cor} of ${x.att}${early ? " · early" : ""}`}</small></div>`; }).join("")}</div>`;
+        <small class="fts">${pc == null ? "Not tried" : `${x.cor} of ${x.att}${early ? " · early" : ""}`}</small></div>`); }).join("")}</div>`;
     return `<div class="fwgrid">${g.map((x) => {
       const pc = x.att ? x.cor / x.att * 100 : null;
       const share = by === "domain" ? (dW[x.key] != null ? `${dW[x.key]}% of exam` : "") : `${weightOf(x.key, x.total, QS.length)}% of exam`;
-      return ring(pc, by === "domain" ? `${x.key}. ${x.name}` : x.name, (x.att ? `${x.att} answered · ` : "Not tried · ") + share, { hl: isHl(x.key), early: x.att > 0 && x.att < MIN_ATT, color: BYCOLOR[by] });
+      return btn(x, pc == null ? null : Math.round(pc), ring(pc, by === "domain" ? `${x.key}. ${x.name}` : x.name, (x.att ? `${x.att} answered · ` : "Not tried · ") + share, { hl: isHl(x.key), early: x.att > 0 && x.att < MIN_ATT, color: BYCOLOR[by], deco: true }));
     }).join("")}</div>`;
+  }
+  // Where an area ranks for practice: same idea as Suggested focus (low score x big share of the exam, plus review-list misses).
+  function shareOf(by, x) { const dW = DOMW(); return by === "task" ? weightOf(x.key, x.total, QS.length) : by === "domain" && dW[x.key] != null ? dW[x.key] : Math.round(x.total / QS.length * 100); }
+  function ranked(by) {
+    const rl = {}; for (const q of QS) if (RL[q.id]) { const k = by === "domain" ? q.domain : by === "topic" ? (q.tgroup || "Other") : q.sec; rl[k] = (rl[k] || 0) + 1; }
+    return groups(by).map((x) => {
+      const w = shareOf(by, x), p = x.att ? x.cor / x.att : null;
+      const score = p == null ? w * 0.45 : x.att < MIN_ATT ? (1 - p) * w * 0.6 + w * 0.2 + (rl[x.key] || 0) * 2 : (1 - p) * w + (rl[x.key] || 0) * 2;
+      return Object.assign({}, x, { w, p, rl: rl[x.key] || 0, score });
+    }).sort((a, b) => b.score - a.score);
+  }
+  const NOUN = { domain: ["domain", "domains"], task: ["task", "tasks"], topic: ["topic", "topics"] };
+  function pickCard() {
+    if (!WHY.pick) return "";
+    const { by, key } = WHY.pick, list = ranked(by), i = list.findIndex((x) => x.key === key), x = list[i];
+    if (!x) return "";
+    const n = list.length, rank = i + 1, pc = x.p == null ? null : Math.round(x.p * 100), hl = LASTHL(key);
+    const name = by === "domain" ? `${x.key}. ${x.name}` : x.name;
+    const why = hl || rank === 1 ? "This is one of the areas we'd suggest most. Great pick."
+      : x.p == null ? "You haven't tried this yet. Practicing here also makes your suggestions more accurate."
+      : x.p >= 0.8 ? "You're already strong here (80% or better). Practicing keeps it fresh and builds confidence, so it's a fine choice too."
+      : rank <= Math.ceil(n / 2) ? "Good choice. It's in the top half of areas where practice will help your score most."
+      : "Any practice helps. This one's lower on the list, so mix in a suggested area when you can.";
+    const avail = ALL.filter((ix) => { const q = QS[ix]; return (by === "domain" ? q.domain : by === "topic" ? (q.tgroup || "Other") : q.sec) === key; }).length;
+    return `<div class="fpscrim"><div class="fpcard" role="dialog" aria-modal="true" aria-labelledby="fpT">
+      <p class="fpkind"><span class="fwdot" style="background:${BYCOLOR[by]}"></span>${by === "domain" ? "Domain" : by === "task" ? "Task" : "Topic"}${hl ? ` <i>Suggested</i>` : ""}</p>
+      <h3 id="fpT">${esc(name)}</h3>
+      <dl class="fpdl">
+        <div><dt>Your score</dt><dd>${pc == null ? "Not tried yet" : `${pc}% <small>(${x.cor} of ${x.att} correct${x.att < MIN_ATT ? ", early result" : ""})</small>`}</dd></div>
+        <div><dt>Share of the exam</dt><dd>About ${x.w}%</dd></div>
+        <div><dt>Practice priority</dt><dd>#${rank} of ${n} ${NOUN[by][1]} <span class="fprank" aria-hidden="true"><i style="width:${Math.round((n - rank + 1) / n * 100)}%"></i></span></dd></div>
+      </dl>
+      <p class="fpwhy">${why}</p>
+      ${avail ? "" : `<p class="fpnone">The mock-up's 20 sample questions don't cover this ${NOUN[by][0]} yet. The full app will.</p>`}
+      <div class="fpbtns">${avail ? `<button type="button" class="btn fpgo">Practice just this</button>` : ""}
+        <button type="button" class="fpadd ${SEL().has(by + "|" + key) ? "on" : ""}" aria-pressed="${SEL().has(by + "|" + key)}">${SEL().has(by + "|" + key) ? "✓ In my set (tap to remove)" : "+ Add to my set"}</button></div>
+      <button type="button" class="fpx">Back to charts</button>
+    </div></div>`;
+  }
+  function chooseSheet() {   // "Practice this" on a suggestion: start with it, offer to add others
+    const by = WHY.by, first = WHY.choose, list = ranked(by), sel = SEL(), sug = new Set(suggestions().list.map((x) => x.sec));
+    const fname = selName("task|" + first);
+    const rows = list.map((x, i) => {
+      const k = by + "|" + x.key, on = sel.has(k), pc = x.p == null ? null : Math.round(x.p * 100);
+      const isSug = by === "task" && sug.has(x.key);
+      const n = ALL.filter((ix) => keyOf(by, QS[ix]) === x.key).length;
+      return `<button type="button" class="fcrow ${on ? "on" : ""}" data-s="${esc(k)}" role="checkbox" aria-checked="${on}">
+        <span class="fcbox" aria-hidden="true">${on ? "✓" : ""}</span>
+        <span class="fcname"><b>${esc(by === "domain" ? `${x.key}. ${x.name}` : x.name)}</b>${isSug ? "<i>Suggested</i>" : ""}
+          <small>${pc == null ? "Not tried yet" : `${pc}% right`} · about ${x.w}% of exam${n ? "" : " · no sample questions yet"}</small></span>
+        <span class="fcpri" title="Practice priority">#${i + 1}</span></button>`;
+    }).join("");
+    return `<div class="scrim fwscrim"><div class="dialog fwdlg" role="dialog" aria-modal="true" aria-labelledby="fwT">
+      <div class="schead"><h2 id="fwT">Practice ${esc(fname)}</h2><button type="button" class="vb fwx" aria-label="Close">${ICON.x}</button></div>
+      <p class="fcq"><b>Want to add any other areas?</b> Tick as many as you like. They're listed by practice priority: #1 is where practice should help your score most.</p>
+      <div class="seg fwseg" role="tablist" aria-label="Group by">${TABS(by)}</div>
+      <div class="fclist">${rows}</div>
+      <button type="button" class="fcjust">Just ${esc(fname)}</button>
+    </div>${tray()}</div>`;
   }
   function allSheet() {   // "See your charts": the whole picture, with the suggested areas highlighted
     const by = WHY.by, { list } = suggestions(), secs = new Set(list.map((x) => x.sec));
@@ -174,31 +234,55 @@
       <div class="fwhrow"><h3 class="fwh">Your scores by area</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
       ${KEY()}
       <div class="seg fwseg" role="tablist" aria-label="Group by">${TABS(by)}</div>
+      <p class="fwhint">Tap any ${by === "topic" ? "bar" : "ring"} to see where it ranks. Add several to build one bigger practice set; the suggested ones are already in.</p>
       ${gridFor(by, (k) => keys.has(k))}
-    </div></div>`;
+    </div>${tray()}${pickCard()}</div>`;
   }
-  window.openCharts = function () { WHY = { all: true, by: "task" }; openWhy(); };
+  function preselect() { WHY.sel = new Set(suggestions().list.map((x) => "task|" + x.sec)); }
+  window.openCharts = function () { WHY = { all: true, by: "task" }; preselect(); openWhy(); };
   function openWhy() {
     const ph = document.getElementById("phone"); if (!ph) return;
     let box = document.getElementById("fwbox"); if (box) box.remove();
     box = document.createElement("div"); box.id = "fwbox"; box.innerHTML = whySheet(); ph.appendChild(box);
     const sc = box.querySelector(".fwscrim"), theme = document.querySelector(".ob");   // carry the app's theme colors
     if (theme) sc.style.cssText = theme.getAttribute("style") || "";
-    box.querySelector(".fwx").focus();
+    const dl = box.querySelector(".fwdlg"); if (dl && WHY.scroll) dl.scrollTop = WHY.scroll;
+    (box.querySelector(".fpgo, .fpx") || box.querySelector(".fwx")).focus();
   }
   function closeWhy() { WHY = null; const b = document.getElementById("fwbox"); if (b) b.remove(); }
   document.addEventListener("click", (e) => {
     const inf = e.target.closest && e.target.closest(".fwinfo");
     if (inf) { e.stopPropagation(); const k = document.getElementById("fwkey"), open = k.hidden; k.hidden = !open; inf.setAttribute("aria-expanded", String(open)); return; }
+    const ch = e.target.closest && e.target.closest(".fchoose");
+    if (ch) { e.stopPropagation(); WHY = { choose: ch.dataset.sec, by: "task", sel: new Set(["task|" + ch.dataset.sec]) }; openWhy(); return; }
+    const cr = e.target.closest && e.target.closest(".fcrow, .fcjust");
+    if (cr && WHY) {
+      e.stopPropagation();
+      if (cr.classList.contains("fcjust")) { const sec = WHY.choose; closeWhy(); window.PAGE_ACTIONS.focusgo({ dataset: { sec, src: "all" } }); render(); return; }
+      const S2 = SEL(), k = cr.dataset.s; S2.has(k) ? S2.delete(k) : S2.add(k); WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy();
+      const again = document.querySelector(`.fcrow[data-s="${CSS.escape(k)}"]`); if (again) again.focus(); return;
+    }
+    const pk = e.target.closest && e.target.closest(".fpick, .fpx, .fpgo, .fpadd, .fwchip, .fwsetgo, .fpscrim");
+    if (pk && WHY) {
+      e.stopPropagation();
+      if (pk.classList.contains("fpick")) { WHY.pick = { by: pk.dataset.by, key: pk.dataset.key }; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
+      if (pk.classList.contains("fpgo")) { const { by, key } = WHY.pick; closeWhy(); window.PAGE_ACTIONS.focusgo({ dataset: { by, key, src: "all" } }); render(); return; }
+      if (pk.classList.contains("fpadd")) { const k = WHY.pick.by + "|" + WHY.pick.key, S2 = SEL(); S2.has(k) ? S2.delete(k) : S2.add(k); WHY.pick = null; openWhy(); return; }
+      if (pk.classList.contains("fwchip")) { SEL().delete(pk.dataset.s); WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
+      if (pk.classList.contains("fwsetgo")) { const set = selIdx(); if (!set.length) return; closeWhy(); for (let i = set.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [set[i], set[j]] = [set[j], set[i]]; }
+        S.set = set; S.mode = S.build.mode; newRun(); S.page = "quiz"; render(); return; }
+      if (pk.classList.contains("fpx") || (pk.classList.contains("fpscrim") && e.target === pk)) { WHY.pick = null; openWhy(); return; }
+      return;
+    }
     const t = e.target.closest && e.target.closest(".fwhy, .fwx, .fwtab, .fwgo, .fwscrim");
     if (!t) return;
-    if (t.classList.contains("fwhy")) { e.stopPropagation(); WHY = t.dataset.all ? { all: true, by: "task" } : { sec: t.dataset.sec, by: "task" }; openWhy(); return; }
+    if (t.classList.contains("fwhy")) { e.stopPropagation(); WHY = t.dataset.all ? { all: true, by: "task" } : { sec: t.dataset.sec, by: "task" }; if (WHY.all) preselect(); openWhy(); return; }
     e.stopPropagation();
     if (t.classList.contains("fwx") || (t.classList.contains("fwscrim") && e.target === t)) return closeWhy();
-    if (t.classList.contains("fwtab")) { WHY.by = t.dataset.by; openWhy(); return; }
+    if (t.classList.contains("fwtab")) { WHY.by = t.dataset.by; WHY.pick = null; WHY.scroll = 0; openWhy(); return; }
     if (t.classList.contains("fwgo")) { const sec = t.dataset.sec; closeWhy(); window.PAGE_ACTIONS.focusgo({ dataset: { sec, src: "all" } }); render(); }
   }, true);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && WHY) closeWhy(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && WHY) { if (WHY.pick) { WHY.pick = null; openWhy(); } else closeWhy(); } });
 
   const css = document.createElement("style");
   css.textContent = `.fcard { background: #FFF8E6; border: 1.5px solid #EBC46A; border-radius: 14px; padding: 12px 14px; }
@@ -240,6 +324,49 @@
 .fcharts > span:nth-child(2) { flex: 1; }
 .fcring { width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: conic-gradient(#008F86 0 33%, #3D5AD6 0 66%, #6E4BC2 0); -webkit-mask: radial-gradient(circle, transparent 10px, #000 11px); mask: radial-gradient(circle, transparent 10px, #000 11px); }
 .fcgo { font-size: 26px; color: #5B6672; line-height: 1; }
+.fpick { display: block; width: 100%; padding: 0; margin: 0; border: 0; background: none; font: inherit; color: inherit; text-align: inherit; cursor: pointer; border-radius: 12px; }
+.fpick:hover .fring, .fpick:hover .ftb { background: #EEF2F6; } .fpick:hover .fring.hl, .fpick:hover .ftb.hl { background: #FFEDB8; }
+.fpick:focus-visible { outline: 3px solid #8CC4FF; outline-offset: 1px; }
+.fwgrid .fpick { height: 100%; } .fwgrid .fpick .fring { height: 100%; }
+.fpscrim { position: absolute; inset: 0; z-index: 8; background: rgba(18,32,46,.45); display: flex; align-items: flex-end; }
+.fpcard { width: 100%; background: #fff; border-radius: 20px 20px 0 0; padding: 16px 18px 18px; box-shadow: 0 -6px 24px rgba(18,32,46,.25); max-height: 80%; overflow-y: auto; }
+.fpkind { margin: 0; font-size: 12px; font-weight: 700; color: #5B6672; text-transform: uppercase; letter-spacing: .05em; }
+.fpkind i { font-style: normal; margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: #FFF3D1; color: #6A4A00; box-shadow: inset 0 0 0 1.5px #E8B13A; }
+.fpcard h3 { margin: 4px 0 10px; font-size: 18px; color: #12202E; }
+.fpdl { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.fpdl div { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid #EDF0F3; }
+.fpdl dt { font-size: 13px; color: #5B6672; } .fpdl dd { margin: 0; font-size: 15px; font-weight: 700; color: #12202E; text-align: right; }
+.fpdl dd small { font-weight: 400; color: #5B6672; font-size: 12px; }
+.fprank { display: block; width: 110px; height: 6px; margin: 4px 0 0 auto; border-radius: 3px; background: #E3E7EB; overflow: hidden; } .fprank i { display: block; height: 100%; background: #3A4654; }
+.fpwhy { margin: 12px 0; font-size: 14px; line-height: 1.45; color: #24313E; }
+.fpnone { margin: 0 0 8px; font-size: 13px; color: #5B6672; }
+.fpgo { width: 100%; }
+.fpx { width: 100%; margin-top: 8px; min-height: 44px; border: 0; background: none; color: #3A4654; font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; }
+.fpick { position: relative; } .fpchk { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 10px; background: #3A4654; color: #fff; font-size: 12px; font-weight: 800; line-height: 20px; text-align: center; }
+.fpick.picked .fring, .fpick.picked .ftb { box-shadow: inset 0 0 0 2px #3A4654; }
+.fpick.picked .fring.hl, .fpick.picked .ftb.hl { box-shadow: inset 0 0 0 2px #3A4654, inset 0 0 0 4px #E8B13A; }
+.ftbars .fpchk { top: 50%; right: -4px; transform: translateY(-50%); }
+.fpbtns { display: flex; flex-direction: column; gap: 8px; }
+.fpadd { min-height: 46px; border-radius: 12px; border: 2px solid #3A4654; background: #fff; color: #3A4654; font: inherit; font-weight: 700; cursor: pointer; }
+.fpadd.on { background: #3A4654; color: #fff; }
+.fwscrim { flex-direction: column; justify-content: flex-end; align-items: stretch; } .fwdlg { flex: 0 1 auto; min-height: 0; }
+.fwscrim:has(.fwtray) .fwdlg { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.fwtray { flex-shrink: 0; width: 100%; background: #fff; border-top: 1px solid #DDE3E8; padding: 10px 14px 12px; box-shadow: 0 -4px 14px rgba(18,32,46,.12); }
+.fwchips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; max-height: 76px; overflow-y: auto; }
+.fwchip { display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid #C9D0D6; background: #F3F5F7; color: #24313E; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.fwchip b { margin-left: 2px; color: #5B6672; }
+.fwsetgo { width: 100%; }
+.fcq { margin: 0; font-size: 14px; line-height: 1.45; color: #24313E; } .fcq b { display: block; font-size: 16px; margin-bottom: 2px; }
+.fclist { display: flex; flex-direction: column; gap: 6px; }
+.fcrow { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 8px 10px; border-radius: 12px; border: 1.5px solid #DDE3E8; background: #fff; font: inherit; color: #24313E; text-align: left; cursor: pointer; }
+.fcrow.on { border-color: #3A4654; background: #F3F5F7; }
+.fcrow:focus-visible { outline: 3px solid #8CC4FF; outline-offset: 2px; }
+.fcbox { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #8A939E; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #fff; }
+.fcrow.on .fcbox { background: #3A4654; border-color: #3A4654; }
+.fcname b { font-size: 14px; } .fcname small { display: block; font-size: 12px; color: #5B6672; }
+.fcname i { display: inline-block; margin-left: 6px; font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #6A4A00; background: #FFF3D1; padding: 1px 5px; border-radius: 5px; box-shadow: inset 0 0 0 1.5px #E8B13A; }
+.fcpri { font-size: 13px; font-weight: 800; color: #5B6672; }
+.fcjust { min-height: 44px; border: 0; background: none; color: #3A4654; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .fwdot { display: inline-block; width: 9px; height: 9px; border-radius: 5px; margin-right: 5px; vertical-align: 1px; }
 .fring figcaption em { display: block; font-style: normal; font-size: 10px; color: #5B6672; margin-top: 2px; }
 .fwwhy { margin: 0; font-size: 15px; line-height: 1.45; color: #24313E; }
