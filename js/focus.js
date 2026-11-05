@@ -126,7 +126,14 @@
         <div class="fwshare"><b>About ${w}% of the exam</b><small>How much of the real test comes from this area (exam outline)</small>
           <span class="fwbar" role="img" aria-label="About ${w}% of the exam"><i style="width:${Math.max(2, Math.min(100, w))}%"></i></span></div></div>
       <p class="fwwhy">${reason}</p>
-      <h3 class="fwh">How you're doing by</h3>
+      <div class="fwhrow"><h3 class="fwh">How you're doing by</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
+      <div class="fwkey" id="fwkey" hidden><b>How to read these charts</b><ul>
+        <li><b>Ring or bar</b> = your % correct in that area.</li>
+        <li><b>Faded</b> = early result. You've answered fewer than ${MIN_ATT} there, so the number could change a lot. Answer a few more to firm it up.</li>
+        <li><b>Dashed</b> = not tried yet.</li>
+        <li><b>Gold box, "Suggested"</b> = where we recommend practicing next.</li>
+        <li><b>Colors</b> = which view you're on: <span class="fwdot" style="background:${BYCOLOR.domain}"></span>Domain, <span class="fwdot" style="background:${BYCOLOR.task}"></span>Task, <span class="fwdot" style="background:${BYCOLOR.topic}"></span>Topic.</li>
+        <li><b>Weakest first</b> = the areas needing the most work are at the top.</li></ul></div>
       <div class="seg fwseg" role="tablist" aria-label="Group by">${[["domain", "Domain"], ["task", "Task"], ["topic", "Topic"]].map(([k, l]) => `<button type="button" role="tab" class="fwtab" data-by="${k}" aria-selected="${by === k}"><span class="fwdot" style="background:${BYCOLOR[k]}"></span>${l}</button>`).join("")}</div>
       <p class="fwhint">${by === "topic" ? `Your % correct by topic, weakest first. Faded bars are early results (under ${MIN_ATT} answers); dashed: not tried yet.` : `Each ring is your % correct, weakest first. Faded rings are early results (under ${MIN_ATT} answers); dashed rings: not tried yet.`}</p>
       ${by === "topic" ? grid : `<div class="fwgrid">${grid}</div>`}
@@ -143,6 +150,8 @@
   }
   function closeWhy() { WHY = null; const b = document.getElementById("fwbox"); if (b) b.remove(); }
   document.addEventListener("click", (e) => {
+    const inf = e.target.closest && e.target.closest(".fwinfo");
+    if (inf) { e.stopPropagation(); const k = document.getElementById("fwkey"), open = k.hidden; k.hidden = !open; inf.setAttribute("aria-expanded", String(open)); return; }
     const t = e.target.closest && e.target.closest(".fwhy, .fwx, .fwtab, .fwgo, .fwscrim");
     if (!t) return;
     if (t.classList.contains("fwhy")) { e.stopPropagation(); WHY = { sec: t.dataset.sec, by: "task" }; openWhy(); return; }
@@ -181,6 +190,13 @@
 .fts { grid-area: s; font-size: 11px; color: #5B6672; text-align: right; min-width: 52px; }
 .ftb.early .ftt i { opacity: .4; }
 .ftb.nt .ftt { background: none; border: 2px dashed #C9D0D6; height: 6px; }
+.fwhrow { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.fwhrow .fwh { margin: 0; }
+.fwinfo { width: 26px; height: 26px; border-radius: 13px; border: 1.5px solid #8A939E; background: #fff; color: #3A4654; font: inherit; font-size: 14px; font-weight: 800; font-style: italic; font-family: Georgia, serif; cursor: pointer; padding: 0; line-height: 1; }
+.fwinfo[aria-expanded="true"] { background: #3A4654; color: #fff; border-color: #3A4654; }
+.fwinfo:focus-visible { outline: 3px solid #8CC4FF; outline-offset: 2px; }
+.fwkey { background: #F3F5F7; border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.45; color: #24313E; }
+.fwkey ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 .fwdot { display: inline-block; width: 9px; height: 9px; border-radius: 5px; margin-right: 5px; vertical-align: 1px; }
 .fring figcaption em { display: block; font-style: normal; font-size: 10px; color: #5B6672; margin-top: 2px; }
 .fwwhy { margin: 0; font-size: 15px; line-height: 1.45; color: #24313E; }
