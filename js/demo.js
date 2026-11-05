@@ -1,6 +1,6 @@
 /* Example stats ("demo mode") for team walk-throughs. Owner: Ken + Claude. TEMPORARY: remove once the team has seen it.
    Loads a 200-question outline (sections and topics only, no question wording or answers) plus example answers from
-   js/demo/<app>.js, so the Practice page, Suggested focus and home meter have something real to show.
+   js/demo/<app>.js (pretend answers, same style for every app), so the Practice page, Suggested focus and home meter have something real to show.
    - On by default. A banner on the Home and Practice pages says it's example data and has a switch.
    - While on, nothing you answer is saved, and your own stats stay untouched in this browser.
    - Practice sets still use the 20 sample questions (the extra 180 exist only as stats).
@@ -47,7 +47,7 @@
   document.head.appendChild(css);
   const n = D.stubs.length;
   const bar = () => on
-    ? `<div class="demobar" role="note"><span><b>Example stats</b>${D.label === "CNA" ? `Ken's first 83 answers on the ${n}-question CNA bank.` : `Pretend answers on a ${n}-question bank.`} Nothing you answer is saved while this is on. Practice uses the 20 sample questions.</span><button type="button" data-act="demooff">Use my own</button></div>`
+    ? `<div class="demobar" role="note"><span><b>Example stats</b>Pretend answers on a ${n}-question bank. Nothing you answer is saved while this is on. Practice uses the 20 sample questions.</span><button type="button" data-act="demooff">Use my own</button></div>`
     : `<div class="demobar off" role="note"><span>Showing your own answers.</span><button type="button" data-act="demoon">Show example stats</button></div>`;
 
   window.PAGE_ACTIONS = Object.assign(window.PAGE_ACTIONS || {}, { demooff: () => setOn(false), demoon: () => setOn(true) });
