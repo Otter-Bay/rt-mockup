@@ -75,7 +75,12 @@
       stats: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
       products: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="3.5"/></svg>',
     };
-    return `<nav class="bnav" aria-label="Main">${it("home", "Home", I.home)}${it("stats", "Practice", I.stats)}${it("quiz", "Questions", I.quiz)}${it("products", "Apps", I.products)}</nav>`;
+    // Progress tab: a ring like the score rings on that page. After 10 answers the ring fills to your % correct and a small badge shows it.
+    const att = Object.values(ST).reduce((a, x) => a + x.attempts, 0), cor = Object.values(ST).reduce((a, x) => a + x.correct, 0);
+    const pc = att >= 10 ? Math.round(cor / att * 100) : null, C = 53.41;   // ring circumference for r = 8.5
+    const ring = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5" opacity=".28"/><circle cx="12" cy="12" r="8.5" transform="rotate(-90 12 12)" stroke-dasharray="${(pc == null ? 75 : Math.max(pc, 2)) / 100 * C} ${C}"/></svg>`;
+    const prog = `<button type="button" class="nb ${active === "stats" ? "on" : ""}" data-act="go" data-v="stats" aria-current="${active === "stats" ? "page" : "false"}" aria-label="Progress${pc == null ? "" : `, ${pc}% correct`}">${ring}${pc == null ? "" : `<b class="nbadge" aria-hidden="true">${pc}%</b>`}<span>Progress</span></button>`;
+    return `<nav class="bnav" aria-label="Main">${it("home", "Home", I.home)}${prog}${it("quiz", "Questions", I.quiz)}${it("products", "Apps", I.products)}</nav>`;
   }
 
   function home() {
@@ -182,7 +187,7 @@
   function stats() {
     return `<div class="ob obstats" style="${themeVars()}">
       ${topbar()}
-      <div class="obscroll"><div class="stats">${statsBody()}</div></div>
+      <div class="obscroll"><div class="stats">${statsBody().replace('<h1 class="ph">Practice</h1>', '<h1 class="ph">Your progress</h1>').replace('<section class="step"><h2>What to practice</h2>', '<p class="bpset">Build a practice set</p><section class="step"><h2>What to practice</h2>')}</div></div>
       <div class="startbar"><span>${(() => { const m = matching().length; return m ? `${m} match · ${S.build.mode === "exam" ? "Exam" : "Study"} mode` : "Nothing matches yet"; })()}</span>
         <button type="button" class="obstart" data-act="buildstart" ${matching().length ? "" : "disabled"}>${startLabel()}</button></div>
       ${nav("stats")}
