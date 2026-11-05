@@ -46,24 +46,26 @@
   }
 
   const css = document.createElement("style");
-  css.textContent = `.demobar { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px;
-  background: #EEF1FF; border: 1.5px dashed #6E7BD6; color: #22295A; font-size: 13px; line-height: 1.4; }
-.demobar b { display: block; font-size: 13px; }
-.demobar button { flex-shrink: 0; min-height: 36px; padding: 0 12px; border-radius: 9px; border: 1.5px solid #6E7BD6; background: #fff; color: #22295A; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
-.demobar.off { background: #F3F5F7; border-color: #C9D0D6; color: #3A4654; }
-.demobar.off button { border-color: #C9D0D6; color: #3A4654; }
+  css.textContent = `.demobar { margin: 0 0 12px; padding: 10px; border-radius: 14px; background: #F3F5F7; border: 1px solid #DDE3E8; }
+.dseg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dseg button { min-height: 52px; padding: 6px 8px; border-radius: 10px; border: 2px solid #C9D0D6; background: #fff; color: #3A4654; font: inherit; cursor: pointer; text-align: center; }
+.dseg button b { display: block; font-size: 14px; } .dseg button small { display: block; font-size: 11px; font-weight: 400; color: #5B6672; }
+.dseg button[aria-pressed="true"] { border-color: #3A4654; background: #3A4654; color: #fff; } .dseg button[aria-pressed="true"] small { color: #D7DEE4; }
+.dseg button:focus-visible { outline: 3px solid #8CC4FF; outline-offset: 2px; }
+.dnote { margin: 8px 2px 0; font-size: 12px; line-height: 1.4; color: #3A4654; }
 .obsec > .demobar { margin: 0; }
 .demotop { padding-bottom: 4px; }
 .demonew { width: 100%; margin-top: 10px; display: grid; grid-template-columns: 1fr auto; text-align: left; padding: 12px 14px; border-radius: 14px; border: 0; background: #3A4654; color: #fff; font: inherit; cursor: pointer; }
 .demonew b { font-size: 16px; } .demonew small { grid-row: 2; font-size: 12px; opacity: .85; } .demonew span { grid-row: 1 / 3; grid-column: 2; align-self: center; font-size: 28px; }`;
   document.head.appendChild(css);
   const n = D.stubs.length;
-  const bar = (where) => on
-    ? `<div class="demobar" role="note"><span><b>Example stats</b>Pretend answers on a ${n}-question bank. Nothing you answer is saved while this is on. Practice uses the 20 sample questions.</span><button type="button" data-act="demooff">Use my own</button></div>
-       ${where === "home" && window.openCharts ? `<button type="button" class="demonew" data-act="democharts"><b>New: see your charts</b><small>Scores by domain, task and topic, plus where to focus next</small><span aria-hidden="true">›</span></button>` : ""}`
-    : `<div class="demobar off" role="note"><span>Showing your own answers.</span><button type="button" data-act="demoon">Show example stats</button></div>`;
+  const bar = (where) => `<div class="demobar" role="group" aria-label="Which stats to show">
+      <div class="dseg"><button type="button" data-act="demooff" aria-pressed="${!on}"><b>My answers</b><small>20 sample questions</small></button>
+        <button type="button" data-act="demoon" aria-pressed="${on}"><b>Stats demo</b><small>200 pretend answers</small></button></div>
+      <p class="dnote">${on ? `Showing <b>pretend answers on ${n} questions</b>. Nothing you answer is saved. Practice uses the 20 sample questions.` : "Showing <b>your own answers</b> from this browser."}</p></div>
+    ${on && where === "home" && window.openCharts ? `<button type="button" class="demonew" data-act="democharts"><b>New: see your charts</b><small>Scores by domain, task and topic, plus where to focus next</small><span aria-hidden="true">›</span></button>` : ""}`;
 
-  window.PAGE_ACTIONS = Object.assign(window.PAGE_ACTIONS || {}, { demooff: () => setOn(false), demoon: () => setOn(true),
+  window.PAGE_ACTIONS = Object.assign(window.PAGE_ACTIONS || {}, { demooff: () => { if (on) setOn(false); }, demoon: () => { if (!on) setOn(true); },
     democharts: () => { S.page = "stats"; setTimeout(() => window.openCharts && window.openCharts(), 0); } });
 
   // Put the banner on top of the Practice page and the Home page (wrapping, so stats.js and home.js stay unchanged).
