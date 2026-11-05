@@ -74,14 +74,14 @@
     opts = opts || {};
     const size = opts.big ? 96 : 64, empty = pct == null, v = empty ? 0 : Math.max(0, Math.min(100, Math.round(pct)));
     const sw = opts.big ? 3.4 : 3.8;
-    return `<figure class="fring ${opts.hl ? "hl" : ""}" role="img" aria-label="${esc(label)}: ${empty ? "not tried yet" : v + "%"}${sub ? ", " + esc(sub) : ""}">
+    return `<figure class="fring ${opts.hl ? "hl" : ""} ${opts.early ? "early" : ""}" role="img" aria-label="${esc(label)}: ${empty ? "not tried yet" : v + "%"}${opts.early ? " (early result)" : ""}${sub ? ", " + esc(sub) : ""}">
       <svg width="${size}" height="${size}" viewBox="0 0 36 36" aria-hidden="true">
         <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#E3E7EB" stroke-width="${sw}" ${empty ? 'stroke-dasharray="2 2"' : ""}/>
         ${empty ? "" : `<circle cx="18" cy="18" r="15.9155" fill="none" stroke="${opts.color || "var(--bay, #0B5CAD)"}" stroke-width="${sw}" stroke-linecap="round"
           stroke-dasharray="${Math.max(v, 0.01)} ${100 - v}" stroke-dashoffset="25" transform="rotate(0 18 18)"/>`}
         <text x="18" y="${opts.big ? 20.2 : 20.4}" text-anchor="middle" font-size="${opts.big ? 8 : 8.6}" font-weight="700" fill="#12202E">${empty ? "—" : v + "%"}</text>
       </svg>
-      <figcaption><b>${esc(label)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}${opts.hl ? `<i>Suggested</i>` : ""}</figcaption></figure>`;
+      <figcaption><b>${esc(label)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}${opts.early ? `<em>Early: under ${MIN_ATT} answers</em>` : ""}${opts.hl ? `<i>Suggested</i>` : ""}</figcaption></figure>`;
   }
   function groups(by) {
     const o = {};
@@ -100,21 +100,26 @@
     const q0 = QS.find((q) => q.sec === sec) || {}, dW = DOMW();
     const reason = p == null ? `You haven't tried ${esc(r.name || sec)} yet, and it's about ${w}% of the exam, so it's worth a look.`
       : `You're getting ${Math.round(p)}% right in ${esc(r.name || sec)} (${r.att} answer${r.att === 1 ? "" : "s"}), and it's about ${w}% of the exam. A low score in a big area costs the most points.`;
-    const g = groups(by);
+    const g = groups(by).sort((a, b) => {   // weakest first; not-tried areas at the end
+      const pa = a.att ? a.cor / a.att : 2, pb = b.att ? b.cor / b.att : 2;
+      return pa - pb || b.total - a.total;
+    });
     const hlKey = by === "domain" ? q0.domain : by === "topic" ? q0.tgroup : sec;
     const grid = g.map((x) => {
       const pc = x.att ? x.cor / x.att * 100 : null;
       const share = by === "domain" ? (dW[x.key] != null ? `${dW[x.key]}% of exam` : "") : by === "task" ? `${weightOf(x.key, x.total, QS.length)}% of exam` : `${x.total} question${x.total === 1 ? "" : "s"}`;
       const lab = by === "domain" ? `${x.key}. ${x.name}` : x.name;
-      return ring(pc, lab, (x.att ? `${x.att} answered · ` : "Not tried · ") + share, { hl: x.key === hlKey });
+      return ring(pc, lab, (x.att ? `${x.att} answered · ` : "Not tried · ") + share, { hl: x.key === hlKey, early: x.att > 0 && x.att < MIN_ATT });
     }).join("");
     return `<div class="scrim fwscrim"><div class="dialog fwdlg" role="dialog" aria-modal="true" aria-labelledby="fwT">
       <div class="schead"><h2 id="fwT">Why ${esc(r.name || sec)}?</h2><button type="button" class="vb fwx" aria-label="Close">${ICON.x}</button></div>
-      <div class="fwtop">${ring(p, "Your score here", r.att ? `${r.cor} of ${r.att} correct` : "Not tried yet", { big: true })}${ring(w, "Share of the exam", "from the exam outline", { big: true, color: "#8A939E" })}</div>
+      <div class="fwtop">${ring(p, "Your score here", r.att ? `${r.cor} of ${r.att} correct` : "Not tried yet", { big: true, early: r.att > 0 && r.att < MIN_ATT })}
+        <div class="fwshare"><b>About ${w}% of the exam</b><small>How much of the real test comes from this area (exam outline)</small>
+          <span class="fwbar" role="img" aria-label="About ${w}% of the exam"><i style="width:${Math.max(2, Math.min(100, w))}%"></i></span></div></div>
       <p class="fwwhy">${reason}</p>
       <h3 class="fwh">How you're doing by</h3>
       <div class="seg fwseg" role="tablist" aria-label="Group by">${[["domain", "Domain"], ["task", "Task"], ["topic", "Topic"]].map(([k, l]) => `<button type="button" role="tab" class="fwtab" data-by="${k}" aria-selected="${by === k}">${l}</button>`).join("")}</div>
-      <p class="fwhint">Each ring is your % correct. Dashed rings: not tried yet.</p>
+      <p class="fwhint">Each ring is your % correct, weakest first. Faded rings are early results (under ${MIN_ATT} answers); dashed rings: not tried yet.</p>
       <div class="fwgrid">${grid}</div>
       <button type="button" class="btn fwgo" data-sec="${esc(sec)}">Practice ${esc(r.name || sec)}</button>
     </div></div>`;
@@ -149,7 +154,14 @@
 .fwhy { min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1.5px solid #C9D2DC; background: #fff; color: #24313E; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
 .fwscrim { position: absolute; inset: 0; background: rgba(18,32,46,.45); display: flex; align-items: flex-end; z-index: 7; }
 .fwdlg { gap: 12px; }
-.fwtop { display: flex; justify-content: center; gap: 22px; }
+.fwtop { display: flex; align-items: center; gap: 16px; }
+.fwshare { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.fwshare b { font-size: 16px; color: #12202E; }
+.fwshare small { font-size: 12px; line-height: 1.35; color: #5B6672; }
+.fwbar { display: block; height: 8px; border-radius: 4px; background: #E3E7EB; overflow: hidden; margin-top: 4px; }
+.fwbar i { display: block; height: 100%; border-radius: 4px; background: #8A939E; }
+.fring.early svg circle { opacity: .4; }
+.fring figcaption em { display: block; font-style: normal; font-size: 10px; color: #5B6672; margin-top: 2px; }
 .fwwhy { margin: 0; font-size: 15px; line-height: 1.45; color: #24313E; }
 .fwh { margin: 4px 0 0; font-size: 16px; }
 .fwhint { margin: 0; font-size: 12px; color: #5B6672; }
