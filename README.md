@@ -21,6 +21,7 @@ Clickable design mock-up of the CRT/RRT exam-prep app. Not production code: the 
 | `sds/` | 20-question public sample for the SDS sleep app (its own `data/` and `images/`; shares the JS and CSS above) | Ken + Claude |
 | `rpsgt/` | 20-question public sample for the RPSGT sleep app (same layout as `sds/`) | Ken + Claude |
 | `cna/` | 20-question public sample for CNA Ready, the California nurse assistant app (same layout as `sds/`; English) | Ken + Claude |
+| `js/focus.js` | "Suggested focus" card at the top of the Practice page (CNA for now): picks up to 2 sections to work on from the learner's results, the exam outline weights (`window.EXAM_WEIGHTS`), untried sections, and the review list. Wraps `statsBody()` so `stats.js` stays untouched. | Ken + Claude |
 | `js/cna_scales.js` | CNA reference cards (vital signs, intake and output, positions, isolation, PPE, fire safety, pressure injuries, range of motion, diets, transfers, charting, abuse, resident rights) | Ken + Claude |
 | `js/home.js`, `css/home.css` | Otter Bay home page, Apps (products) page, themed Stats frame, bottom navigation | Ken + Claude |
 | `js/progress.js` | Review list and per-question progress storage (used by both) | Shared: post in Discord before changing |
