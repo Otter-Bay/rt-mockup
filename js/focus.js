@@ -126,7 +126,7 @@
         <div class="fwshare"><b>About ${w}% of the exam</b><small>How much of the real test comes from this area (exam outline)</small>
           <span class="fwbar" role="img" aria-label="About ${w}% of the exam"><i style="width:${Math.max(2, Math.min(100, w))}%"></i></span></div></div>
       <p class="fwwhy">${reason}</p>
-      <div class="fwhrow"><h3 class="fwh">How you're doing by</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
+      <div class="fwhrow"><h3 class="fwh">Your scores</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
       <div class="fwkey" id="fwkey" hidden><b>How to read these charts</b><ul>
         <li><b>Ring or bar</b> = your % correct in that area.</li>
         <li><b>Faded</b> = early result. You've answered fewer than ${MIN_ATT} there, so the number could change a lot. Answer a few more to firm it up.</li>
