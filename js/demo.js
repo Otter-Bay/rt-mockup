@@ -1,16 +1,25 @@
-/* Example stats ("demo mode") for team walk-throughs. Owner: Ken + Claude. TEMPORARY: remove once the team has seen it.
-   Loads a 200-question outline (sections and topics only, no question wording or answers) plus example answers from
-   js/demo/<app>.js (pretend answers, same style for every app), so the Practice page, Suggested focus and home meter have something real to show.
-   - On by default. A banner on the Home and Practice pages says it's example data and has a switch.
+/* Example stats ("demo mode"). Owner: Ken + Claude. Kept for showing the stats to the team, new members, reviewers and partners.
+   Loads a 200-question outline (sections and topics only, no question wording or answers) plus pretend answers from
+   js/demo/<app>.js, so the Progress page, Suggested focus, charts and home meter have something real to show.
+   - How it starts: DEMO_DEFAULT below. A link with ?demo turns it on (?demo=0 turns it off), e.g. .../rt-mockup/cna/?demo
+     The choice is remembered per app in this browser. The banner's "Use my own" / "Show example stats" buttons switch it too.
+   - PLAN: after the team has seen it, set DEMO_DEFAULT = false so the normal link shows real answers, and share the ?demo link.
    - While on, nothing you answer is saved, and your own stats stay untouched in this browser.
    - Practice sets still use the 20 sample questions (the extra 180 exist only as stats).
    Load right after progress.js and js/demo/<app>.js. app.js calls window.AFTER_LOAD hooks once questions load. */
 (function () {
   const D = window.DEMO_DATA; if (!D) return;
   const KEY = NS + "demoStats";
-  let on = true; try { on = localStorage.getItem(KEY) !== "off"; } catch (e) {}
+  const DEMO_DEFAULT = true;   // on while the team reviews; switch to false afterwards (see PLAN above)
+  let on = DEMO_DEFAULT;
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.has("demo")) localStorage.setItem(KEY, q.get("demo") === "0" ? "off" : "on");
+    const v = localStorage.getItem(KEY); if (v) on = v === "on";
+  } catch (e) {}
   window.DEMO_ON = on;
-  const setOn = (v) => { try { localStorage.setItem(KEY, v ? "on" : "off"); } catch (e) {} location.reload(); };
+  const setOn = (v) => { try { localStorage.setItem(KEY, v ? "on" : "off"); } catch (e) {}
+    const u = new URL(location.href); u.searchParams.delete("demo"); location.href = u.toString(); };   // drop ?demo so the switch sticks
 
   if (on) {
     // Don't save anything while showing example data.
