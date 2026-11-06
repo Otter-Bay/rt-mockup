@@ -24,3 +24,24 @@ function recordAnswer(q, c) {
   } else c.note = null;
   save("rtReviewList", RL);
 }
+
+/* Encouraging words after a comparison (exams or chapters). d = change in points, mins = minutes faster (+) or slower (-),
+   best = area that improved most, next = good area to practice next, since = label of the earlier try. Plain and honest. */
+function cheer(d, opts) {
+  const o = opts || {}, clean = (n) => String(n).replace(/^([IVX]+|\d+)\.\s*/, "");   // "III. Role of the Nurse Aide" -> "Role of the Nurse Aide"
+  const best = o.best ? `<b>${esc(clean(o.best))}</b>` : "", next = o.next ? `<b>${esc(clean(o.next))}</b>` : "";
+  const faster = o.mins >= 1 ? `, and you finished ${o.mins} minute${o.mins === 1 ? "" : "s"} faster` : "";
+  let tone, msg;
+  if (d >= 10) { tone = "up"; msg = `Big jump: up ${d} points since ${o.since}${faster}. ${best ? `Your work on ${best} really shows.` : "Your practice is paying off."}`; }
+  else if (d >= 3) { tone = "up"; msg = `Nice progress: up ${d} points${faster}. ${best ? `${best} improved the most.` : "Keep it going."}${next ? ` Next, a little more ${next} could lift you further.` : ""}`; }
+  else if (d > -3) { tone = "steady"; msg = `Holding steady${faster}. Consistency counts on exam day.${next ? ` To push higher, try a set from ${next}.` : ""}`; }
+  else { tone = "soft"; msg = `A tougher one this time, down ${-d} points. ${o.exam ? "Every exam is a different mix of questions, so one score doesn't define you." : "Breaks and new material can do that, and it comes back with practice."}${next ? ` ${next} is a good place to practice next.` : ""}`; }
+  const close = tone === "up" ? "You're well on your way to being as prepared as you can be for test day."
+    : tone === "steady" ? "You're on your way to being as prepared as you can be for test day."
+    : "Keep going. You're still on your way to being as prepared as you can be for test day.";
+  return `<p class="cheer ${tone}" role="status">${msg} <span class="cheerend">${close}</span></p>`;
+}
+(function () { const c = document.createElement("style");
+  c.textContent = `.cheer { margin: 0; padding: 10px 12px; border-radius: 12px; font-size: 14px; line-height: 1.45; color: #24313E; background: #F3F5F7; }
+.cheer.up { background: #E3F4EA; color: #17603C; } .cheerend { display: block; margin-top: 4px; font-weight: 700; } .cheer.soft { background: #FFF6E0; color: #4A3500; }`;
+  document.head.appendChild(c); })();

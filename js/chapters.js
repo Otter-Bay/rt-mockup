@@ -151,6 +151,9 @@
     return `<div class="scrim chscrim"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="cmpT">
       <div class="schead"><h2 id="cmpT">Then vs. now</h2><button type="button" class="vb chcx" aria-label="Close">${ICON.x}</button></div>
       <p class="cmpkey"><span class="k1"></span> ${fmt(VIEW.from)} – ${fmt(VIEW.to)} <span class="k2"></span> Now</p>
+      ${(() => { const sa = score(VIEW.st).pct, sb = score(live).pct; if (sa == null || sb == null) return "";
+        const best = rows.filter((r) => r.d != null && !r.early && r.d >= 3)[0], nxt = rows.filter((r) => r.pb != null && !r.early).sort((x, y) => x.pb - y.pb)[0];
+        return cheer(sb - sa, { since: fmt(VIEW.to), best: best && best.name, next: nxt && nxt.pb < 85 ? nxt.name : "" }); })()}
       <p class="cmpsum">${up ? `<b>${up} area${up === 1 ? "" : "s"} improved</b>` : "No big changes yet"}${down ? `, ${down} slipped a little` : ""}. Biggest changes first.</p>
       <div class="seg fwseg" role="tablist" aria-label="Group by">${tabs}</div>
       <ul class="cmplist">${rows.map(row).join("")}</ul>
