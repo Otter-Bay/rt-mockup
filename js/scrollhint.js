@@ -30,7 +30,8 @@
     btn.style.left = (x + el.clientWidth - 30) + "px";   // bottom-right corner, clear of left-aligned content
     btn.style.top = (y + el.clientHeight - 48) + "px";
     const more = el.scrollHeight - el.scrollTop - el.clientHeight > 24;
-    btn.hidden = !more || el.clientHeight < 140;
+    const top = document.querySelector(".scrim");   // a pop-up is open: only its own arrow shows
+    btn.hidden = !more || el.clientHeight < 140 || (top && !top.contains(el));
   }
 
   function update() {
