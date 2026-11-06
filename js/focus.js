@@ -56,7 +56,9 @@
     const h = base();
     const i = h.indexOf("</div>");   // after the page heading block
     const btn = `<button type="button" class="fwhy fcharts" data-all="1"><span class="fcring" aria-hidden="true"></span><span><b>See your charts</b><small>Your scores by domain, task and topic</small></span><span class="fcgo" aria-hidden="true">›</span></button>`;
-    return i < 0 ? btn + card() + h : h.slice(0, i + 6) + btn + card() + h.slice(i + 6);
+    const vs = Object.values(ST), up = upFrom(vs.filter((x) => x.lastCorrect).length, vs.length, vs.reduce((a, x) => a + x.correct, 0), vs.reduce((a, x) => a + x.attempts, 0));
+    const upRow = up ? `<div class="fuprow">${up}<span class="fupnote">Your retries are paying off.</span></div>` : "";
+    return i < 0 ? upRow + btn + card() + h : h.slice(0, i + 6) + upRow + btn + card() + h.slice(i + 6);
   };
 
   window.PAGE_ACTIONS = Object.assign(window.PAGE_ACTIONS || {}, {
@@ -131,7 +133,8 @@
     </div>${tray()}${pickCard()}</div>`;
   }
   // "Up from" line: latest-try score vs. the average of every try ever (only shown when it's a real improvement).
-  const upFrom = (c, n, aC, aA) => { if (!n || !aA || aA <= n) return ""; const now = Math.round(c / n * 100), all = Math.round(aC / aA * 100); return now - all >= 3 ? `<span class="fup">↑ up from ${all}% counting every try</span>` : ""; };
+  const upFrom = (c, n, aC, aA) => { if (!n || !aA || aA <= n) return ""; const now = Math.round(c / n * 100), all = Math.round(aC / aA * 100);
+    return now - all >= 3 ? `<span class="fup"><b><span aria-hidden="true">▲</span> Up ${now - all} point${now - all === 1 ? "" : "s"}</b><small>from ${all}% counting every try</small></span>` : ""; };
   let LASTHL = () => false;
   // "My set": areas picked across Domain / Task / Topic, practiced together. Keys look like "task|I-B".
   const SEL = () => (WHY.sel = WHY.sel || new Set());
@@ -376,8 +379,11 @@
 .fcall { border-style: dashed; } .fcall.on { border-style: solid; }
 .fcpri { font-size: 13px; font-weight: 800; color: #5B6672; }
 .fcjust { min-height: 44px; border: 0; background: none; color: #3A4654; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
-.fup { display: block; margin: 2px 0 4px; font-size: 12px; font-weight: 700; color: #1F7A4D; }
-.fpdl dd .fup { margin: 2px 0 0; }
+.fup { display: inline-flex; flex-direction: column; align-items: flex-start; margin: 4px 0 6px; padding: 5px 10px; border-radius: 10px; background: #E3F4EA; border: 1.5px solid #9ED3B4; color: #17603C; line-height: 1.25; }
+.fup b { font-size: 14px; font-weight: 800; } .fup small { font-size: 11px; font-weight: 500; color: #2C6B49; }
+.fpdl dd .fup { margin: 6px 0 0; align-items: flex-end; text-align: right; }
+.fuprow { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; } .fuprow .fup { margin: 0; flex-shrink: 0; }
+.fupnote { font-size: 13px; color: #24313E; }
 .fwdot { display: inline-block; width: 9px; height: 9px; border-radius: 5px; margin-right: 5px; vertical-align: 1px; }
 .fring figcaption em { display: block; font-style: normal; font-size: 10px; color: #5B6672; margin-top: 2px; }
 .fwwhy { margin: 0; font-size: 15px; line-height: 1.45; color: #24313E; }
