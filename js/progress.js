@@ -8,6 +8,8 @@ function load(k, d) { try { const v = localStorage.getItem(NS + k); return v ? J
 function save(k, v) { try { localStorage.setItem(NS + k, JSON.stringify(v)); } catch (e) {} }
 const RL = load("rtReviewList", {});   // { questionId: { reason: "missed"|"unsure"|"manual", streak: 0|1, added: ms } }
 const ST = load("rtStats", {});        // { questionId: { attempts, correct, lastCorrect } }
+// SCORING RULE (Nov 6): every score counts your LATEST try at each question, so improvement shows right away
+// and early mistakes stop dragging you down. attempts/correct are kept for the "up from X% counting every try" line.
 const REASON_TXT = { missed: "Answered wrong", unsure: "Marked not sure", manual: "Added by you" };
 
 function recordAnswer(q, c) {

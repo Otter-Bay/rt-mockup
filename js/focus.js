@@ -89,8 +89,8 @@
     const o = {};
     for (const q of QS) {
       const k = by === "domain" ? q.domain : by === "topic" ? (q.tgroup || "Other") : q.sec;
-      const r = o[k] || (o[k] = { key: k, name: by === "domain" ? (domName(q.domain) || "Domain " + q.domain) : by === "topic" ? k : (q.secName || q.sec), secs: new Set(), total: 0, att: 0, cor: 0 });
-      r.total++; r.secs.add(q.sec); const st = ST[q.id]; if (st) { r.att += st.attempts; r.cor += st.correct; }
+      const r = o[k] || (o[k] = { key: k, name: by === "domain" ? (domName(q.domain) || "Domain " + q.domain) : by === "topic" ? k : (q.secName || q.sec), secs: new Set(), total: 0, att: 0, cor: 0, allAtt: 0, allCor: 0 });
+      r.total++; r.secs.add(q.sec); const st = ST[q.id]; if (st) { r.att += 1; r.cor += st.lastCorrect ? 1 : 0; r.allAtt += st.attempts; r.allCor += st.correct; }   // latest try per question
     }
     const rows = Object.values(o);
     return by === "topic" ? rows.sort((a, b) => b.total - a.total) : rows.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
@@ -98,8 +98,8 @@
   // Each view gets its own ring color so Domain, Task and Topic are easy to tell apart (checked for color-blind safety).
   const BYCOLOR = { domain: "#008F86", task: "#3D5AD6", topic: "#6E4BC2" };
   const KEY = () => `<div class="fwkey" id="fwkey" hidden><b>How to read these charts</b><ul>
-        <li><b>Ring or bar</b> = your % correct in that area.</li>
-        <li><b>Faded</b> = early result. You've answered fewer than ${MIN_ATT} there, so the number could change a lot. Answer a few more to firm it up.</li>
+        <li><b>Ring or bar</b> = your % right in that area, counting your <b>latest try</b> at each question. Get one right on a retry and it counts as right.</li>
+        <li><b>Faded</b> = early result. You've tried fewer than ${MIN_ATT} questions there, so the number could change a lot. Answer a few more to firm it up.</li>
         <li><b>Dashed</b> = not tried yet.</li>
         <li><b>Gold box, "Suggested"</b> = where we recommend practicing next.</li>
         <li><b>Colors</b> = which view you're on: <span class="fwdot" style="background:${BYCOLOR.domain}"></span>Domain, <span class="fwdot" style="background:${BYCOLOR.task}"></span>Task, <span class="fwdot" style="background:${BYCOLOR.topic}"></span>Topic.</li>
@@ -118,8 +118,8 @@
     const grid = gridFor(by, (k) => k === hlKey);
     return `<div class="scrim fwscrim"><div class="dialog fwdlg" role="dialog" aria-modal="true" aria-labelledby="fwT">
       <div class="schead"><h2 id="fwT">Why ${esc(r.name || sec)}?</h2><button type="button" class="vb fwx" aria-label="Close">${ICON.x}</button></div>
-      <div class="fwtop">${ring(p, "Your score here", r.att ? `${r.cor} of ${r.att} correct` : "Not tried yet", { big: true, early: r.att > 0 && r.att < MIN_ATT, color: "#3A4654" })}
-        <div class="fwshare"><b>About ${w}% of the exam</b><small>How much of the real test comes from this area (exam outline)</small>
+      <div class="fwtop">${ring(p, "Your score here", r.att ? `${r.cor} of ${r.att} right` : "Not tried yet", { big: true, early: r.att > 0 && r.att < MIN_ATT, color: "#3A4654" })}
+        <div class="fwshare">${upFrom(r.cor, r.att, r.allCor, r.allAtt)}<b>About ${w}% of the exam</b><small>How much of the real test comes from this area (exam outline)</small>
           <span class="fwbar" role="img" aria-label="About ${w}% of the exam"><i style="width:${Math.max(2, Math.min(100, w))}%"></i></span></div></div>
       <p class="fwwhy">${reason}</p>
       <div class="fwhrow"><h3 class="fwh">Your scores by area</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
@@ -130,6 +130,8 @@
       <button type="button" class="btn fwgo" data-sec="${esc(sec)}">Practice ${esc(r.name || sec)}</button>
     </div>${tray()}${pickCard()}</div>`;
   }
+  // "Up from" line: latest-try score vs. the average of every try ever (only shown when it's a real improvement).
+  const upFrom = (c, n, aC, aA) => { if (!n || !aA || aA <= n) return ""; const now = Math.round(c / n * 100), all = Math.round(aC / aA * 100); return now - all >= 3 ? `<span class="fup">↑ up from ${all}% counting every try</span>` : ""; };
   let LASTHL = () => false;
   // "My set": areas picked across Domain / Task / Topic, practiced together. Keys look like "task|I-B".
   const SEL = () => (WHY.sel = WHY.sel || new Set());
@@ -157,7 +159,7 @@
     return `<div class="fwgrid">${g.map((x) => {
       const pc = x.att ? x.cor / x.att * 100 : null;
       const share = by === "domain" ? (dW[x.key] != null ? `${dW[x.key]}% of exam` : "") : `${weightOf(x.key, x.total, QS.length)}% of exam`;
-      return btn(x, pc == null ? null : Math.round(pc), ring(pc, by === "domain" ? `${x.key}. ${x.name}` : x.name, (x.att ? `${x.att} answered · ` : "Not tried · ") + share, { hl: isHl(x.key), early: x.att > 0 && x.att < MIN_ATT, color: BYCOLOR[by], deco: true }));
+      return btn(x, pc == null ? null : Math.round(pc), ring(pc, by === "domain" ? `${x.key}. ${x.name}` : x.name, (x.att ? `${x.att} tried · ` : "Not tried · ") + share, { hl: isHl(x.key), early: x.att > 0 && x.att < MIN_ATT, color: BYCOLOR[by], deco: true }));
     }).join("")}</div>`;
   }
   // Where an area ranks for practice: same idea as Suggested focus (low score x big share of the exam, plus review-list misses).
@@ -187,7 +189,7 @@
       <p class="fpkind"><span class="fwdot" style="background:${BYCOLOR[by]}"></span>${by === "domain" ? "Domain" : by === "task" ? "Task" : "Topic"}${hl ? ` <i>Suggested</i>` : ""}</p>
       <h3 id="fpT">${esc(name)}</h3>
       <dl class="fpdl">
-        <div><dt>Your score</dt><dd>${pc == null ? "Not tried yet" : `${pc}% <small>(${x.cor} of ${x.att} correct${x.att < MIN_ATT ? ", early result" : ""})</small>`}</dd></div>
+        <div><dt>Your score</dt><dd>${pc == null ? "Not tried yet" : `${pc}% <small>(${x.cor} of ${x.att} right${x.att < MIN_ATT ? ", early result" : ""})</small>${upFrom(x.cor, x.att, x.allCor, x.allAtt)}`}</dd></div>
         <div><dt>Share of the exam</dt><dd>About ${x.w}%</dd></div>
         <div><dt>Practice priority</dt><dd>#${rank} of ${n} ${NOUN[by][1]} <span class="fprank" aria-hidden="true"><i style="width:${Math.round((n - rank + 1) / n * 100)}%"></i></span></dd></div>
       </dl>
@@ -226,12 +228,12 @@
     const keys = new Set();
     if (by === "topic") groups("topic").filter((x) => x.att >= MIN_ATT && x.cor / x.att < 0.8).sort((a, b) => a.cor / a.att - b.cor / b.att).slice(0, 2).forEach((x) => keys.add(x.key));   // 2 weakest topics
     else for (const q of QS) if (secs.has(q.sec)) keys.add(by === "domain" ? q.domain : q.sec);
-    const att = Object.values(ST).reduce((a, x) => a + x.attempts, 0), cor = Object.values(ST).reduce((a, x) => a + x.correct, 0);
+    const att = Object.values(ST).length, cor = Object.values(ST).filter((x) => x.lastCorrect).length, allA = Object.values(ST).reduce((a, x) => a + x.attempts, 0), allC = Object.values(ST).reduce((a, x) => a + x.correct, 0);
     const tried = QS.filter((q) => ST[q.id]).length, p = att ? cor / att * 100 : null;
     return `<div class="scrim fwscrim"><div class="dialog fwdlg" role="dialog" aria-modal="true" aria-labelledby="fwT">
       <div class="schead"><h2 id="fwT">Your charts</h2><button type="button" class="vb fwx" aria-label="Close">${ICON.x}</button></div>
-      <div class="fwtop">${ring(p, "Overall", att ? `${cor} of ${att} correct` : "Not started yet", { big: true, color: "#3A4654" })}
-        <div class="fwshare"><b>${tried} of ${QS.length} questions tried</b><small>${list.length ? "Gold boxes are the areas we suggest practicing next." : "Answer more questions to get suggestions."}</small>
+      <div class="fwtop">${ring(p, "Overall", att ? `${cor} of ${att} right` : "Not started yet", { big: true, color: "#3A4654" })}
+        <div class="fwshare"><b>${tried} of ${QS.length} questions tried</b>${upFrom(cor, att, allC, allA)}<small>${list.length ? "Gold boxes are the areas we suggest practicing next." : "Answer more questions to get suggestions."}</small>
           <span class="fwbar" role="img" aria-label="${tried} of ${QS.length} tried"><i style="width:${Math.max(2, Math.round(tried / Math.max(1, QS.length) * 100))}%"></i></span></div></div>
       <div class="fwhrow"><h3 class="fwh">Your scores by area</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
       ${KEY()}
@@ -374,6 +376,8 @@
 .fcall { border-style: dashed; } .fcall.on { border-style: solid; }
 .fcpri { font-size: 13px; font-weight: 800; color: #5B6672; }
 .fcjust { min-height: 44px; border: 0; background: none; color: #3A4654; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.fup { display: block; margin: 2px 0 4px; font-size: 12px; font-weight: 700; color: #1F7A4D; }
+.fpdl dd .fup { margin: 2px 0 0; }
 .fwdot { display: inline-block; width: 9px; height: 9px; border-radius: 5px; margin-right: 5px; vertical-align: 1px; }
 .fring figcaption em { display: block; font-style: normal; font-size: 10px; color: #5B6672; margin-top: 2px; }
 .fwwhy { margin: 0; font-size: 15px; line-height: 1.45; color: #24313E; }

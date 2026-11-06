@@ -76,7 +76,7 @@
       products: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="3.5"/></svg>',
     };
     // Progress tab: a ring like the score rings on that page. After 10 answers the ring fills to your % correct and a small badge shows it.
-    const att = Object.values(ST).reduce((a, x) => a + x.attempts, 0), cor = Object.values(ST).reduce((a, x) => a + x.correct, 0);
+    const att = Object.values(ST).length, cor = Object.values(ST).filter((x) => x.lastCorrect).length;
     const pc = att >= 10 ? Math.round(cor / att * 100) : null, C = 53.41;   // ring circumference for r = 8.5
     const ring = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5" opacity=".28"/><circle cx="12" cy="12" r="8.5" transform="rotate(-90 12 12)" stroke-dasharray="${(pc == null ? 75 : Math.max(pc, 2)) / 100 * C} ${C}"/></svg>`;
     const prog = `<button type="button" class="nb ${active === "stats" ? "on" : ""}" data-act="go" data-v="stats" aria-current="${active === "stats" ? "page" : "false"}" aria-label="Progress${pc == null ? "" : `, ${pc}% correct`}">${ring}${pc == null ? "" : `<b class="nbadge" aria-hidden="true">${pc}%</b>`}<span>Progress</span></button>`;
@@ -86,7 +86,7 @@
   function home() {
     const exam = EXAMS.find((e) => e.key === (window.EXAM || "RRT"));
     const answered = QS.filter((q) => ST[q.id]).length;
-    const att = Object.values(ST).reduce((a, x) => a + x.attempts, 0), cor = Object.values(ST).reduce((a, x) => a + x.correct, 0);
+    const att = Object.values(ST).length, cor = Object.values(ST).filter((x) => x.lastCorrect).length;
     const rl = QS.filter((q) => RL[q.id]).length;
     const pct = QS.length ? Math.round(answered / QS.length * 100) : 0;
     const next = Math.min(10, QS.length - answered) || 10;

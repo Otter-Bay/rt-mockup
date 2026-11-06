@@ -45,7 +45,7 @@ function sectionRows() {
   for (const q of QS) {
     const r = by[q.sec] || (by[q.sec] = { sec: q.sec, name: q.secName, dom: q.domain, total: 0, tried: 0, att: 0, cor: 0 });
     r.total++; const st = ST[q.id];
-    if (st) { r.tried++; r.att += st.attempts; r.cor += st.correct; }
+    if (st) { r.tried++; r.att += 1; r.cor += st.lastCorrect ? 1 : 0; r.allAtt = (r.allAtt || 0) + st.attempts; r.allCor = (r.allCor || 0) + st.correct; }   // latest try (see progress.js)
   }
   return Object.values(by).sort((a, b) => a.sec.localeCompare(b.sec, undefined, { numeric: true }));
 }
@@ -56,7 +56,7 @@ function groupRows(focus) {
     const k = key(q);
     const r = by[k] || (by[k] = { key: k, dom: q.domain, name: focus === "task" ? q.secName : focus === "domain" ? domName(q.domain) : "", total: 0, tried: 0, att: 0, cor: 0, match: 0 });
     r.total++; const st = ST[q.id];
-    if (st) { r.tried++; r.att += st.attempts; r.cor += st.correct; }
+    if (st) { r.tried++; r.att += 1; r.cor += st.lastCorrect ? 1 : 0; r.allAtt = (r.allAtt || 0) + st.attempts; r.allCor = (r.allCor || 0) + st.correct; }   // latest try (see progress.js)
     if (sourceOK(q) && filterOK(q, "focus")) r.match++;
   }
   const rows = Object.values(by);
@@ -65,7 +65,7 @@ function groupRows(focus) {
 
 function statsBody() {
   const b = S.build;
-  const att = Object.values(ST).reduce((a, x) => a + x.attempts, 0), cor = Object.values(ST).reduce((a, x) => a + x.correct, 0);
+  const att = Object.values(ST).length, cor = Object.values(ST).filter((x) => x.lastCorrect).length;
   const tried = QS.filter((q) => ST[q.id]).length, pct = att ? Math.round(cor / att * 100) : 0;
   const rlIds = QS.filter((q) => RL[q.id]);
   const everMissed = QS.filter((q) => ST[q.id] && ST[q.id].correct < ST[q.id].attempts).length;
