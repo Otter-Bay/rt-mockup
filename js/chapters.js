@@ -17,7 +17,8 @@
 
   if (DEMO) {   // two pretend past chapters built from the demo answers, so the team can try viewing them
     // pretend earlier chapters: fewer questions tried, and most areas a bit weaker back then (one area slightly stronger)
-    const h = (str) => { let x = 2166136261; for (const ch of str) x = Math.imul(x ^ ch.charCodeAt(0), 16777619); return (x >>> 0) / 4294967295; };
+    const h = (str) => { let x = 2166136261; for (const ch of str) x = Math.imul(x ^ ch.charCodeAt(0), 16777619);
+      x ^= x >>> 16; x = Math.imul(x, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
     const secOf = {}; if (window.DEMO_DATA) for (const x of window.DEMO_DATA.stubs) secOf[x[0]] = x[1];
     const mk = (keep, weaker, from, to, id) => {
       const st = {};
