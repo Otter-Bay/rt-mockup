@@ -25,21 +25,31 @@ function recordAnswer(q, c) {
   save("rtReviewList", RL);
 }
 
-/* Encouraging words after a comparison (exams or chapters). d = change in points, mins = minutes faster (+) or slower (-),
-   best = area that improved most, next = good area to practice next, since = label of the earlier try. Plain and honest. */
+/* Encouraging words after a comparison (exams or chapters). Plain and honest:
+   d = change in points; opts: since (label of the earlier try), mins (minutes faster, + or -), best / next (area names,
+   only pass areas with 5+ questions in both tries), exam (true for exams), n (questions in the later exam; "Big jump"
+   needs 20+), key (stable id for the pair, so the closing line rotates between comparisons but not on every redraw). */
 function cheer(d, opts) {
-  const o = opts || {}, clean = (n) => String(n).replace(/^([IVX]+|\d+)\.\s*/, "");   // "III. Role of the Nurse Aide" -> "Role of the Nurse Aide"
+  const o = opts || {}, clean = (n) => String(n).replace(/^([IVX]+|\d+)\.\s*/, "");
   const best = o.best ? `<b>${esc(clean(o.best))}</b>` : "", next = o.next ? `<b>${esc(clean(o.next))}</b>` : "";
-  const faster = o.mins >= 1 ? `, and you finished ${o.mins} minute${o.mins === 1 ? "" : "s"} faster` : "";
+  const exam = ({ RRT: "CRT/RRT", SDS: "SDS", RPSGT: "RPSGT", CNA: "CNA" })[window.EXAM || "RRT"] || "certification";
+  const faster = o.mins >= 1 && d > -3 ? `, and you finished ${o.mins} minute${o.mins === 1 ? "" : "s"} faster` : "";   // never praise speed when the score dropped
+  const bigOK = !o.exam || (o.n || 0) >= 20;   // a short exam swings a lot; keep "Big jump" for 20+ questions
   let tone, msg;
-  if (d >= 10) { tone = "up"; msg = `Big jump: up ${d} points since ${o.since}${faster}. ${best ? `Your work on ${best} really shows.` : "Your practice is paying off."}`; }
+  if (d >= 10 && bigOK) { tone = "up"; msg = `Big jump: up ${d} points since ${o.since}${faster}. ${best ? `Your work on ${best} really shows.` : "Your practice is paying off."}`; }
   else if (d >= 3) { tone = "up"; msg = `Nice progress: up ${d} points${faster}. ${best ? `${best} improved the most.` : "Keep it going."}${next ? ` Next, a little more ${next} could lift you further.` : ""}`; }
   else if (d > -3) { tone = "steady"; msg = `Holding steady${faster}. Consistency counts on exam day.${next ? ` To push higher, try a set from ${next}.` : ""}`; }
   else { tone = "soft"; msg = `A tougher one this time, down ${-d} points. ${o.exam ? "Every exam is a different mix of questions, so one score doesn't define you." : "Breaks and new material can do that, and it comes back with practice."}${next ? ` ${next} is a good place to practice next.` : ""}`; }
-  const close = tone === "up" ? "You're well on your way to being as prepared as you can be for test day."
-    : tone === "steady" ? "You're on your way to being as prepared as you can be for test day."
-    : "Keep going. You're still on your way to being as prepared as you can be for test day.";
-  return `<p class="cheer ${tone}" role="status">${msg} <span class="cheerend">${close}</span></p>`;
+  const CLOSE = {
+    up: [`You're well on your way to being as prepared as you can be for your ${exam} exam.`, `This is what steady preparation for the ${exam} exam looks like.`,
+         `Every set like this gets you closer to ${exam} exam day.`, `You're building real confidence for your ${exam} exam.`],
+    steady: [`You're on your way to being as prepared as you can be for your ${exam} exam.`, `Steady work like this adds up by ${exam} exam day.`,
+             `Keep showing up. That's how people get ready for the ${exam} exam.`],
+    soft: [`Keep going. You're still on your way to being as prepared as you can be for your ${exam} exam.`, `One tough try doesn't change where you're headed. Keep at it.`,
+           `Missed questions are where the learning happens. You're still on track for your ${exam} exam.`],
+  }[tone];
+  let hsh = 0; for (const ch of String(o.key || o.since || "")) hsh = (hsh * 31 + ch.charCodeAt(0)) >>> 0;
+  return `<p class="cheer ${tone}" role="status">${msg} <span class="cheerend">${CLOSE[hsh % CLOSE.length]}</span></p>`;
 }
 (function () { const c = document.createElement("style");
   c.textContent = `.cheer { margin: 0; padding: 10px 12px; border-radius: 12px; font-size: 14px; line-height: 1.45; color: #24313E; background: #F3F5F7; }

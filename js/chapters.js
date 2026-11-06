@@ -133,7 +133,7 @@
     const by = CMP.by, live = DEMO ? (window.__chLive ? window.__chLive.st : ST) : load("rtStats", {});
     const A = areaScores(VIEW.st, by), Bn = areaScores(live, by);
     const rows = Object.keys(A).map((k) => { const a = A[k], b = Bn[k]; const pa = a.n ? Math.round(a.c / a.n * 100) : null, pb = b.n ? Math.round(b.c / b.n * 100) : null;
-      return { name: a.name, pa, pb, d: pa != null && pb != null ? pb - pa : null, early: (a.n && a.n < 3) || (b.n && b.n < 3) }; })
+      return { name: a.name, pa, pb, na: a.n, nb: b.n, d: pa != null && pb != null ? pb - pa : null, early: (a.n && a.n < 3) || (b.n && b.n < 3) }; })
       .filter((r) => r.pa != null || r.pb != null).sort((x, y) => (y.d == null ? -999 : y.d) - (x.d == null ? -999 : x.d));
     const W = 150, X = (v) => 6 + v / 100 * (W - 12);
     const row = (r) => {
@@ -152,8 +152,8 @@
       <div class="schead"><h2 id="cmpT">Then vs. now</h2><button type="button" class="vb chcx" aria-label="Close">${ICON.x}</button></div>
       <p class="cmpkey"><span class="k1"></span> ${fmt(VIEW.from)} – ${fmt(VIEW.to)} <span class="k2"></span> Now</p>
       ${(() => { const sa = score(VIEW.st).pct, sb = score(live).pct; if (sa == null || sb == null) return "";
-        const best = rows.filter((r) => r.d != null && !r.early && r.d >= 3)[0], nxt = rows.filter((r) => r.pb != null && !r.early).sort((x, y) => x.pb - y.pb)[0];
-        return cheer(sb - sa, { since: fmt(VIEW.to), best: best && best.name, next: nxt && nxt.pb < 85 ? nxt.name : "" }); })()}
+        const best = rows.filter((r) => r.d != null && r.na >= 5 && r.nb >= 5 && r.d >= 3)[0], nxt = rows.filter((r) => r.pb != null && r.nb >= 5).sort((x, y) => x.pb - y.pb)[0];
+        return cheer(sb - sa, { since: fmt(VIEW.to), best: best && best.name, next: nxt && nxt.pb < 85 ? nxt.name : "", key: VIEW.id + CMP.by }); })()}
       <p class="cmpsum">${up ? `<b>${up} area${up === 1 ? "" : "s"} improved</b>` : "No big changes yet"}${down ? `, ${down} slipped a little` : ""}. Biggest changes first.</p>
       <div class="seg fwseg" role="tablist" aria-label="Group by">${tabs}</div>
       <ul class="cmplist">${rows.map(row).join("")}</ul>

@@ -61,9 +61,9 @@
     const sc = dp >= 3 ? `<b class="exup">▲ ${dp} points</b>` : dp <= -3 ? `<b class="exdown">▼ ${-dp} points</b>` : `<b>About the same score</b>`;
     const tm = Math.abs(dm) >= 1 ? ` · ${Math.abs(dm)} min ${dm > 0 ? "faster" : "slower"}` : "";
     const a1 = areas(prev, "domain"), a2 = areas(e, "domain"), ks = Object.keys(a2);
-    const gain = ks.filter((k) => a1[k] && a1[k].n >= 3 && a2[k].n >= 3).map((k) => ({ name: a2[k].name, d: Math.round(a2[k].c / a2[k].n * 100 - a1[k].c / a1[k].n * 100) })).sort((x, y) => y.d - x.d)[0];
-    const weak = ks.filter((k) => a2[k].n >= 3).map((k) => ({ name: a2[k].name, p: a2[k].c / a2[k].n })).sort((x, y) => x.p - y.p)[0];
-    return `<span>${sc}${tm} vs. your last exam (${day(prev.at)}, ${pct(prev)}%)</span>${cheer(dp, { since: day(prev.at), mins: dm, best: gain && gain.d >= 3 ? gain.name : "", next: weak && weak.p < 0.85 ? weak.name : "", exam: true })}`;
+    const gain = ks.filter((k) => a1[k] && a1[k].n >= 5 && a2[k].n >= 5).map((k) => ({ name: a2[k].name, d: Math.round(a2[k].c / a2[k].n * 100 - a1[k].c / a1[k].n * 100) })).sort((x, y) => y.d - x.d)[0];
+    const weak = ks.filter((k) => a2[k].n >= 5).map((k) => ({ name: a2[k].name, p: a2[k].c / a2[k].n })).sort((x, y) => x.p - y.p)[0];
+    return `<span>${sc}${tm} vs. your last exam (${day(prev.at)}, ${pct(prev)}%)</span>${cheer(dp, { since: day(prev.at), mins: dm, best: gain && gain.d >= 3 ? gain.name : "", next: weak && weak.p < 0.85 ? weak.name : "", exam: true, n: e.n, key: prev.id + e.id })}`;
   };
 
   // ---- Compare exams sheet
@@ -95,9 +95,9 @@
       <div class="exsum"><div><b class="${dp >= 3 ? "exup" : dp <= -3 ? "exdown" : ""}">${dp >= 3 ? "▲ " + dp : dp <= -3 ? "▼ " + -dp : "±0"}</b><small>points (${pct(A)}% → ${pct(Bx)}%)</small></div>
         <div><b>${Math.abs(dm) >= 1 ? `${Math.abs(dm)} min ${dm > 0 ? "faster" : "slower"}` : "Same time"}</b><small>${mins(A.ms)} → ${mins(Bx.ms)}</small></div></div>
       <div class="seg fwseg" role="tablist" aria-label="Group by">${tabs}</div>
-      ${(() => { const solid = rows.filter((r) => r.d != null && !r.early), best = solid.filter((r) => r.d >= 3).sort((x, y) => y.d - x.d)[0];
-        const nxt = rows.filter((r) => r.pb != null && r.nb >= 3).sort((x, y) => x.pb - y.pb)[0];
-        return cheer(dp, { since: day(A.at), mins: dm, best: best && best.name, next: nxt && nxt.pb < 85 ? nxt.name : "", exam: true }); })()}
+      ${(() => { const best = rows.filter((r) => r.d != null && r.na >= 5 && r.nb >= 5 && r.d >= 3).sort((x, y) => y.d - x.d)[0];
+        const nxt = rows.filter((r) => r.pb != null && r.nb >= 5).sort((x, y) => x.pb - y.pb)[0];
+        return cheer(dp, { since: day(A.at), mins: dm, best: best && best.name, next: nxt && nxt.pb < 85 ? nxt.name : "", exam: true, n: Bx.n, key: A.id + Bx.id }); })()}
       <p class="cmpsum">Each exam has different questions, so small areas can swing. Biggest changes first.</p>
       <ul class="cmplist">${rows.map(row).join("")}</ul>
     </div></div>`;
