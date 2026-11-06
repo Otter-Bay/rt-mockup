@@ -41,11 +41,11 @@
     if (!answered) {
       const big = rows.map((r) => ({ r, w: weightOf(r.sec, r.total, QS.length) })).sort((a, b) => b.w - a.w)[0];
       body = `<p class="fhint">Answer a few questions and I'll suggest where to focus.${big ? ` A good place to start: <b>${esc(big.r.name || big.r.sec)}</b>, the biggest part of the exam (about ${big.w}%).` : ""}</p>
-        ${big ? `<div class="frow"><button type="button" class="fgo" data-act="focusgo" data-sec="${esc(big.r.sec)}" data-src="all">Practice this</button><button type="button" class="fwhy" data-sec="${esc(big.r.sec)}">Why? See the charts</button></div>` : ""}`;
+        ${big ? `<div class="frow"><button type="button" class="fgo" data-act="focusgo" data-sec="${esc(big.r.sec)}" data-src="all">Practice this</button></div>` : ""}`;
     } else if (!list.length) {
       body = `<p class="fhint">You're doing well everywhere you've practiced (80% or better). Keep mixing in new questions, or try Exam mode.</p>`;
     } else {
-      body = `<ol class="flist">${list.map((s) => `<li><p>${s.text}</p><div class="frow"><button type="button" class="fgo fchoose" data-sec="${esc(s.sec)}">Practice this</button><button type="button" class="fwhy" data-sec="${esc(s.sec)}">Why? See the charts</button></div></li>`).join("")}</ol>
+      body = `<ol class="flist">${list.map((s) => `<li><p>${s.text}</p><div class="frow"><button type="button" class="fgo fchoose" data-sec="${esc(s.sec)}">Practice this</button></div></li>`).join("")}</ol>
         <p class="fnote">Based on your answers so far${W ? " and the exam outline" : ""}. It updates as you practice.</p>`;
     }
     return `<section class="step fcard" aria-label="Suggested focus"><h2>Suggested focus</h2>${body}</section>`;
@@ -198,8 +198,8 @@
       </dl>
       <p class="fpwhy">${why}</p>
       ${avail ? "" : `<p class="fpnone">The mock-up's 20 sample questions don't cover this ${NOUN[by][0]} yet. The full app will.</p>`}
-      <div class="fpbtns">${avail ? `<button type="button" class="btn fpgo">Practice just this</button>` : ""}
-        <button type="button" class="fpadd ${SEL().has(by + "|" + key) ? "on" : ""}" aria-pressed="${SEL().has(by + "|" + key)}">${SEL().has(by + "|" + key) ? "✓ In my set (tap to remove)" : "+ Add to my set"}</button></div>
+      <div class="fpbtns">${avail ? `<button type="button" class="btn fpgo">Practice this ${NOUN[by][0]}</button>` : ""}
+        </div>
       <button type="button" class="fpx">Back to charts</button>
     </div></div>`;
   }
@@ -241,12 +241,12 @@
       <div class="fwhrow"><h3 class="fwh">Your scores by area</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
       ${KEY()}
       <div class="seg fwseg" role="tablist" aria-label="Group by">${TABS(by)}</div>
-      <p class="fwhint">Tap any ${by === "topic" ? "bar" : "ring"} to see where it ranks. Add several to build one bigger practice set; the suggested ones are already in.</p>
+      <p class="fwhint">Tap any ${by === "topic" ? "bar" : "ring"} to see where it ranks and practice it.</p>
       ${gridFor(by, (k) => keys.has(k))}
-    </div>${tray()}${pickCard()}</div>`;
+    </div>${pickCard()}</div>`;
   }
   function preselect() { WHY.sel = new Set(suggestions().list.map((x) => "task|" + x.sec)); }
-  window.openCharts = function () { WHY = { all: true, by: "task" }; preselect(); openWhy(); };
+  window.openCharts = function () { WHY = { all: true, by: "task" }; openWhy(); };
   function openWhy() {
     const ph = document.getElementById("phone"); if (!ph) return;
     let box = document.getElementById("fwbox"); if (box) box.remove();
@@ -287,7 +287,7 @@
     }
     const t = e.target.closest && e.target.closest(".fwhy, .fwx, .fwtab, .fwgo, .fwscrim");
     if (!t) return;
-    if (t.classList.contains("fwhy")) { e.stopPropagation(); WHY = t.dataset.all ? { all: true, by: "task" } : { sec: t.dataset.sec, by: "task" }; if (WHY.all) preselect(); openWhy(); return; }
+    if (t.classList.contains("fwhy")) { e.stopPropagation(); WHY = t.dataset.all ? { all: true, by: "task" } : { sec: t.dataset.sec, by: "task" }; openWhy(); return; }
     e.stopPropagation();
     if (t.classList.contains("fwx") || (t.classList.contains("fwscrim") && e.target === t)) return closeWhy();
     if (t.classList.contains("fwtab")) { WHY.by = t.dataset.by; WHY.pick = null; WHY.scroll = 0; openWhy(); return; }
