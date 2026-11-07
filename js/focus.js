@@ -246,6 +246,7 @@
     </div>${pickCard()}</div>`;
   }
   function preselect() { WHY.sel = new Set(suggestions().list.map((x) => "task|" + x.sec)); }
+  window.__focusSuggest = () => suggestions().list.map((x) => x.sec);   // used by the coach's one-time tips
   window.openCharts = function () { WHY = { all: true, by: "task" }; openWhy(); };
   function openWhy() {
     const ph = document.getElementById("phone"); if (!ph) return;
