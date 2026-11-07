@@ -86,6 +86,7 @@
 .cslist li > span:first-child { flex: 1; } .cslist b { display: block; font-size: 14px; } .cslist small { display: block; color: #8A5A00; font-weight: 700; }
 .csrep { min-height: 38px; padding: 0 10px; border-radius: 9px; border: 1.5px solid #3A4654; background: #fff; color: #3A4654; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .csdone { font-size: 13px; font-weight: 700; color: #17603C; } .csrow { display: flex; gap: 8px; } .csrow .btn { flex: 1; }
+.rlist li.flash { box-shadow: 0 0 0 3px #8CC4FF; transition: box-shadow .4s; }
 .coachweek { margin: 0; padding: 10px 12px; border-radius: 12px; background: #F3F5F7; color: #24313E; font-size: 14px; line-height: 1.4; display: flex; gap: 10px; align-items: flex-start; }
 .coachtoast { position: absolute; left: 12px; right: 12px; top: 64px; z-index: 12; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px;
   background: #24313E; color: #fff; font-size: 14px; font-weight: 600; line-height: 1.4; box-shadow: 0 8px 24px rgba(18,32,46,.3); cursor: pointer; animation: ctin .25s ease-out; }
@@ -131,10 +132,10 @@
       else S.qi += 1;
       const ct = document.getElementById("content"); if (ct) ct.scrollTop = 0; },
     coachrep: (b) => { S.qi = Number(b.dataset.i); S.fb = "open"; S.reason = null; },
-    coachrev: (b) => { S.qi = Number(b.dataset.i); DONE = false; S.reviewing = true; S.__fromSummary = true; },
+    coachrev: (b) => { S.resScroll = (document.querySelector(".results") || {}).scrollTop || 0; S.qi = Number(b.dataset.i); DONE = false; S.reviewing = true; S.__fromSummary = true; S.toTop = true; },
     coachagain: () => { const set = S.set.filter((ix, i) => S.run[i].done && S.run[i].sel !== QS[ix].ans); DONE = false; S.set = set; newRun(); },
     coachnew: () => { DONE = false; newRun(); },
-    backresults: () => { S.reviewing = false; S.fb = null; if (S.__fromSummary) { S.__fromSummary = false; DONE = true; } },
+    backresults: () => { S.reviewing = false; S.fb = null; S.resRestore = S.qi; if (S.__fromSummary) { S.__fromSummary = false; DONE = true; S.__sumRestore = S.qi; } },
   });
   document.addEventListener("DOMContentLoaded", () => {
     // ---- 2. "I got it" moments, attached to the question just answered
@@ -160,7 +161,8 @@
     render = function () {
       if (DONE && (S.page !== "quiz" || S.mode !== "study")) DONE = false;
       r0();
-      if (DONE && S.page === "quiz") { const sh = document.querySelector("#phone .sheet"); if (sh) sh.outerHTML = studySummary(); }
+      if (DONE && S.page === "quiz") { const sh = document.querySelector("#phone .sheet"); if (sh) { const back = S.__sumRestore; sh.outerHTML = studySummary();
+        if (back != null) { const rs = document.querySelector(".results"), li = rs && rs.querySelectorAll(".rlist li")[back]; if (rs) rs.scrollTop = S.resScroll || 0; if (li) { li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1600); } S.__sumRestore = null; } } }
       if (S.page === "quiz" && !S.reviewing && !DONE && S.mode === "study" && S.qi === S.set.length - 1 && S.set.length > 1) {   // relabel the last "Start over"
         const nb = document.querySelector('.foot [data-act="next"]'); if (nb) nb.textContent = "See your summary"; }
       if (S.results && S.mode === "exam" && !S.reviewing) { const rl = document.querySelector(".results .rlist"); if (rl && !document.querySelector(".results .cssec")) rl.insertAdjacentHTML("beforebegin", repeatList()); }

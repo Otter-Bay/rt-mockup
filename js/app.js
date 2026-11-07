@@ -180,7 +180,12 @@ function render() {
   if (S.scale) h += scaleSheet();
   h += `<div id="viewer-root"></div>`;
   phone.innerHTML = h;
-  const c2 = document.getElementById("content"); if (c2) c2.scrollTop = scroll;
+  const c2 = document.getElementById("content"); if (c2) c2.scrollTop = S.toTop ? 0 : scroll; S.toTop = false;
+  if (S.resRestore != null) {   // back from reviewing: same spot in the results list, with the reviewed one highlighted
+    const rs = document.querySelector(".results"), li = rs && rs.querySelectorAll(".rlist li")[S.resRestore];
+    if (rs) rs.scrollTop = S.resScroll || 0; if (li) { li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1600); }
+    S.resRestore = null;
+  }
   const d = document.getElementById("fbWhy"); if (d) d.value = draftVal;
   renderViewer();
   calcAfterRender();
@@ -283,8 +288,8 @@ document.addEventListener("click", (e) => {
     }
   }
   else if (a === "next") { S.scale = null; if (S.qi === S.set.length - 1) newRun(); else S.qi += 1; const ct = document.getElementById("content"); if (ct) ct.scrollTop = 0; S.fb = null; S.reason = null; }
-  else if (a === "review") { S.qi = Number(b.dataset.i); S.reviewing = true; }
-  else if (a === "backresults") { S.reviewing = false; S.fb = null; }
+  else if (a === "review") { S.resScroll = (document.querySelector(".results") || {}).scrollTop || 0; S.qi = Number(b.dataset.i); S.reviewing = true; S.toTop = true; }   // open at the question, remember the list spot
+  else if (a === "backresults") { S.reviewing = false; S.fb = null; S.resRestore = S.qi; }
   else if (a === "restart") newRun();
   else if (a === "fb") { S.fb = "open"; S.reason = null; }
   else if (a === "fbclose") { S.fb = null; }
@@ -307,7 +312,7 @@ document.addEventListener("click", (e) => {
   else if (a === "zout") { const i = ZOOMS.indexOf(S.zoom); if (i > 0) S.zoom = ZOOMS[i - 1]; }
   else if (a === "rot") { S.rot = !S.rot; S.zoom = 1; }
   render();
-  if ((a === "final" && S.mode === "study") || a === "review") scrollToResult();
+  if (a === "final" && S.mode === "study") scrollToResult();
   if (a === "view" || a === "evview" || a === "rot") { const v = document.querySelector('.viewer [data-act="vclose"]'); if (v) v.focus(); }
 });
 document.addEventListener("keydown", (e) => {
