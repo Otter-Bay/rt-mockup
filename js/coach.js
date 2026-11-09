@@ -223,5 +223,8 @@
       if (!SEEN.chartsSeen && Object.keys(ST).length >= 40 && S.page === "stats") tip("charts", "Have you seen your charts? Tap See your charts on this page to see your scores by area and where to focus.");
       toast();
     };
+    // Redraw once now that Home and the question screen are wrapped. When the questions are built into the page
+    // (private copies), the app's last draw happens before this point, so the coach's Home line would be missing.
+    if (QS.length) render();
   });
 })();
