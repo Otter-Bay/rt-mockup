@@ -59,7 +59,6 @@ html[data-view="desktop"] .bay.photo .hello { grid-column: 1; grid-row: 1; }
 html[data-view="desktop"] .bay.photo h1 { grid-column: 1; grid-row: 2; }
 html[data-view="desktop"] .bay.photo .today { grid-column: 1; grid-row: 3; align-self: end; margin: 24px 0 0; max-width: none; }
 html[data-view="desktop"] .bay.photo .hero { grid-column: 2; grid-row: 1 / 4; height: auto; min-height: 360px; margin: -28px 0 -28px 0; }
-html[data-view="desktop"] .bay.photo .hero::after { inset: 0 auto 0 0; width: 90px; height: auto; background: linear-gradient(90deg, var(--mid), transparent); }
 html[data-view="desktop"] .bay.photo .hero img { position: absolute; inset: 0; object-position: 50% 25%; }
 html[data-view="desktop"] .nb > span { order: 1; }
 html[data-view="desktop"] .nbadge { order: 2; }
