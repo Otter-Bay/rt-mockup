@@ -141,10 +141,50 @@
   const keyOf = (by, q) => by === "domain" ? q.domain : by === "topic" ? (q.tgroup || "Other") : q.sec;
   function selIdx() { const out = []; const sel = [...SEL()].map((s) => s.split("|")); for (const ix of ALL) { const q = QS[ix]; if (sel.some(([by, k]) => keyOf(by, q) === k)) out.push(ix); } return out; }
   function selName(s) { const [by, k] = s.split("|"); const g = groups(by).find((x) => x.key === k); return g ? (by === "domain" ? `${k}. ${g.name}` : g.name) : k; }
+  /* Coach line in the set tray: one gentle suggestion about the current picks (never blocks starting).
+     Judges an area only after JUDGE answers there. Order: removed something needed > missed something big >
+     picked something already strong > set too small or too big > (rarely) a good mix. */
+  const JUDGE = 5;
+  function setCoach(n) {
+    if (!WHY || !n) return "";
+    const D = WHY.dismissed || (WHY.dismissed = new Set()), sel = SEL();
+    const tasks = ranked("task"), tOf = (k) => tasks.find((x) => x.key === k);
+    const picked = new Set(selIdx().map((ix) => QS[ix].sec));                 // tasks the set covers, however they were picked
+    const pc = (x) => Math.round(x.p * 100), judged = tasks.filter((x) => x.att >= JUDGE && x.p != null);
+    const lowest = judged.slice().sort((a, b) => a.p - b.p)[0];
+    const info = (k) => { const [by, key] = k.split("|"); const x = ranked(by).find((y) => y.key === key); return x && Object.assign({ by, k }, x); };
+    const say = (id, html, btn) => D.has(id) ? null : { id, html, btn };
+    const pick = [];
+    // 1. Took out something they need
+    if (WHY.removed && !sel.has(WHY.removed)) {
+      const x = info(WHY.removed);
+      if (x && x.att >= JUDGE && x.p != null && x.p < 0.85) {
+        const nm = esc(x.by === "domain" ? `${x.key}. ${x.name}` : x.name);
+        pick.push(say("rm|" + x.k, `You took out <b>${nm}</b>. ${lowest && x.by === "task" && lowest.key === x.key ? `It's your lowest score (${pc(x)}%)` : `You're at ${pc(x)}% there`}, so it might be worth keeping.`,
+          `<button type="button" class="fwcact" data-add="${esc(x.k)}">Put it back</button>`));
+      }
+    }
+    // 2. Missed something big: the top practice priority isn't in the set
+    const top = tasks.find((x) => x.att >= JUDGE && x.p != null && (x.p < 0.9 || x.rl > 0));
+    if (top && !picked.has(top.key)) pick.push(say("add|" + top.key, `<b>${esc(top.name)}</b> is about ${top.w}% of the exam${top.rl ? ` and has ${top.rl} of your misses` : ` and you're at ${pc(top)}%`}. Might be worth adding?`,
+      `<button type="button" class="fwcact" data-add="task|${esc(top.key)}">Add it</button>`));
+    // 3. Picked something already strong while a weaker area is left out
+    const strong = [...picked].map(tOf).filter((x) => x && x.att >= JUDGE && x.p != null && x.p >= 0.9 && !x.rl).sort((a, b) => b.p - a.p)[0];
+    const weak = tasks.find((x) => x.att >= JUDGE && x.p != null && x.p < 0.9 && !picked.has(x.key));
+    if (strong && weak) pick.push(say("strong|" + strong.key, `You're at ${pc(strong)}% in <b>${esc(strong.name)}</b>. Fine as a refresher, though practice might help your score more in <b>${esc(weak.name)}</b>.`));
+    // 4. Size
+    if (n < 10) pick.push(say("small|" + n, `That's only ${n} question${n === 1 ? "" : "s"}. Adding another area or two might make a better session.`));
+    else if (n > 100) pick.push(say("big|" + n, `That's ${n} questions, a long session. Fine if you have time, or you might pick fewer areas.`));
+    // 5. A good mix (only after they've changed something, so it stays rare)
+    const top2 = tasks.filter((x) => x.att >= JUDGE && x.p != null && x.p < 0.9).slice(0, 2);
+    if (WHY.touched && top2.length && top2.every((x) => picked.has(x.key))) pick.push(say("good", "Good mix: this covers the areas where practice should help your score most."));
+    const m = pick.find(Boolean); if (!m) return "";
+    return `<div class="fwcoach" role="status"><span class="coachav" aria-hidden="true">🦦</span><p>${m.html}</p>${m.btn || ""}<button type="button" class="fwcx" data-m="${esc(m.id)}" aria-label="Dismiss this tip">×</button></div>`;
+  }
   function tray() {
     const sel = SEL(); if (!sel.size) return "";
     const n = selIdx().length;
-    return `<div class="fwtray" role="region" aria-label="My practice set"><div class="fwchips">${[...sel].map((s) => `<button type="button" class="fwchip" data-s="${esc(s)}" aria-label="Remove ${esc(selName(s))}"><span class="fwdot" style="background:${BYCOLOR[s.split("|")[0]]}"></span>${esc(selName(s))} <b aria-hidden="true">×</b></button>`).join("")}</div>
+    return `<div class="fwtray" role="region" aria-label="My practice set">${setCoach(n)}<div class="fwchips">${[...sel].map((s) => `<button type="button" class="fwchip" data-s="${esc(s)}" aria-label="Remove ${esc(selName(s))}"><span class="fwdot" style="background:${BYCOLOR[s.split("|")[0]]}"></span>${esc(selName(s))} <b aria-hidden="true">×</b></button>`).join("")}</div>
       <button type="button" class="btn fwsetgo" ${n ? "" : "disabled"}>${n ? `${sel.size === 1 ? "Practice this area" : `Practice these ${sel.size} areas`} (${n} question${n === 1 ? "" : "s"})` : "No sample questions in these yet"}</button></div>`;
   }
   function gridFor(by, isHl) {
@@ -271,20 +311,22 @@
       if (cr.dataset.all) { const by = cr.dataset.all, keys = ranked(by).map((x) => by + "|" + x.key), allOn = keys.every((k) => S2.has(k));
         keys.forEach((k) => allOn ? S2.delete(k) : S2.add(k)); if (allOn && WHY.choose) S2.add((WHY.chooseBy || "task") + "|" + WHY.choose);
         WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); const a2 = document.querySelector(".fcall"); if (a2) a2.focus(); return; }
-      const k = cr.dataset.s; S2.has(k) ? S2.delete(k) : S2.add(k); WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy();
+      const k = cr.dataset.s; if (S2.has(k)) { S2.delete(k); WHY.removed = k; } else { S2.add(k); if (WHY.removed === k) WHY.removed = null; } WHY.touched = true; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy();
       const again = document.querySelector(`.fcrow[data-s="${CSS.escape(k)}"]`); if (again) again.focus(); return;
     }
-    const pk = e.target.closest && e.target.closest(".fpick, .fpx, .fpgo, .fpadd, .fwchip, .fwsetgo, .fpscrim");
+    const pk = e.target.closest && e.target.closest(".fpick, .fpx, .fpgo, .fpadd, .fwchip, .fwsetgo, .fpscrim, .fwcact, .fwcx");
     if (pk && WHY) {
       e.stopPropagation();
+      if (pk.classList.contains("fwcact")) { const k = pk.dataset.add; SEL().add(k); if (WHY.removed === k) WHY.removed = null; WHY.touched = true; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
+      if (pk.classList.contains("fwcx")) { (WHY.dismissed || (WHY.dismissed = new Set())).add(pk.dataset.m); WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
       if (pk.classList.contains("fpick")) {   // tick or untick this area for the practice set
-        const k = pk.dataset.by + "|" + pk.dataset.key, S2 = SEL(); S2.has(k) ? S2.delete(k) : S2.add(k);
+        const k = pk.dataset.by + "|" + pk.dataset.key, S2 = SEL(); if (S2.has(k)) { S2.delete(k); WHY.removed = k; } else { S2.add(k); if (WHY.removed === k) WHY.removed = null; } WHY.touched = true;
         WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy();
         const again = document.querySelector(`.fpick[data-by="${pk.dataset.by}"][data-key="${CSS.escape(pk.dataset.key)}"]`); if (again) again.focus(); return; }
       // Practicing an area from the charts opens the same chooser as Suggested focus, with that area ticked, so more can be added.
       if (pk.classList.contains("fpgo")) { const { by, key } = WHY.pick; WHY = { choose: key, chooseBy: by, by, sel: new Set([by + "|" + key]) }; openWhy(); return; }
       if (pk.classList.contains("fpadd")) { const k = WHY.pick.by + "|" + WHY.pick.key, S2 = SEL(); S2.has(k) ? S2.delete(k) : S2.add(k); WHY.pick = null; openWhy(); return; }
-      if (pk.classList.contains("fwchip")) { SEL().delete(pk.dataset.s); WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
+      if (pk.classList.contains("fwchip")) { SEL().delete(pk.dataset.s); WHY.removed = pk.dataset.s; WHY.touched = true; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
       if (pk.classList.contains("fwsetgo")) { const set = selIdx(); if (!set.length) return; closeWhy(); for (let i = set.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [set[i], set[j]] = [set[j], set[i]]; }
         S.set = set; S.mode = S.build.mode; newRun(); S.page = "quiz"; render(); return; }
       if (pk.classList.contains("fpx") || (pk.classList.contains("fpscrim") && e.target === pk)) { WHY.pick = null; openWhy(); return; }
@@ -369,6 +411,12 @@
 .fwscrim { flex-direction: column; justify-content: flex-end; align-items: stretch; } .fwdlg { flex: 0 1 auto; min-height: 0; }
 .fwscrim:has(.fwtray) .fwdlg { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .fwtray { flex-shrink: 0; width: 100%; box-sizing: border-box; background: #fff; border-top: 1px solid #DDE3E8; padding: 10px 14px 12px; box-shadow: 0 -4px 14px rgba(18,32,46,.12); }
+.fwcoach { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; padding: 8px 6px 8px 10px; border-radius: 12px; background: #E3F4EA; color: #17603C; }
+.fwcoach p { flex: 1 1 180px; margin: 0; font-size: 13px; line-height: 1.35; font-weight: 600; } .fwcoach b { color: #0F4A2D; }
+.fwcoach .coachav { flex-shrink: 0; width: 28px; height: 28px; border-radius: 14px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.fwcact { flex-shrink: 0; min-height: 34px; padding: 0 12px; border-radius: 17px; border: 1.5px solid #17603C; background: #fff; color: #17603C; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.fwcoach { position: relative; padding-right: 36px; } .fwcx { position: absolute; top: 4px; right: 2px; width: 32px; height: 32px; border: 0; border-radius: 16px; background: transparent; color: #17603C; font: inherit; font-size: 18px; cursor: pointer; }
+.fwcact:focus-visible, .fwcx:focus-visible { outline: 3px solid #8CC4FF; outline-offset: 1px; }
 .fwchips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; max-height: 76px; overflow-y: auto; }
 .fwchip { display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid #C9D0D6; background: #F3F5F7; color: #24313E; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .fwchip b { margin-left: 2px; color: #5B6672; }
