@@ -85,3 +85,6 @@ html[data-view="desktop"] .foot { padding: 14px 32px 16px; }
 html[data-view="desktop"] .results { padding: 26px 32px 40px; }
 html[data-view="desktop"] .results > * { max-width: 920px; }
 html[data-view="desktop"] .opt:hover:not(.ok):not(.no):not(.dim) { border-color: var(--accent); }
+
+/* Practice-set chooser: keep its bottom tray the same width as the centered dialog */
+html:is([data-view="tablet"], [data-view="desktop"]) .fwtray { max-width: 600px; box-sizing: border-box; border-radius: 0 0 22px 22px; }

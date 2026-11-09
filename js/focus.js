@@ -205,7 +205,7 @@
   }
   function chooseSheet() {   // "Practice this" on a suggestion: start with it, offer to add others
     const by = WHY.by, first = WHY.choose, list = ranked(by), sel = SEL(), sug = new Set(suggestions().list.map((x) => x.sec));
-    const fname = selName("task|" + first);
+    const fname = selName((WHY.chooseBy || "task") + "|" + first);
     const rows = list.map((x, i) => {
       const k = by + "|" + x.key, on = sel.has(k), pc = x.p == null ? null : Math.round(x.p * 100);
       const isSug = by === "task" && sug.has(x.key);
@@ -262,14 +262,14 @@
     const inf = e.target.closest && e.target.closest(".fwinfo");
     if (inf) { e.stopPropagation(); const k = document.getElementById("fwkey"), open = k.hidden; k.hidden = !open; inf.setAttribute("aria-expanded", String(open)); return; }
     const ch = e.target.closest && e.target.closest(".fchoose");
-    if (ch) { e.stopPropagation(); WHY = { choose: ch.dataset.sec, by: "task", sel: new Set(["task|" + ch.dataset.sec]) }; openWhy(); return; }
+    if (ch) { e.stopPropagation(); WHY = { choose: ch.dataset.sec, chooseBy: "task", by: "task", sel: new Set(["task|" + ch.dataset.sec]) }; openWhy(); return; }
     const cr = e.target.closest && e.target.closest(".fcrow, .fcjust");
     if (cr && WHY) {
       e.stopPropagation();
-      if (cr.classList.contains("fcjust")) { const sec = WHY.choose; closeWhy(); window.PAGE_ACTIONS.focusgo({ dataset: { sec, src: "all" } }); render(); return; }
+      if (cr.classList.contains("fcjust")) { const key = WHY.choose, by = WHY.chooseBy || "task"; closeWhy(); window.PAGE_ACTIONS.focusgo({ dataset: { by, key, src: "all" } }); render(); return; }
       const S2 = SEL();
       if (cr.dataset.all) { const by = cr.dataset.all, keys = ranked(by).map((x) => by + "|" + x.key), allOn = keys.every((k) => S2.has(k));
-        keys.forEach((k) => allOn ? S2.delete(k) : S2.add(k)); if (allOn && WHY.choose) S2.add("task|" + WHY.choose);
+        keys.forEach((k) => allOn ? S2.delete(k) : S2.add(k)); if (allOn && WHY.choose) S2.add((WHY.chooseBy || "task") + "|" + WHY.choose);
         WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); const a2 = document.querySelector(".fcall"); if (a2) a2.focus(); return; }
       const k = cr.dataset.s; S2.has(k) ? S2.delete(k) : S2.add(k); WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy();
       const again = document.querySelector(`.fcrow[data-s="${CSS.escape(k)}"]`); if (again) again.focus(); return;
@@ -278,7 +278,8 @@
     if (pk && WHY) {
       e.stopPropagation();
       if (pk.classList.contains("fpick")) { WHY.pick = { by: pk.dataset.by, key: pk.dataset.key }; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
-      if (pk.classList.contains("fpgo")) { const { by, key } = WHY.pick; closeWhy(); window.PAGE_ACTIONS.focusgo({ dataset: { by, key, src: "all" } }); render(); return; }
+      // Practicing an area from the charts opens the same chooser as Suggested focus, with that area ticked, so more can be added.
+      if (pk.classList.contains("fpgo")) { const { by, key } = WHY.pick; WHY = { choose: key, chooseBy: by, by, sel: new Set([by + "|" + key]) }; openWhy(); return; }
       if (pk.classList.contains("fpadd")) { const k = WHY.pick.by + "|" + WHY.pick.key, S2 = SEL(); S2.has(k) ? S2.delete(k) : S2.add(k); WHY.pick = null; openWhy(); return; }
       if (pk.classList.contains("fwchip")) { SEL().delete(pk.dataset.s); WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
       if (pk.classList.contains("fwsetgo")) { const set = selIdx(); if (!set.length) return; closeWhy(); for (let i = set.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [set[i], set[j]] = [set[j], set[i]]; }
