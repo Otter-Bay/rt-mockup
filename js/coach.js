@@ -65,6 +65,7 @@
     if (curToast && !curToast.isConnected) { const ph = document.getElementById("phone"); if (ph) ph.appendChild(curToast); }   // a redraw wiped it: put it back
     if (showing || !TQ.length || shownThisVisit >= 2) return;
     if (S.mode === "exam" && !S.results && S.page === "quiz") return;   // wait until the exam is over
+    if (document.querySelector("#fwbox, .scrim, .viewer")) return;   // wait while a pop-up, chart sheet or image is open
     const ph = document.getElementById("phone"); if (!ph) return;
     showing = true; const t = document.createElement("div"); t.className = "coachtoast"; t.setAttribute("role", "status");
     const [key, txt] = TQ.shift(); SEEN[key] = 1; saveSeen(); shownThisVisit++; t.innerHTML = said(txt);
@@ -73,6 +74,8 @@
     curToast = t;
     t.addEventListener("click", done); ph.appendChild(t); setTimeout(done, 5200);
   }
+  // If a pop-up, chart sheet or image opens while a tip is showing, let the tip go instead of coming back afterwards.
+  document.addEventListener("click", () => setTimeout(() => { if (curToast && document.querySelector("#fwbox, .scrim, .viewer")) curToast.click(); }, 0), true);
 
   const css = document.createElement("style");
   css.textContent = `.coachline { margin: 0; padding: 10px 12px; border-radius: 12px; background: #E3F4EA; color: #17603C; font-size: 14px; font-weight: 600; line-height: 1.4; display: flex; gap: 10px; align-items: flex-start; }
@@ -90,6 +93,7 @@
 .coachweek { margin: 0; padding: 10px 12px; border-radius: 12px; background: #F3F5F7; color: #24313E; font-size: 14px; line-height: 1.4; display: flex; gap: 10px; align-items: flex-start; }
 .coachtoast { position: absolute; left: 12px; right: 12px; top: 64px; z-index: 12; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px;
   background: #24313E; color: #fff; font-size: 14px; font-weight: 600; line-height: 1.4; box-shadow: 0 8px 24px rgba(18,32,46,.3); cursor: pointer; animation: ctin .25s ease-out; }
+.phone:has(#fwbox, .scrim, .viewer) .coachtoast { display: none; }   /* never on top of a pop-up or chart sheet */
 .coachtoast.out { opacity: 0; transform: translateY(-6px); transition: opacity .25s, transform .25s; }
 @keyframes ctin { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .coachtoast { animation: none; } .coachtoast.out { transition: none; } }`;
