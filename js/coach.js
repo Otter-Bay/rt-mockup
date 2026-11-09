@@ -16,6 +16,9 @@
   const GOTIT = ["You got this one right this time. Last time it tripped you up.", "Nice, you've got it now. This one used to get you.",
     "Right this time. That's exactly what practice is for.", "This one beat you before. Not this time."];
   const day = (d) => d.toISOString().slice(0, 10);
+  // Learners can turn the coach off in Settings ("Coach tips"). Remembered on this device; applies to every coach message.
+  const OFF = () => !!load("coachOff", false);
+  window.COACH_OFF = OFF;
 
   // ---- 1. Welcome back (real mode only; computed once per visit)
   let welcome = "";
@@ -60,6 +63,7 @@
   const TQ = []; let showing = false, shownThisVisit = 0;   // at most 2 pop-ups per visit; the rest wait for a later visit   // toast queue (named TQ so it never hides the app's Q())
   let curToast = null, closedRef = null;
   function toast() {
+    if (OFF()) { if (curToast) { curToast.remove(); curToast = null; } showing = false; return; }
     const inExam = S.mode === "exam" && !S.results && S.page === "quiz";
     if (curToast && inExam) { curToast.remove(); curToast = null; showing = false; }   // never over a timed exam
     if (curToast && !curToast.isConnected) { const ph = document.getElementById("phone"); if (ph) ph.appendChild(curToast); }   // a redraw wiped it: put it back
@@ -99,6 +103,10 @@
 @media (prefers-reduced-motion: reduce) { .coachtoast { animation: none; } .coachtoast.out { transition: none; } }`;
   document.head.appendChild(css);
 
+  // Settings switch: "Coach tips" on or off
+  (window.SETTINGS_EXTRA = window.SETTINGS_EXTRA || []).push(() => `<label class="switch" for="coachOn"><input type="checkbox" id="coachOn" ${OFF() ? "" : "checked"}><span>Coach tips<small>Short notes from the coach: encouragement, milestones, and suggestions when you build a practice set.</small></span></label>`);
+  document.addEventListener("change", (e) => { if (e.target && e.target.id === "coachOn") { save("coachOff", !e.target.checked); render(); } });
+
   // ---- End-of-session summary. Study mode used to loop back to question 1; now the last "Next" shows this.
   let DONE = false;   // study summary showing
   const missedMulti = () => S.set.map((ix, i) => ({ i, q: QS[ix] })).filter(({ q }) => ST[q.id] && ST[q.id].attempts - ST[q.id].correct >= 2);
@@ -121,7 +129,7 @@
     const msg = `${right} of ${n}. ${V[S.started % V.length]}`;
     return `<div class="sheet"><div class="results csum"><p class="eyebrow">Study mode · session done</p><h2>Nice work</h2>
       <div class="score"><div><b>${right} / ${n}</b><span>correct</span></div><div><b>${p}%</b><span>this session</span></div></div>
-      <div class="coachline">${said(msg)}</div>
+      ${OFF() ? "" : `<div class="coachline">${said(msg)}</div>`}
       ${missed.length ? `<section class="cssec"><h3>Missed this time</h3><p class="cshint">${missed.map((i) => esc(QS[S.set[i]].id)).join(", ")}. Review any of them below, or practice just these again.</p>
         <div class="csrow"><button type="button" class="btn" data-act="coachagain">Practice these ${missed.length} again</button></div></section>` : ""}
       ${repeatList()}
@@ -159,7 +167,7 @@
       return r;
     };
     const P = window.PAGES || {};
-    if (P.home) { const h = P.home; P.home = function () { const out = h(), w = weekLine();
+    if (P.home) { const h = P.home; P.home = function () { const out = h(), w = OFF() ? "" : weekLine();
       return w ? out.replace(/(<div class="obscroll">(?:<section class="obsec[^"]*">[\s\S]*?<\/section>)*)/, `$1<section class="obsec"><p class="coachweek">${said(w)}</p></section>`) : out; }; }
     const r0 = render;
     render = function () {
@@ -172,7 +180,7 @@
       if (S.results && S.mode === "exam" && !S.reviewing) { const rl = document.querySelector(".results .rlist"); if (rl && !document.querySelector(".results .cssec")) rl.insertAdjacentHTML("beforebegin", repeatList()); }
       if (S.results && S.mode === "exam" && !DEMO) TQ.push(...checkMilestones());   // exam milestones: the exam is saved as its results appear
       const c = S.run && S.run[S.qi];
-      if (c && c.coach && c.done && S.mode !== "exam" && S.page === "quiz" && !document.querySelector(".coachline")) {
+      if (c && c.coach && c.done && !OFF() && S.mode !== "exam" && S.page === "quiz" && !document.querySelector(".coachline")) {
         const at = document.querySelector(".rl") || document.querySelector(".opts");
         if (at) at.insertAdjacentHTML("afterend", `<div class="coachline ${c.coachFb ? "fb" : ""}" role="status">${said(c.coach)}</div>${c.coachFb && !S.reported[QS[S.set[S.qi]].id] ? `<button type="button" class="coachfb" data-act="fb">Report a problem with this question</button>` : ""}`);
       }

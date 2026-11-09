@@ -146,7 +146,7 @@
      picked something already strong > set too small or too big > (rarely) a good mix. */
   const JUDGE = 5;
   function setCoach(n) {
-    if (!WHY || !n) return "";
+    if (!WHY || !n || (window.COACH_OFF && window.COACH_OFF())) return "";
     const D = WHY.dismissed || (WHY.dismissed = new Set()), sel = SEL();
     const tasks = ranked("task"), tOf = (k) => tasks.find((x) => x.key === k);
     const picked = new Set(selIdx().map((ix) => QS[ix].sec));                 // tasks the set covers, however they were picked
