@@ -151,8 +151,8 @@
     LASTHL = isHl;
     const g = groups(by).sort((a, b) => { const pa = a.att ? a.cor / a.att : 2, pb = b.att ? b.cor / b.att : 2; return pa - pb || b.total - a.total; });
     const dW = DOMW();
-    const lbl = (x, pc) => `${esc(x.name)}: ${pc == null ? "not tried yet" : pc + "% correct, " + x.cor + " of " + x.att}${x.att > 0 && x.att < MIN_ATT ? " (early result)" : ""}${isHl(x.key) ? ", suggested" : ""}. Tap for details.`;
-    const btn = (x, pc, inner) => { const on = SEL().has(by + "|" + x.key); return `<button type="button" class="fpick ${on ? "picked" : ""}" data-by="${by}" data-key="${esc(x.key)}" aria-label="${lbl(x, pc)}${on ? " In your set." : ""}">${inner}${on ? '<span class="fpchk" aria-hidden="true">✓</span>' : ""}</button>`; };
+    const lbl = (x, pc) => `${esc(x.name)}: ${pc == null ? "not tried yet" : pc + "% correct, " + x.cor + " of " + x.att}${x.att > 0 && x.att < MIN_ATT ? " (early result)" : ""}${isHl(x.key) ? ", suggested" : ""}. Tap to include it in your practice set or leave it out.`;
+    const btn = (x, pc, inner) => { const on = SEL().has(by + "|" + x.key); return `<button type="button" class="fpick ${on ? "picked" : ""}" data-by="${by}" data-key="${esc(x.key)}" role="checkbox" aria-checked="${on}" aria-label="${lbl(x, pc)}">${inner}<span class="fpchk ${on ? "" : "off"}" aria-hidden="true">${on ? "✓" : ""}</span></button>`; };
     if (by === "topic") return `<div class="ftbars">${g.map((x) => {
       const pc = x.att ? Math.round(x.cor / x.att * 100) : null, early = x.att > 0 && x.att < MIN_ATT, hl = isHl(x.key);
       return btn(x, pc, `<div class="ftb ${hl ? "hl" : ""} ${early ? "early" : ""} ${pc == null ? "nt" : ""}" aria-hidden="true">
@@ -241,13 +241,13 @@
       <div class="fwhrow"><h3 class="fwh">Your scores by area</h3><button type="button" class="fwinfo" aria-expanded="false" aria-controls="fwkey" aria-label="How to read these charts">i</button></div>
       ${KEY()}
       <div class="seg fwseg" role="tablist" aria-label="Group by">${TABS(by)}</div>
-      <p class="fwhint">Tap any ${by === "topic" ? "bar" : "ring"} to see where it ranks and practice it.</p>
+      <p class="fwhint">Tick any ${by === "topic" ? "bar" : "ring"} to add it to your practice set; tap again to take it out.${!list.length ? "" : by === "task" ? " The suggested ones start ticked." : " Gold ones are suggested."}</p>
       ${gridFor(by, (k) => keys.has(k))}
-    </div>${pickCard()}</div>`;
+    </div>${tray()}</div>`;
   }
   function preselect() { WHY.sel = new Set(suggestions().list.map((x) => "task|" + x.sec)); }
   window.__focusSuggest = () => suggestions().list.map((x) => x.sec);   // used by the coach's one-time tips
-  window.openCharts = function () { WHY = { all: true, by: "task" }; openWhy(); };
+  window.openCharts = function () { WHY = { all: true, by: "task" }; preselect(); openWhy(); };
   function openWhy() {
     const ph = document.getElementById("phone"); if (!ph) return;
     let box = document.getElementById("fwbox"); if (box) box.remove();
@@ -277,7 +277,10 @@
     const pk = e.target.closest && e.target.closest(".fpick, .fpx, .fpgo, .fpadd, .fwchip, .fwsetgo, .fpscrim");
     if (pk && WHY) {
       e.stopPropagation();
-      if (pk.classList.contains("fpick")) { WHY.pick = { by: pk.dataset.by, key: pk.dataset.key }; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
+      if (pk.classList.contains("fpick")) {   // tick or untick this area for the practice set
+        const k = pk.dataset.by + "|" + pk.dataset.key, S2 = SEL(); S2.has(k) ? S2.delete(k) : S2.add(k);
+        WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy();
+        const again = document.querySelector(`.fpick[data-by="${pk.dataset.by}"][data-key="${CSS.escape(pk.dataset.key)}"]`); if (again) again.focus(); return; }
       // Practicing an area from the charts opens the same chooser as Suggested focus, with that area ticked, so more can be added.
       if (pk.classList.contains("fpgo")) { const { by, key } = WHY.pick; WHY = { choose: key, chooseBy: by, by, sel: new Set([by + "|" + key]) }; openWhy(); return; }
       if (pk.classList.contains("fpadd")) { const k = WHY.pick.by + "|" + WHY.pick.key, S2 = SEL(); S2.has(k) ? S2.delete(k) : S2.add(k); WHY.pick = null; openWhy(); return; }
@@ -289,7 +292,7 @@
     }
     const t = e.target.closest && e.target.closest(".fwhy, .fwx, .fwtab, .fwgo, .fwscrim");
     if (!t) return;
-    if (t.classList.contains("fwhy")) { e.stopPropagation(); WHY = t.dataset.all ? { all: true, by: "task" } : { sec: t.dataset.sec, by: "task" }; openWhy(); return; }
+    if (t.classList.contains("fwhy")) { e.stopPropagation(); WHY = t.dataset.all ? { all: true, by: "task" } : { sec: t.dataset.sec, by: "task" }; if (WHY.all) preselect(); openWhy(); return; }
     e.stopPropagation();
     if (t.classList.contains("fwx") || (t.classList.contains("fwscrim") && e.target === t)) return closeWhy();
     if (t.classList.contains("fwtab")) { WHY.by = t.dataset.by; WHY.pick = null; WHY.scroll = 0; openWhy(); return; }
@@ -355,16 +358,17 @@
 .fpnone { margin: 0 0 8px; font-size: 13px; color: #5B6672; }
 .fpgo { width: 100%; }
 .fpx { width: 100%; margin-top: 8px; min-height: 44px; border: 0; background: none; color: #3A4654; font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; }
-.fpick { position: relative; } .fpchk { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 10px; background: #3A4654; color: #fff; font-size: 12px; font-weight: 800; line-height: 20px; text-align: center; }
+.fpick { position: relative; } .fpchk { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 5px; background: #3A4654; color: #fff; font-size: 12px; font-weight: 800; line-height: 20px; text-align: center; }
 .fpick.picked .fring, .fpick.picked .ftb { box-shadow: inset 0 0 0 2px #3A4654; }
+.fpchk.off { background: #fff; box-shadow: inset 0 0 0 2px #8A96A3; }
 .fpick.picked .fring.hl, .fpick.picked .ftb.hl { box-shadow: inset 0 0 0 2px #3A4654, inset 0 0 0 4px #E8B13A; }
-.ftbars .fpchk { top: 50%; right: -4px; transform: translateY(-50%); }
+.ftbars .fpick { padding-right: 32px; box-sizing: border-box; } .ftbars .fpchk { top: 50%; right: 4px; transform: translateY(-50%); }
 .fpbtns { display: flex; flex-direction: column; gap: 8px; }
 .fpadd { min-height: 46px; border-radius: 12px; border: 2px solid #3A4654; background: #fff; color: #3A4654; font: inherit; font-weight: 700; cursor: pointer; }
 .fpadd.on { background: #3A4654; color: #fff; }
 .fwscrim { flex-direction: column; justify-content: flex-end; align-items: stretch; } .fwdlg { flex: 0 1 auto; min-height: 0; }
 .fwscrim:has(.fwtray) .fwdlg { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.fwtray { flex-shrink: 0; width: 100%; background: #fff; border-top: 1px solid #DDE3E8; padding: 10px 14px 12px; box-shadow: 0 -4px 14px rgba(18,32,46,.12); }
+.fwtray { flex-shrink: 0; width: 100%; box-sizing: border-box; background: #fff; border-top: 1px solid #DDE3E8; padding: 10px 14px 12px; box-shadow: 0 -4px 14px rgba(18,32,46,.12); }
 .fwchips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; max-height: 76px; overflow-y: auto; }
 .fwchip { display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid #C9D0D6; background: #F3F5F7; color: #24313E; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .fwchip b { margin-left: 2px; color: #5B6672; }
