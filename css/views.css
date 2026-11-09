@@ -1,0 +1,87 @@
+/* Screen layouts: Phone, Tablet and Desktop (see js/views.js). Owner: Ken + Claude. Kept separate from app.css (shared).
+   html[data-view] is the chosen layout; html[data-fill] means the app fills the window instead of showing a device frame. */
+
+/* ---------- Filling the window ---------- */
+html[data-fill] .stage { padding: 0; display: block; }
+html[data-fill] .stage > .note { display: none; }
+html[data-fill] .holder { width: 100% !important; height: 100dvh !important; }
+html[data-fill] .phone { position: relative; transform: none !important; width: 100%; height: 100dvh; border-radius: 0; border: 0; box-shadow: none; }
+
+/* ---------- Tablet preview frame ---------- */
+html[data-view="tablet"]:not([data-fill]) .phone { width: 820px; height: 1180px; border-radius: 40px; border-width: 14px; }
+html[data-view="tablet"]:not([data-fill]) .stage > .note { max-width: 520px; }
+html[data-view="tablet"]:not([data-fill]) .stage > .note:last-child { display: none; }   /* "real phone proportions" doesn't apply */
+
+/* ---------- Tablet and desktop: shared tweaks for a wider screen ---------- */
+html:is([data-view="tablet"], [data-view="desktop"]) .dialog { max-width: 600px; border-radius: 22px; max-height: 86%; }
+html:is([data-view="tablet"], [data-view="desktop"]) .scrim { align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; }
+html:is([data-view="tablet"], [data-view="desktop"]) .grab { display: none; }
+html:is([data-view="tablet"], [data-view="desktop"]) .stem { font-size: 18px; }
+html:is([data-view="tablet"], [data-view="desktop"]) .pick { font-size: 17px; }
+html:is([data-view="tablet"], [data-view="desktop"]) .result p { font-size: 16px; }
+html:is([data-view="tablet"], [data-view="desktop"]) .bay.photo .hero img { object-position: 50% 30%; }
+html:is([data-view="tablet"], [data-view="desktop"]) .bay.photo .today { max-width: 520px; margin-left: auto; margin-right: auto; }
+html:is([data-view="tablet"], [data-view="desktop"]) .bay h1 { max-width: none; }
+
+/* ---------- Tablet ---------- */
+html[data-view="tablet"] .bay.photo .hero { height: 480px; }
+html[data-view="tablet"] .ways { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+html[data-view="tablet"] .exams { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+html[data-view="tablet"] .obsec, html[data-view="tablet"] .obstats .stats { padding-left: 28px; padding-right: 28px; }
+html[data-view="tablet"] .prod { margin-left: 28px; margin-right: 28px; }
+html[data-view="tablet"] .content { padding: 20px 18px 28px 28px; }
+html[data-view="tablet"] .ribbon { width: 90px; }
+html[data-view="tablet"] .rb { width: 60px; height: 60px; }
+html[data-view="tablet"] .final, html[data-view="tablet"] .ns, html[data-view="tablet"] .calcbtn { width: 60px; }
+
+/* ---------- Desktop ---------- */
+/* Home, Progress and Apps pages: navigation moves from the bottom bar to a rail on the left. */
+html[data-view="desktop"] .ob { display: grid; grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: 64px minmax(0, 1fr) auto; }
+html[data-view="desktop"] .obtop { grid-column: 1 / -1; height: 64px; padding: 0 20px 0 28px; }
+html[data-view="desktop"] .bnav { grid-column: 1; grid-row: 2 / 4; display: flex; flex-direction: column; gap: 4px; padding: 20px 12px; border-top: 0; border-right: 1px solid #D3E5E7; }
+html[data-view="desktop"] .nb { flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 48px; padding: 0 14px; font-size: 15px; }
+html[data-view="desktop"] .nb.on { background: var(--glass); }
+html[data-view="desktop"] .nb:hover { background: #F1F5F7; }
+html[data-view="desktop"] .nbadge { position: static; margin-left: auto; box-shadow: none; }
+html[data-view="desktop"] .obscroll { grid-column: 2; grid-row: 2; padding: 0 32px 32px; }
+html[data-view="desktop"] .startbar { grid-column: 2; grid-row: 3; padding: 12px 32px; }
+html[data-view="desktop"] .obscroll > * { max-width: 1040px; margin-left: auto; margin-right: auto; box-sizing: border-box; }
+html[data-view="desktop"] .obstats .obscroll > * { max-width: 820px; }   /* keeps the charts a readable size */
+html[data-view="desktop"] .obsec { padding: 22px 0 0; }
+html[data-view="desktop"] .obstats .stats { padding: 22px 0 8px; }
+html[data-view="desktop"] .prod { margin: 18px auto 0; }
+html[data-view="desktop"] .fine.pad { padding: 16px 0 0; }
+html[data-view="desktop"] .bay { margin-top: 22px; border-radius: 22px; padding: 18px 28px 0; }
+html[data-view="desktop"] .bay.photo { padding-bottom: 26px; }
+/* Home hero: greeting and practice card on the left, otter photo on the right */
+html[data-view="desktop"] .bay.photo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); grid-template-rows: auto auto 1fr; column-gap: 28px; padding: 28px 0 28px 32px; min-height: 360px; }
+html[data-view="desktop"] .bay.photo .hello { grid-column: 1; grid-row: 1; }
+html[data-view="desktop"] .bay.photo h1 { grid-column: 1; grid-row: 2; }
+html[data-view="desktop"] .bay.photo .today { grid-column: 1; grid-row: 3; align-self: end; margin: 24px 0 0; max-width: none; }
+html[data-view="desktop"] .bay.photo .hero { grid-column: 2; grid-row: 1 / 4; height: auto; min-height: 360px; margin: -28px 0 -28px 0; }
+html[data-view="desktop"] .bay.photo .hero::after { inset: 0 auto 0 0; width: 90px; height: auto; background: linear-gradient(90deg, var(--mid), transparent); }
+html[data-view="desktop"] .bay.photo .hero img { position: absolute; inset: 0; object-position: 50% 25%; }
+html[data-view="desktop"] .nb > span { order: 1; }
+html[data-view="desktop"] .nbadge { order: 2; }
+html[data-view="desktop"] .coachtoast { left: 0; right: 0; margin: 0 auto; max-width: 720px; }
+html[data-view="desktop"] .bay h1 { font-size: 32px; }
+html[data-view="desktop"] .ways { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+html[data-view="desktop"] .exams { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Question screen: centered, wider card with bigger touch targets for a mouse and keyboard. */
+html[data-view="desktop"] .appbar { height: 64px; width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px 0 28px; box-sizing: border-box; }
+html[data-view="desktop"] .sheet { width: 100%; max-width: 1200px; margin: 0 auto; border-radius: 18px 18px 0 0; }
+html[data-view="desktop"] .sheethead { padding: 12px 28px; }
+html[data-view="desktop"] .guide { margin: 12px 28px 0; }
+html[data-view="desktop"] .content { padding: 26px 28px 40px 32px; gap: 18px; }
+html[data-view="desktop"] .content > * { max-width: 860px; }
+html[data-view="desktop"] .stem { font-size: 20px; }
+html[data-view="desktop"] .pick { font-size: 18px; padding: 12px 14px; min-height: 56px; }
+html[data-view="desktop"] .result p { font-size: 17px; }
+html[data-view="desktop"] .ribbon { width: 96px; padding: 24px 16px 24px 10px; gap: 12px; }
+html[data-view="desktop"] .rb { width: 62px; height: 62px; font-size: 23px; }
+html[data-view="desktop"] .final, html[data-view="desktop"] .ns, html[data-view="desktop"] .calcbtn { width: 62px; }
+html[data-view="desktop"] .foot { padding: 14px 32px 16px; }
+html[data-view="desktop"] .results { padding: 26px 32px 40px; }
+html[data-view="desktop"] .results > * { max-width: 920px; }
+html[data-view="desktop"] .opt:hover:not(.ok):not(.no):not(.dim) { border-color: var(--accent); }

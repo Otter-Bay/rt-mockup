@@ -153,6 +153,7 @@ function render() {
       </fieldset>
       <label class="switch" for="reqOut"><input type="checkbox" id="reqOut" data-act="reqout" ${S.requireOut ? "checked" : ""}><span>Require ruling out before submitting<small>Final stays locked until you've ruled out the other three choices.</small></span></label>
       <p style="margin:0;font-size:13px;color:var(--muted)">Changing the mode starts a new set of questions.</p>
+      ${window.viewSettings ? window.viewSettings() : ""}
       <div class="row"><button type="button" class="btn grey" data-act="intro">How this app works</button><button type="button" class="btn" data-act="setclose">Done</button></div></div></div>`;
   }
 
@@ -325,6 +326,7 @@ setInterval(() => { if (S.mode === "exam" && !S.results) { const t = document.ge
 
 const holder = document.getElementById("holder");
 function fit() {
+  if (window.viewFit && window.viewFit()) return;   // views.js: phone, tablet and desktop layouts
   const phone = document.getElementById("phone");
   if (window.innerWidth <= 500) { phone.style.transform = ""; holder.style.width = ""; holder.style.height = ""; return; }
   const s = Math.min(1, (window.innerHeight - 110) / 860, (window.innerWidth - 32) / 406);
