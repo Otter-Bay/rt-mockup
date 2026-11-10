@@ -25,11 +25,11 @@
     const work = cnt.partly + cnt.missed;
     return `<div class="sheet"><div class="results fcsum"><p class="eyebrow">Flashcards · done</p><h2>${work ? "Nice work" : "All of them. Nice!"}</h2>
       <div class="score fcscore"><div class="g"><b>${cnt.got}</b><span>got it</span></div><div class="p"><b>${cnt.partly}</b><span>partly</span></div><div class="m"><b>${cnt.missed}</b><span>missed</span></div></div>
-      <p class="fcnote">${work ? "Partly and missed cards are on your review list, so they'll come back around. " : ""}Flashcards are self-checked, so they don't change your % correct.</p>
-      ${work ? `<button type="button" class="btn" data-act="fcagain">Go again with the ${work} to work on</button>` : ""}
+      <p class="fcnote">${work ? "Your Partly and Missed cards are both on your review list, so they'll come back around. " : ""}Flashcards are self-checked, so they don't change your % correct.</p>
+      ${work ? `<button type="button" class="btn" data-act="fcagain">Go again with the ${work} to work on: ${[cnt.partly ? cnt.partly + " partly" : "", cnt.missed ? cnt.missed + " missed" : ""].filter(Boolean).join(" + ")}</button>` : ""}
       <ol class="rlist">${S.set.map((qx, i) => { const q = QS[qx], r = S.run[i]; return `<li><span class="fctag ${r.rate || "none"}">${r.rate ? RATE[r.rate] : "Skipped"}</span>
         <span class="info"><b>${q.id}</b>${esc(q.topic)}</span><button type="button" class="btn grey" data-act="fcgo" data-i="${i}">Look again</button></li>`; }).join("")}</ol>
-      <div class="row"><button type="button" class="btn grey" data-act="fcstudy">Study these instead</button><button type="button" class="btn" data-act="go" data-v="stats">New set</button></div></div></div>`;
+      <div class="row"><button type="button" class="btn grey" data-act="fcstudy">Study these as multiple choice</button><button type="button" class="btn" data-act="go" data-v="stats">New set</button></div></div></div>`;
   }
 
   function card() {
