@@ -5,7 +5,7 @@
    Add new buttons by giving them data-act="..." and handling them in STATS_ACTIONS below. */
 
 let RL_ALL = false;
-const COUNTS = ["5", "10", "25", "all"];
+const COUNTS = ["10", "20", "50"];
 const DOM_NAMES = { RRT: { I: "Patient data", II: "Equipment and safety", III: "Interventions" } };
 const domName = (d) => (QS.find((q) => q.domain === d && q.domName) || {}).domName || (DOM_NAMES[window.EXAM || "RRT"] || {})[d] || "";
 const FORMATS = [["img", "With an image", (q) => !!q.img], ["data", "With a data list", (q) => q.rows.length > 0], ["card", "With a rule card", (q) => (q.scales || []).length > 0]];
@@ -37,7 +37,8 @@ function buildSet() {
 }
 function startLabel() {
   const m = matching().length, n = buildSet().length;
-  return m ? `Start ${n} question${n === 1 ? "" : "s"}` : "No questions match";
+  const w = S.build.mode === "flash" ? "card" : "question";
+  return m ? `Start ${n} ${w}${n === 1 ? "" : "s"}` : "No questions match";
 }
 
 function sectionRows() {
@@ -126,6 +127,7 @@ function statsBody() {
       <div class="modes">
         <button type="button" class="mode2" data-act="bmode" data-v="study" aria-pressed="${b.mode === "study"}"><b>Study</b><small>See the answer and why after each question</small></button>
         <button type="button" class="mode2" data-act="bmode" data-v="exam" aria-pressed="${b.mode === "exam"}"><b>Exam</b><small>Timed, with answers at the end</small></button>
+        <button type="button" class="mode2" data-act="bmode" data-v="flash" aria-pressed="${b.mode === "flash"}"><b>Flashcards</b><small>Just the question; think, flip, rate yourself</small></button>
       </div>
       <p class="match" aria-live="polite">${m ? `${m} question${m === 1 ? " matches" : "s match"} your choices.` : "Nothing matches. Clear a filter or pick a different set."}</p>
     </section>

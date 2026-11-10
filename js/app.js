@@ -78,8 +78,8 @@ function render() {
   let h = "";
   const exam = S.mode === "exam";
   const PAGE = window.PAGES && window.PAGES[S.page];
-  if (!PAGE) h += `<div class="appbar">${window.PAGES && window.PAGES.home ? `<button type="button" class="homebtn" data-act="go" data-v="home" aria-label="Home">${window.APP_LABEL || "RRT"}</button>` : `<b>${window.APP_LABEL || "RRT"}</b>`}<span class="mode ${exam ? "exam" : ""}">${exam ? "Exam <span id=\"timer\">" + fmt((S.results ? S.finishedMs : Date.now() - S.started)) + "</span>" : "Study"}</span>
-    <span class="count">${S.page === "stats" ? "Stats" : S.results && !S.reviewing ? "Results" : "Question " + (S.qi + 1) + " of " + S.set.length}</span>
+  if (!PAGE) h += `<div class="appbar">${window.PAGES && window.PAGES.home ? `<button type="button" class="homebtn" data-act="go" data-v="home" aria-label="Home">${window.APP_LABEL || "RRT"}</button>` : `<b>${window.APP_LABEL || "RRT"}</b>`}<span class="mode ${exam ? "exam" : S.mode === "flash" ? "flash" : ""}">${exam ? "Exam <span id=\"timer\">" + fmt((S.results ? S.finishedMs : Date.now() - S.started)) + "</span>" : S.mode === "flash" ? "Flashcards" : "Study"}</span>
+    <span class="count">${S.page === "stats" ? "Stats" : S.results && !S.reviewing ? "Results" : (S.mode === "flash" ? "Card " : "Question ") + (S.qi + 1) + " of " + S.set.length}</span>
     <button type="button" class="iconbtn" data-act="stats" aria-label="Stats and review list">${ICON.chart}</button>
     <button type="button" class="iconbtn" data-act="settings" aria-label="Settings">${ICON.gear}</button></div>`;
 
@@ -89,6 +89,8 @@ function render() {
     h += PAGE();
   } else if (S.page === "stats") {
     h += statsPage();
+  } else if (S.mode === "flash" && window.FLASH) {
+    h += FLASH.card();
   } else if (S.results && !S.reviewing) {
     const correct = S.run.filter((r, i) => r.sel === QS[S.set[i]].ans).length;
     h += `<div class="sheet"><div class="results"><p class="eyebrow">Exam mode · finished</p><h2>Your results</h2>
@@ -150,6 +152,7 @@ function render() {
       <fieldset><legend>Practice mode</legend>
         <button type="button" class="reason" data-act="mode" data-m="study" aria-pressed="${S.mode === "study"}"><i aria-hidden="true"></i><span>Study mode<small>See the answer and rationale after each question.</small></span></button>
         <button type="button" class="reason" data-act="mode" data-m="exam" aria-pressed="${S.mode === "exam"}"><i aria-hidden="true"></i><span>Exam mode<small>Timed. Answers and rationales appear only at the end, like the real test.</small></span></button>
+        <button type="button" class="reason" data-act="mode" data-m="flash" aria-pressed="${S.mode === "flash"}"><i aria-hidden="true"></i><span>Flashcards<small>See only the question, think of the answer, then flip the card and rate yourself.</small></span></button>
       </fieldset>
       <label class="switch" for="reqOut"><input type="checkbox" id="reqOut" data-act="reqout" ${S.requireOut ? "checked" : ""}><span>Require ruling out before submitting<small>Final stays locked until you've ruled out the other three choices.</small></span></label>
       <p style="margin:0;font-size:13px;color:var(--muted)">Changing the mode starts a new set of questions.</p>
@@ -256,7 +259,7 @@ function scrollToResult() {
   });
 }
 
-function newRun() { S.qi = 0; S.run = freshRun(S.set); S.results = false; S.reviewing = false; S.started = Date.now(); S.finishedMs = 0; S.fb = null; S.reason = null; }
+function newRun() { if (window.FLASH) FLASH.reset(); S.qi = 0; S.run = freshRun(S.set); S.results = false; S.reviewing = false; S.started = Date.now(); S.finishedMs = 0; S.fb = null; S.reason = null; }
 
 document.addEventListener("change", (e) => {
   if (e.target.dataset && e.target.dataset.act === "reqout") { S.requireOut = e.target.checked; render(); }
