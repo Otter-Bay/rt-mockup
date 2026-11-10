@@ -11,6 +11,10 @@
   let LOG = DEMO ? null : load("examLog", []);   // oldest first: { id, at, n, c, ms, items: [[qid, 1|0], ...] }
   const saveLog = () => { if (!DEMO) save("examLog", LOG); };
   const mins = (ms) => { const m = Math.round(ms / 60000); return m < 1 ? "under a minute" : m + " min"; };
+  // Speed is compared per question (Nov 9): exams can have different numbers of questions, so total time isn't fair.
+  const spq = (e) => (e.n ? e.ms / e.n / 1000 : 0);
+  const pace = (e) => { const s = Math.round(spq(e)); return s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} per question` : `${s} sec per question`; };
+  const paceDiff = (a, b) => Math.round(spq(a) - spq(b));   // + means b was faster per question
   const day = (t) => new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const pct = (e) => Math.round(e.c / e.n * 100);
 
@@ -57,13 +61,13 @@
   }
   const vsLast = (e, prev) => {
     if (!prev) return "";
-    const dp = pct(e) - pct(prev), dm = Math.round((prev.ms - e.ms) / 60000);
+    const dp = pct(e) - pct(prev), ds = paceDiff(prev, e);
     const sc = dp >= 3 ? `<b class="exup">▲ ${dp} points</b>` : dp <= -3 ? `<b class="exdown">▼ ${-dp} points</b>` : `<b>About the same score</b>`;
-    const tm = Math.abs(dm) >= 1 ? ` · ${Math.abs(dm)} min ${dm > 0 ? "faster" : "slower"}` : "";
+    const tm = Math.abs(ds) >= 3 ? ` · ${Math.abs(ds)} sec per question ${ds > 0 ? "faster" : "slower"}` : "";
     const a1 = areas(prev, "domain"), a2 = areas(e, "domain"), ks = Object.keys(a2);
     const gain = ks.filter((k) => a1[k] && a1[k].n >= 5 && a2[k].n >= 5).map((k) => ({ name: a2[k].name, d: Math.round(a2[k].c / a2[k].n * 100 - a1[k].c / a1[k].n * 100) })).sort((x, y) => y.d - x.d)[0];
     const weak = ks.filter((k) => a2[k].n >= 5).map((k) => ({ name: a2[k].name, p: a2[k].c / a2[k].n })).sort((x, y) => x.p - y.p)[0];
-    return `<span>${sc}${tm} vs. your last exam (${day(prev.at)}, ${pct(prev)}%)</span>${cheer(dp, { since: day(prev.at), mins: dm, best: gain && gain.d >= 3 ? gain.name : "", next: weak && weak.p < 0.85 ? weak.name : "", exam: true, n: e.n, key: prev.id + e.id })}`;
+    return `<span>${sc}${tm} vs. your last exam (${day(prev.at)}, ${pct(prev)}%)</span>${cheer(dp, { since: day(prev.at), secs: ds, best: gain && gain.d >= 3 ? gain.name : "", next: weak && weak.p < 0.85 ? weak.name : "", exam: true, n: e.n, key: prev.id + e.id })}`;
   };
 
   // ---- Compare exams sheet
@@ -78,7 +82,7 @@
       return { name: (x || y).name, pa, pb, na: x ? x.n : 0, nb: y ? y.n : 0, d: pa != null && pb != null ? pb - pa : null, early: (x && x.n < 3) || (y && y.n < 3) }; })
       .sort((r, s) => (s.d == null ? -999 : s.d) - (r.d == null ? -999 : r.d));
     const W = 150, X = (v) => 6 + v / 100 * (W - 12);
-    const opt = (sel) => L.map((e) => `<option value="${e.id}" ${e.id === sel ? "selected" : ""}>${day(e.at)} · ${pct(e)}% · ${mins(e.ms)}</option>`).join("");
+    const opt = (sel) => L.map((e) => `<option value="${e.id}" ${e.id === sel ? "selected" : ""}>${day(e.at)} · ${pct(e)}% · ${e.n} questions · ${pace(e)}</option>`).join("");
     const row = (r) => { const col = r.d == null ? "#8A939E" : r.d >= 3 ? "#1F7A4D" : r.d <= -3 ? "#B7791F" : "#8A939E";
       const lab = r.d == null ? (r.pa == null ? `only ${day(Bx.at)}` : `only ${day(A.at)}`) : r.d >= 3 ? `+${r.d}` : r.d <= -3 ? `–${-r.d}` : "same";
       return `<li class="${r.early ? "early" : ""}"><span class="cmpn">${esc(r.name)}<small>${r.pa == null ? "–" : `${r.pa}% (${r.na})`} → ${r.pb == null ? "–" : `${r.pb}% (${r.nb})`}${r.early ? " · few questions" : ""}</small></span>
@@ -86,18 +90,18 @@
         ${r.pa != null && r.pb != null ? `<line x1="${X(r.pa)}" x2="${X(r.pb)}" y1="10" y2="10" stroke="${col}" stroke-width="4" stroke-linecap="round"/>` : ""}
         ${r.pa != null ? `<circle cx="${X(r.pa)}" cy="10" r="5.5" fill="#fff" stroke="#8A939E" stroke-width="2.5"/>` : ""}${r.pb != null ? `<circle cx="${X(r.pb)}" cy="10" r="6" fill="#3A4654"/>` : ""}</svg>
         <b class="cmpd" style="color:${col}">${lab}</b></li>`; };
-    const dp = pct(Bx) - pct(A), dm = Math.round((A.ms - Bx.ms) / 60000);
+    const dp = pct(Bx) - pct(A), ds = paceDiff(A, Bx);
     const tabs = [["domain", "Domain"], ["task", "Task"], ["topic", "Topic"]].map(([k, l]) => `<button type="button" role="tab" class="cmptab" data-exby="${k}" aria-selected="${by === k}">${l}</button>`).join("");
     return `<div class="scrim exscrim"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="exT">
       <div class="schead"><h2 id="exT">Compare exams</h2><button type="button" class="vb exx" aria-label="Close">${ICON.x}</button></div>
       <div class="expick"><label><span><span class="k1"></span> Earlier</span><select data-exsel="a">${opt(CMP.a)}</select></label>
         <label><span><span class="k2"></span> Later</span><select data-exsel="b">${opt(CMP.b)}</select></label></div>
       <div class="exsum"><div><b class="${dp >= 3 ? "exup" : dp <= -3 ? "exdown" : ""}">${dp >= 3 ? "▲ " + dp : dp <= -3 ? "▼ " + -dp : "±0"}</b><small>points (${pct(A)}% → ${pct(Bx)}%)</small></div>
-        <div><b>${Math.abs(dm) >= 1 ? `${Math.abs(dm)} min ${dm > 0 ? "faster" : "slower"}` : "Same time"}</b><small>${mins(A.ms)} → ${mins(Bx.ms)}</small></div></div>
+        <div><b>${Math.abs(ds) >= 3 ? `${Math.abs(ds)} sec ${ds > 0 ? "faster" : "slower"}` : "Same pace"}</b><small>per question (${pace(A).replace(" per question", "")} → ${pace(Bx).replace(" per question", "")})</small></div></div>
       <div class="seg fwseg" role="tablist" aria-label="Group by">${tabs}</div>
       ${(() => { const best = rows.filter((r) => r.d != null && r.na >= 5 && r.nb >= 5 && r.d >= 3).sort((x, y) => y.d - x.d)[0];
         const nxt = rows.filter((r) => r.pb != null && r.nb >= 5).sort((x, y) => x.pb - y.pb)[0];
-        return cheer(dp, { since: day(A.at), mins: dm, best: best && best.name, next: nxt && nxt.pb < 85 ? nxt.name : "", exam: true, n: Bx.n, key: A.id + Bx.id }); })()}
+        return cheer(dp, { since: day(A.at), secs: ds, best: best && best.name, next: nxt && nxt.pb < 85 ? nxt.name : "", exam: true, n: Bx.n, key: A.id + Bx.id }); })()}
       <p class="cmpsum">Each exam has different questions, so small areas can swing. Biggest changes first.</p>
       <ul class="cmplist">${rows.map(row).join("")}</ul>
     </div></div>`;

@@ -26,14 +26,14 @@ function recordAnswer(q, c) {
 }
 
 /* Encouraging words after a comparison (exams or chapters). Plain and honest:
-   d = change in points; opts: since (label of the earlier try), mins (minutes faster, + or -), best / next (area names,
+   d = change in points; opts: since (label of the earlier try), secs (seconds faster per question, + or -; older callers may pass mins), best / next (area names,
    only pass areas with 5+ questions in both tries), exam (true for exams), n (questions in the later exam; "Big jump"
    needs 20+), key (stable id for the pair, so the closing line rotates between comparisons but not on every redraw). */
 function cheer(d, opts) {
   const o = opts || {}, clean = (n) => String(n).replace(/^([IVX]+|\d+)\.\s*/, "");
   const best = o.best ? `<b>${esc(clean(o.best))}</b>` : "", next = o.next ? `<b>${esc(clean(o.next))}</b>` : "";
   const exam = ({ RRT: "CRT/RRT", SDS: "SDS", RPSGT: "RPSGT", CNA: "CNA" })[window.EXAM || "RRT"] || "certification";
-  const faster = o.mins >= 1 && d > -3 ? `, and you finished ${o.mins} minute${o.mins === 1 ? "" : "s"} faster` : "";   // never praise speed when the score dropped
+  const faster = o.secs >= 3 && d > -3 ? `, and you answered ${o.secs} seconds faster per question` : o.mins >= 1 && d > -3 ? `, and you finished ${o.mins} minute${o.mins === 1 ? "" : "s"} faster` : "";   // speed per question (Nov 9); never praise speed when the score dropped
   const bigOK = !o.exam || (o.n || 0) >= 20;   // a short exam swings a lot; keep "Big jump" for 20+ questions
   let tone, msg;
   if (d >= 10 && bigOK) { tone = "up"; msg = `Big jump: up ${d} points since ${o.since}${faster}. ${best ? `Your work on ${best} really shows.` : "Your practice is paying off."}`; }
