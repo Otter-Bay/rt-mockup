@@ -66,13 +66,16 @@
     if (OFF()) { if (curToast) { curToast.remove(); curToast = null; } showing = false; return; }
     const inExam = S.mode === "exam" && !S.results && S.page === "quiz";
     if (curToast && inExam) { curToast.remove(); curToast = null; showing = false; }   // never over a timed exam
+    if (curToast && curToast._when && !curToast._when()) { curToast.remove(); curToast = null; showing = false; }   // a screen tip leaves with its screen
     if (curToast && !curToast.isConnected) { const ph = document.getElementById("phone"); if (ph) ph.appendChild(curToast); }   // a redraw wiped it: put it back
     if (showing || !TQ.length || shownThisVisit >= 2) return;
     if (S.mode === "exam" && !S.results && S.page === "quiz") return;   // wait until the exam is over
     if (document.querySelector("#fwbox, .scrim, .viewer")) return;   // wait while a pop-up, chart sheet or image is open
+    while (TQ.length && TQ[0][2] && !TQ[0][2]()) TQ.shift();   // a tip about one screen is dropped (not marked seen) once you have left that screen
+    if (!TQ.length) return;
     const ph = document.getElementById("phone"); if (!ph) return;
     showing = true; const t = document.createElement("div"); t.className = "coachtoast"; t.setAttribute("role", "status");
-    const [key, txt] = TQ.shift(); SEEN[key] = 1; saveSeen(); shownThisVisit++; t.innerHTML = said(txt);
+    const [key, txt, when] = TQ.shift(); SEEN[key] = 1; saveSeen(); shownThisVisit++; t.innerHTML = said(txt); t._when = when;
     let closed = false;
     const done = () => { if (closed) return; closed = true; t.classList.add("out"); setTimeout(() => { t.remove(); curToast = null; showing = false; toast(); }, 250); };
     curToast = t;
@@ -190,7 +193,9 @@
     if (!DEMO) (window.AFTER_LOAD).push(() => { TQ.push(...checkMilestones()); });
 
     // ---- One-time "easier way" tips. Each watches for a clear pattern, shows once ever, and shares the 2-per-visit limit.
-    const tip = (key, msg) => { const k = "tip:" + key; if (!SEEN[k] && !TQ.some((x) => x[0] === k)) TQ.push([k, msg]); };
+    const tip = (key, msg, when) => { const k = "tip:" + key; if (!SEEN[k] && !TQ.some((x) => x[0] === k)) TQ.push([k, msg, when]); };
+    const onStats = () => S.page === "stats", onSet = () => S.page === "quiz" && !S.results && (S.mode === "study" || S.mode === "flash"),
+      onFlash = () => S.page === "quiz" && S.mode === "flash" && !S.results, onEnd = () => S.page === "quiz" && !!(S.results || DONE || document.querySelector(".fcsum"));
     const bump = (k) => { SEEN["n:" + k] = (SEEN["n:" + k] || 0) + 1; saveSeen(); return SEEN["n:" + k]; };
     const A = window.PAGE_ACTIONS || {};
     // 1. Building by hand exactly what Suggested focus already offers
@@ -201,10 +206,10 @@
         tip("practiceThis", "Shortcut: the Practice this button in Suggested focus starts a set from those areas in one tap.");
       return bs.apply(this, arguments); }; }
     // 2. Starting a new set while skipping the ones just missed
-    if (A.coachnew) { const cn = A.coachnew; A.coachnew = function () {
-      const missed = S.run.some((r, i) => r.done && r.sel !== QS[S.set[i]].ans);
+    if (SA.buildask) { const ba = SA.buildask; SA.buildask = function () {   // the end-of-set "Start a new set" button (Nov 9)
+      const missed = S.page === "quiz" && S.mode === "study" && S.run.some((r, i) => r.done && r.sel !== QS[S.set[i]].ans);
       if (missed && bump("skipMissed") >= 2) tip("reviewList", "Your misses are saved for you. Review list on Home brings them back whenever you're ready, or tap Practice these again at the end of a set.");
-      return cn.apply(this, arguments); }; }
+      return ba.apply(this, arguments); }; }
     document.addEventListener("click", (e) => {
       const t = e.target.closest && e.target.closest('[data-act="go"], .fcharts, [data-act="democharts"]'); if (!t) return;
       // 3. Getting to the Progress page the long way (Home > Build a set) instead of the Progress tab
@@ -217,10 +222,15 @@
       r1();
       // 4. Very short practice exams
       if (S.mode === "exam" && S.page === "quiz" && !S.results && S.qi === 0 && !examSeen[S.started]) {
-        examSeen[S.started] = 1; if (S.set.length < 10 && bump("shortExam") >= 2) tip("examSize", "Practice exams feel most like the real thing with 25 or more questions. You can set the size in Build a set.");
+        examSeen[S.started] = 1; if (S.set.length < 20 && bump("shortExam") >= 2) tip("examSize", "Practice exams feel most like the real thing with more questions. Pick 50 under How many next time you start a set.");
       }
       // 5. Lots of practice but never opened the charts
-      if (!SEEN.chartsSeen && Object.keys(ST).length >= 40 && S.page === "stats") tip("charts", "Have you seen your charts? Tap See your charts on this page to see your scores by area and where to focus.");
+      // 6. First-time tips for new users (Nov 9): one each, ever, in the moment they're useful. They share the 2-per-visit limit.
+      if (S.page === "stats") tip("startHere", "This is your home base. See your charts shows where to focus. Start practice lets you pick how many and Study, Exam or Flashcards.", onStats);
+      if (S.page === "quiz" && !S.results && (S.mode === "study" || S.mode === "flash") && S.set.length > 1) tip("formatSwitch", "You can switch between Multiple choice and Flashcard anytime with the bar at the top. You keep your place.", onSet);
+      if (S.page === "quiz" && S.mode === "flash" && !S.results) tip("flashHow", "Flashcards: think of the answer, tap Show answer, then rate yourself honestly. Partly and Missed come back on your review list.", onFlash);
+      if (S.page === "quiz" && (S.results || DONE || document.querySelector(".fcsum"))) tip("afterSet", "Set done. See your progress shows what improved, or Start a new set to keep going.", onEnd);
+      if (!SEEN.chartsSeen && Object.keys(ST).length >= 40 && S.page === "stats") tip("charts", "Have you seen your charts? Tap See your charts on this page to see your scores by area and where to focus.", onStats);
       toast();
     };
     // Redraw once now that Home and the question screen are wrapped. When the questions are built into the page
