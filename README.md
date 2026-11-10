@@ -55,3 +55,7 @@ The site now opens on the Otter Bay home page. Stats content in `js/stats.js` wa
 The Stats page is now the **Practice** tab: what to practice (all, not tried, review list, missed), sections you tap to select (with % correct bars and the weakest section flagged), more filters (images, data lists, rule cards, thinking level, patient age), count and mode, and a Start button that stays pinned at the bottom with a live match count. Bottom bar: Home, Practice, Questions, Apps.
 
 **Focus on Domain, Task or Topic.** Questions can be filtered by exam domain, task (outline section), or topic group (`topicGroup` field, e.g. "Mechanical ventilation", "PAP titration"). "Missed questions" now covers every question ever answered wrong, with an option to keep only the ones missed on the last attempt. Each row shows how many questions match, so "5 missed questions in Domain II" is two taps.
+
+## Publishing changes (auto-update)
+
+Before every push that changes the mock-up, run `python3 tools/release.py`. It stamps one build number into `version.json` and every app page. Each page checks `version.json` when it opens and, if the site has a newer build, reloads itself once with a fresh address. That keeps Discord's built-in browser and other caches from showing an old version.
