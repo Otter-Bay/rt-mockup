@@ -36,7 +36,7 @@
     if (DONE) return summary();
     const q = Q(), c = cur();
     let h = `<div class="sheet"><div class="sheethead"><div class="grab"></div><div class="meta"><div><span class="qid">${q.id}</span>${q.status === "draft" ? `<span class="draft">Draft</span>` : ""}<span class="sec">${esc(q.section)}</span></div>
-      <div class="prog" aria-hidden="true"><i style="width:${Math.round((S.qi + 1) / S.set.length * 100)}%"></i></div></div></div>
+      <div class="prog" aria-hidden="true"><i style="width:${Math.round((S.qi + 1) / S.set.length * 100)}%"></i></div></div>${switcher()}</div>
       <div class="body"><div class="content fccontent" id="content"><div class="fccard${c.flip ? " flipped" : ""}">
       <p class="eyebrow">${c.flip ? "Question" : "Think of the answer, then flip the card"}</p>
       <p class="stem">${esc(q.stem)}</p>`;
@@ -61,8 +61,14 @@
   function toTop() { const ct = document.getElementById("content"); if (ct) ct.scrollTop = 0; }
   function advance() { S.scale = null; if (S.qi === S.set.length - 1) DONE = true; else S.qi += 1; toTop(); }
 
-  window.FLASH = { card, reset: () => { DONE = false; } };
+  /* One-tap switch between multiple choice (Study) and Flashcards on the same set, keeping your place (Nov 9). */
+  function switcher() {
+    if (S.mode !== "study" && S.mode !== "flash") return "";
+    return `<div class="mswitch" role="group" aria-label="Question format">${[["study", "Multiple choice"], ["flash", "Flashcard"]].map(([k, l]) => `<button type="button" data-act="mswap" data-m="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div>`;
+  }
+  window.FLASH = { card, switcher, reset: () => { DONE = false; } };
   window.PAGE_ACTIONS = Object.assign(window.PAGE_ACTIONS || {}, {
+    mswap: (b) => { const m = b.dataset.m; if (S.mode === m || (m !== "study" && m !== "flash")) return; if (S.qi >= S.set.length) S.qi = 0; DONE = false; S.scale = null; S.mode = m; S.build.mode = m; S.toTop = true; },
     fcopts: () => { cur().opts = true; },
     fcflip: () => { cur().flip = true; setTimeout(() => { const r = document.getElementById("result"), box = document.getElementById("content");
       if (r && box) { box.scrollTo({ top: Math.max(0, r.offsetTop - box.offsetTop - 12), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); r.focus({ preventScroll: true }); } }, 0); },
@@ -100,6 +106,10 @@
 .fcnote { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.45; }
 .fctag { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
 .fctag.got { background: var(--good-bg); color: var(--good-ink); } .fctag.partly { background: #FFF3D1; color: #6A4A00; } .fctag.missed { background: var(--bad-bg); color: var(--bad-ink); } .fctag.none { background: #EEF1F4; color: var(--muted); }
-.mode.flash { background: #6E4BC2; color: #fff; }`;
+.mode.flash { background: #6E4BC2; color: #fff; }
+.mswitch { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: #EEF1F4; }
+.mswitch button { flex: 1; min-height: 36px; border: 0; border-radius: 9px; background: transparent; color: #3E4A57; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.mswitch button[aria-pressed="true"] { background: #fff; color: #12202E; box-shadow: 0 1px 3px rgba(18,32,46,.18); }
+.mswitch button:focus-visible { outline: 3px solid #8CC4FF; outline-offset: 1px; }`;
   document.head.appendChild(st);
 })();

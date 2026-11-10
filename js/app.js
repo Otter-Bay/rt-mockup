@@ -103,7 +103,7 @@ function render() {
     const q = Q(), c = cur(), rev = revealed();
     const correct = rev && c.sel === q.ans;
     h += `<div class="sheet"><div class="sheethead"><div class="grab"></div><div class="meta"><div><span class="qid">${q.id}</span>${q.status === "draft" ? `<span class="draft">Draft</span>` : ""}<span class="sec">${esc(q.section)}</span></div>
-      <div style="display:flex;align-items:center"><div class="prog" aria-hidden="true"><i style="width:${Math.round((S.qi + 1) / S.set.length * 100)}%"></i></div><button type="button" class="whybtn" data-act="intro">${ICON.info}<span>How it works</span></button></div></div></div>`;
+      <div style="display:flex;align-items:center"><div class="prog" aria-hidden="true"><i style="width:${Math.round((S.qi + 1) / S.set.length * 100)}%"></i></div><button type="button" class="whybtn" data-act="intro">${ICON.info}<span>How it works</span></button></div></div>${window.FLASH && !S.reviewing && !window.VET_MODE ? FLASH.switcher() : ""}</div>`;
     if (S.qi === 0 && !c.done && !S.reviewing) { const [ready, txt] = guideText(); h += `<p class="guide ${ready ? "ready" : ""}" aria-live="polite">${ready ? ICON.check : ICON.info}<span>${txt}</span></p>`; }
     h += `<div class="body"><div class="content" id="content"><p class="stem">${esc(q.stem)}</p>`;
     if (q.rows.length) h += `<dl class="vals">${q.rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
