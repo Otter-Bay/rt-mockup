@@ -95,10 +95,11 @@ function render() {
     const correct = S.run.filter((r, i) => r.sel === QS[S.set[i]].ans).length;
     h += `<div class="sheet"><div class="results"><p class="eyebrow">Exam mode · finished</p><h2>Your results</h2>
       <div class="score"><div><b>${correct} / ${S.set.length}</b><span>correct</span></div><div><b>${fmt(S.finishedMs)}</b><span>total time</span></div></div>
+      <div class="row"><button type="button" class="btn grey" data-act="go" data-v="stats">See your progress</button><button type="button" class="btn" data-act="buildask">Start a new set</button></div>
       <p style="margin:0;font-size:14px;color:var(--muted)">Review any question to see the answer and rationale, or to report a problem.</p>
       <ol class="rlist">${S.set.map((qx, i) => { const q = QS[qx], r = S.run[i], ok = r.sel === q.ans; return `<li><span class="mark ${ok ? "ok" : "no"}" aria-label="${ok ? "Correct" : "Incorrect"}">${ok ? ICON.ok : ICON.no}</span>
         <span class="info"><b>${q.id}</b>Your answer ${r.sel} · Correct ${q.ans}${RL[q.id] ? `<br><span class="badge">On review list</span>` : ""}</span><button type="button" class="btn grey" data-act="review" data-i="${i}">Review</button></li>`; }).join("")}</ol>
-      <button type="button" class="btn" data-act="restart">Start a new exam</button></div></div>`;
+      <div class="row"><button type="button" class="btn grey" data-act="go" data-v="stats">See your progress</button><button type="button" class="btn" data-act="buildask">Start a new set</button></div></div></div>`;
   } else {
     const q = Q(), c = cur(), rev = revealed();
     const correct = rev && c.sel === q.ans;

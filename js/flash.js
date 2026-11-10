@@ -29,7 +29,8 @@
       ${work ? `<button type="button" class="btn" data-act="fcagain">Go again with the ${work} to work on: ${[cnt.partly ? cnt.partly + " partly" : "", cnt.missed ? cnt.missed + " missed" : ""].filter(Boolean).join(" + ")}</button>` : ""}
       <ol class="rlist">${S.set.map((qx, i) => { const q = QS[qx], r = S.run[i]; return `<li><span class="fctag ${r.rate || "none"}">${r.rate ? RATE[r.rate] : "Skipped"}</span>
         <span class="info"><b>${q.id}</b>${esc(q.topic)}</span><button type="button" class="btn grey" data-act="fcgo" data-i="${i}">Look again</button></li>`; }).join("")}</ol>
-      <div class="row"><button type="button" class="btn grey" data-act="fcstudy">Change to multiple choice study</button><button type="button" class="btn" data-act="go" data-v="stats">New set</button></div></div></div>`;
+      <button type="button" class="btn grey" data-act="fcstudy">Change to multiple choice study</button>
+      <div class="row"><button type="button" class="btn grey" data-act="go" data-v="stats">See your progress</button><button type="button" class="btn" data-act="buildask">Start a new set</button></div></div></div>`;
   }
 
   function card() {

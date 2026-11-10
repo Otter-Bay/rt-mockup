@@ -135,7 +135,7 @@
       ${repeatList()}
       <ol class="rlist">${S.set.map((qx, i) => { const q = QS[qx], r = S.run[i], ok = r.done && r.sel === q.ans; return `<li><span class="mark ${ok ? "ok" : "no"}" aria-label="${ok ? "Correct" : "Incorrect"}">${ok ? ICON.ok : ICON.no}</span>
         <span class="info"><b>${q.id}</b>${r.done ? `Your answer ${r.sel} · Correct ${q.ans}` : "Not answered"}</span><button type="button" class="btn grey" data-act="coachrev" data-i="${i}">Review</button></li>`; }).join("")}</ol>
-      <div class="csrow"><button type="button" class="btn grey" data-act="go" data-v="stats">See your progress</button><button type="button" class="btn" data-act="coachnew">Start a new set</button></div></div></div>`;
+      <div class="csrow"><button type="button" class="btn grey" data-act="go" data-v="stats">See your progress</button><button type="button" class="btn" data-act="buildask">Start a new set</button></div></div></div>`;
   }
   window.PAGE_ACTIONS = Object.assign(window.PAGE_ACTIONS || {}, {
     // same as the app's "next", except the last question of a study set opens the summary
