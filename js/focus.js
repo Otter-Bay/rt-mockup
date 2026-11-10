@@ -185,7 +185,28 @@
     const sel = SEL(); if (!sel.size) return "";
     const n = selIdx().length;
     return `<div class="fwtray" role="region" aria-label="My practice set">${setCoach(n)}<div class="fwchips">${[...sel].map((s) => `<button type="button" class="fwchip" data-s="${esc(s)}" aria-label="Remove ${esc(selName(s))}"><span class="fwdot" style="background:${BYCOLOR[s.split("|")[0]]}"></span>${esc(selName(s))} <b aria-hidden="true">×</b></button>`).join("")}</div>
-      <button type="button" class="btn fwsetgo" ${n ? "" : "disabled"}>${n ? `${sel.size === 1 ? "Practice this area" : `Practice these ${sel.size} areas`} (${n} question${n === 1 ? "" : "s"})` : "No sample questions in these yet"}</button></div>`;
+      ${setOpts(n, sel.size)}</div>`;
+  }
+  /* How many, and how (Nov 9 meeting): pick 10, 20 or 50 and Study, Exam or Flashcards right here, or cancel.
+     Asking for more than the ticked areas hold tops the set up with questions not tried yet from other areas. */
+  const MODES = [["study", "Study"], ["exam", "Exam"], ["flash", "Flashcards"]];
+  function setCount() { return Number(WHY.count || S.build.count || 10) || 10; }
+  function setMode() { return WHY.mode || S.build.mode || "study"; }
+  function setOpts(n, areas) {
+    const want = setCount(), mode = setMode(), extra = Math.max(0, Math.min(want, ALL.length) - n), total = Math.min(want, ALL.length);
+    const noun = mode === "flash" ? "card" : "question";
+    return `<div class="fwopts"><div class="fwrow"><span class="fwlbl">How many</span><div class="fwseg" role="group" aria-label="How many questions">${["10", "20", "50"].map((v) => `<button type="button" class="fwcnt" data-n="${v}" aria-pressed="${String(want) === v}">${v}</button>`).join("")}</div></div>
+      <div class="fwrow"><span class="fwlbl">How</span><div class="fwseg" role="group" aria-label="Practice mode">${MODES.map(([k, l]) => `<button type="button" class="fwmode" data-m="${k}" aria-pressed="${mode === k}">${l}</button>`).join("")}</div></div>
+      ${want > ALL.length ? `<p class="askhint">This mock-up has only ${ALL.length} sample questions, so a set tops out at ${ALL.length}. The full app will have more.</p>` : ""}
+      ${n && extra ? `<p class="fwextra">${areas === 1 ? "This area has" : "These areas have"} ${n} question${n === 1 ? "" : "s"}, so ${extra} new one${extra === 1 ? "" : "s"} from other areas ${extra === 1 ? "is" : "are"} added.</p>` : ""}
+      <div class="fwgo2"><button type="button" class="btn grey fwcancel">Cancel</button><button type="button" class="btn fwsetgo" ${n ? "" : "disabled"}>${n ? `Start ${total} ${noun}${total === 1 ? "" : "s"}` : "No sample questions in these yet"}</button></div></div>`;
+  }
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function buildFromSel() {
+    const want = setCount(), mine = shuffle(selIdx()), have = new Set(mine);
+    if (mine.length >= want) return mine.slice(0, want);
+    const others = ALL.filter((ix) => !have.has(ix)), fresh = shuffle(others.filter((ix) => !ST[QS[ix].id])), tried = shuffle(others.filter((ix) => ST[QS[ix].id]));
+    return mine.concat(fresh, tried).slice(0, want);
   }
   function gridFor(by, isHl) {
     LASTHL = isHl;
@@ -314,7 +335,7 @@
       const k = cr.dataset.s; if (S2.has(k)) { S2.delete(k); WHY.removed = k; } else { S2.add(k); if (WHY.removed === k) WHY.removed = null; } WHY.touched = true; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy();
       const again = document.querySelector(`.fcrow[data-s="${CSS.escape(k)}"]`); if (again) again.focus(); return;
     }
-    const pk = e.target.closest && e.target.closest(".fpick, .fpx, .fpgo, .fpadd, .fwchip, .fwsetgo, .fpscrim, .fwcact, .fwcx");
+    const pk = e.target.closest && e.target.closest(".fpick, .fpx, .fpgo, .fpadd, .fwchip, .fwsetgo, .fpscrim, .fwcact, .fwcx, .fwcnt, .fwmode, .fwcancel");
     if (pk && WHY) {
       e.stopPropagation();
       if (pk.classList.contains("fwcact")) { const k = pk.dataset.add; SEL().add(k); if (WHY.removed === k) WHY.removed = null; WHY.touched = true; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
@@ -327,8 +348,11 @@
       if (pk.classList.contains("fpgo")) { const { by, key } = WHY.pick; WHY = { choose: key, chooseBy: by, by, sel: new Set([by + "|" + key]) }; openWhy(); return; }
       if (pk.classList.contains("fpadd")) { const k = WHY.pick.by + "|" + WHY.pick.key, S2 = SEL(); S2.has(k) ? S2.delete(k) : S2.add(k); WHY.pick = null; openWhy(); return; }
       if (pk.classList.contains("fwchip")) { SEL().delete(pk.dataset.s); WHY.removed = pk.dataset.s; WHY.touched = true; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); return; }
-      if (pk.classList.contains("fwsetgo")) { const set = selIdx(); if (!set.length) return; closeWhy(); for (let i = set.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [set[i], set[j]] = [set[j], set[i]]; }
-        S.set = set; S.mode = S.build.mode; newRun(); S.page = "quiz"; render(); return; }
+      if (pk.classList.contains("fwcnt")) { WHY.count = pk.dataset.n; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); const b2 = document.querySelector(`.fwcnt[data-n="${pk.dataset.n}"]`); if (b2) b2.focus(); return; }
+      if (pk.classList.contains("fwmode")) { WHY.mode = pk.dataset.m; WHY.scroll = document.querySelector(".fwdlg").scrollTop; openWhy(); const b2 = document.querySelector(`.fwmode[data-m="${pk.dataset.m}"]`); if (b2) b2.focus(); return; }
+      if (pk.classList.contains("fwcancel")) { closeWhy(); return; }
+      if (pk.classList.contains("fwsetgo")) { if (!selIdx().length) return; const set = buildFromSel(), mode = setMode(); S.build.count = String(setCount()); S.build.mode = mode; closeWhy();
+        S.set = set; S.mode = mode; newRun(); S.page = "quiz"; render(); return; }
       if (pk.classList.contains("fpx") || (pk.classList.contains("fpscrim") && e.target === pk)) { WHY.pick = null; openWhy(); return; }
       return;
     }
@@ -421,6 +445,15 @@
 .fwchip { display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid #C9D0D6; background: #F3F5F7; color: #24313E; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .fwchip b { margin-left: 2px; color: #5B6672; }
 .fwsetgo { width: 100%; }
+.fwopts { display: flex; flex-direction: column; gap: 8px; }
+.fwrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fwlbl { width: 76px; flex-shrink: 0; font-size: 13px; font-weight: 700; color: #3E4A57; }
+.fwseg { flex: 1; display: flex; gap: 6px; min-width: 0; }
+.fwcnt, .fwmode { flex: 1; min-height: 40px; padding: 0 8px; border-radius: 10px; border: 1.5px solid #C9D0D6; background: #fff; color: #24313E; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.fwcnt[aria-pressed="true"], .fwmode[aria-pressed="true"] { background: #3A4654; border-color: #3A4654; color: #fff; }
+.fwcnt:focus-visible, .fwmode:focus-visible, .fwcancel:focus-visible { outline: 3px solid #8CC4FF; outline-offset: 1px; }
+.fwextra { margin: 0; font-size: 13px; line-height: 1.4; color: #4A3300; background: #FFF6E0; border-radius: 10px; padding: 8px 10px; }
+.fwgo2 { display: flex; gap: 8px; } .fwgo2 .fwcancel { flex: 0 0 auto; min-width: 96px; } .fwgo2 .fwsetgo { flex: 1; width: auto; }
 .fcq { margin: 0; font-size: 14px; line-height: 1.45; color: #24313E; } .fcq b { display: block; font-size: 16px; margin-bottom: 2px; }
 .fclist { display: flex; flex-direction: column; gap: 6px; }
 .fcrow { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 8px 10px; border-radius: 12px; border: 1.5px solid #DDE3E8; background: #fff; font: inherit; color: #24313E; text-align: left; cursor: pointer; }

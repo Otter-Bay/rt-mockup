@@ -188,8 +188,8 @@
     return `<div class="ob obstats" style="${themeVars()}">
       ${topbar()}
       <div class="obscroll"><div class="stats">${statsBody().replace('<h1 class="ph">Practice</h1>', '<h1 class="ph">Your progress</h1>').replace('<section class="step"><h2>What to practice</h2>', '<p class="bpset">Build a practice set</p><section class="step"><h2>What to practice</h2>')}</div></div>
-      <div class="startbar"><span>${(() => { const m = matching().length; return m ? `${m} match · ${S.build.mode === "exam" ? "Exam mode" : S.build.mode === "flash" ? "Flashcards" : "Study mode"}` : "Nothing matches yet"; })()}</span>
-        <button type="button" class="obstart" data-act="buildstart" ${matching().length ? "" : "disabled"}>${startLabel()}</button></div>
+      <div class="startbar"><span>${(() => { const m = matching().length; return m ? `${m} question${m === 1 ? " matches" : "s match"}` : "Nothing matches yet"; })()}</span>
+        <button type="button" class="obstart" data-act="buildask" ${matching().length ? "" : "disabled"}>${startLabel()}</button></div>
       ${nav("stats")}
     </div>`;
   }

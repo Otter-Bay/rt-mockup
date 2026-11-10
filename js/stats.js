@@ -6,6 +6,7 @@
 
 let RL_ALL = false;
 const COUNTS = ["10", "20", "50"];
+(function () { const st = document.createElement("style"); st.textContent = ".asksheet { gap: 14px; } .askhint { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.4; } .startrow { display: flex; flex-direction: column; gap: 8px; }"; document.head.appendChild(st); })();
 const DOM_NAMES = { RRT: { I: "Patient data", II: "Equipment and safety", III: "Interventions" } };
 const domName = (d) => (QS.find((q) => q.domain === d && q.domName) || {}).domName || (DOM_NAMES[window.EXAM || "RRT"] || {})[d] || "";
 const FORMATS = [["img", "With an image", (q) => !!q.img], ["data", "With a data list", (q) => q.rows.length > 0], ["card", "With a rule card", (q) => (q.scales || []).length > 0]];
@@ -31,14 +32,27 @@ function filterOK(q, skip) {
   return true;
 }
 function matching() { return ALL.filter((i) => sourceOK(QS[i]) && filterOK(QS[i])); }
+/* How many (10, 20, 50) and how (Study, Exam, Flashcards) are chosen in one sheet that opens from Start,
+   the same choices as the charts' practice-set tray (Nov 9 meeting). Asking for more than the filters match
+   tops the set up with questions not tried yet from outside the filters. */
 function buildSet() {
-  const m = matching();
-  return S.build.count === "all" ? m : m.slice(0, Number(S.build.count));
+  const m = matching(), want = Number(S.build.count) || 10;
+  if (m.length >= want) return m.slice(0, want);
+  const have = new Set(m), others = ALL.filter((i) => !have.has(i));
+  return m.concat(others.filter((i) => !ST[QS[i].id]), others.filter((i) => ST[QS[i].id])).slice(0, want);
 }
-function startLabel() {
-  const m = matching().length, n = buildSet().length;
-  const w = S.build.mode === "flash" ? "card" : "question";
-  return m ? `Start ${n} ${w}${n === 1 ? "" : "s"}` : "No questions match";
+function startLabel() { return matching().length ? "Start practice" : "No questions match"; }
+function askSheet() {
+  if (!S.askSet) return "";
+  const m = matching().length, want = Number(S.build.count) || 10, total = Math.min(want, ALL.length), extra = Math.max(0, total - m), mode = S.build.mode;
+  const noun = mode === "flash" ? "card" : "question";
+  return `<div class="scrim"><div class="dialog asksheet" role="dialog" aria-modal="true" aria-labelledby="askT"><h2 id="askT">How many, and how</h2>
+    <div class="fwopts"><div class="fwrow"><span class="fwlbl">How many</span><div class="fwseg" role="group" aria-label="How many questions">${COUNTS.map((v) => `<button type="button" class="fwcnt" data-act="count" data-v="${v}" aria-pressed="${String(want) === v}">${v}</button>`).join("")}</div></div>
+      <div class="fwrow"><span class="fwlbl">How</span><div class="fwseg" role="group" aria-label="Practice mode">${[["study", "Study"], ["exam", "Exam"], ["flash", "Flashcards"]].map(([k, l]) => `<button type="button" class="fwmode" data-act="bmode" data-v="${k}" aria-pressed="${mode === k}">${l}</button>`).join("")}</div></div>
+      <p class="askhint">${mode === "exam" ? "Timed, with answers at the end." : mode === "flash" ? "Just the question: think of the answer, flip the card, rate yourself." : "See the answer and why after each question."}</p>
+      ${want > ALL.length ? `<p class="askhint">This mock-up has only ${ALL.length} sample questions, so a set tops out at ${ALL.length}. The full app will have more.</p>` : ""}
+      ${extra ? `<p class="fwextra">Your choices match ${m} question${m === 1 ? "" : "s"}, so ${extra} new one${extra === 1 ? "" : "s"} from other areas ${extra === 1 ? "is" : "are"} added.</p>` : ""}
+      <div class="fwgo2"><button type="button" class="btn grey fwcancel" data-act="askcancel">Cancel</button><button type="button" class="btn fwsetgo" data-act="buildstart">Start ${total} ${noun}${total === 1 ? "" : "s"}</button></div></div></div></div>`;
 }
 
 function sectionRows() {
@@ -122,13 +136,7 @@ function statsBody() {
       ${ages.length > 1 ? `<fieldset><legend>Patient</legend><div class="chips">${ages.map((a) => chip("age", a, a, b.ages[a], QS.filter((q) => q.age.startsWith(a)).length)).join("")}</div></fieldset>` : ""}
     </details></section>
 
-    <section class="step"><h2>How many, and how</h2>
-      <div class="chips">${COUNTS.map((v) => chip("count", v, v === "all" ? `All ${m}` : v, b.count === v)).join("")}</div>
-      <div class="modes">
-        <button type="button" class="mode2" data-act="bmode" data-v="study" aria-pressed="${b.mode === "study"}"><b>Study</b><small>See the answer and why after each question</small></button>
-        <button type="button" class="mode2" data-act="bmode" data-v="exam" aria-pressed="${b.mode === "exam"}"><b>Exam</b><small>Timed, with answers at the end</small></button>
-        <button type="button" class="mode2" data-act="bmode" data-v="flash" aria-pressed="${b.mode === "flash"}"><b>Flashcards</b><small>Just the question; think, flip, rate yourself</small></button>
-      </div>
+    <section class="step">
       <p class="match" aria-live="polite">${m ? `${m} question${m === 1 ? " matches" : "s match"} your choices.` : "Nothing matches. Clear a filter or pick a different set."}</p>
     </section>
 
@@ -143,7 +151,7 @@ function statsBody() {
 
 function statsPage() {   // plain layout (used where the Otter Bay frame isn't loaded)
   return `<div class="sheet"><div class="stats">${statsBody()}
-    <div class="row"><button type="button" class="btn" data-act="buildstart" ${matching().length ? "" : "disabled"}>${startLabel()}</button></div>
+    <div class="row"><button type="button" class="btn" data-act="buildask" ${matching().length ? "" : "disabled"}>${startLabel()}</button></div>
     <div class="row"><button type="button" class="btn grey" data-act="backquiz">Back to questions</button></div></div></div>`;
 }
 
@@ -163,7 +171,9 @@ const STATS_ACTIONS = {
   age: (b) => { const k = b.dataset.v; S.build.ages[k] = !S.build.ages[k]; },
   count: (b) => { S.build.count = b.dataset.v; },
   bmode: (b) => { S.build.mode = b.dataset.v; },
-  buildstart: () => { const set = buildSet(); if (!set.length) return false; S.set = set; S.mode = S.build.mode; newRun(); S.page = "quiz"; },
+  buildask: () => { if (!matching().length) return false; S.askSet = true; },
+  askcancel: () => { S.askSet = false; },
+  buildstart: () => { const set = buildSet(); if (!set.length) return false; S.askSet = false; S.set = set; S.mode = S.build.mode; newRun(); S.page = "quiz"; },
   rlrm: (b) => { delete RL[b.dataset.id]; save("rtReviewList", RL); },
   rlall: () => { RL_ALL = !RL_ALL; },
   resetstats: () => { for (const k in RL) delete RL[k]; for (const k in ST) delete ST[k]; save("rtReviewList", RL); save("rtStats", ST); },

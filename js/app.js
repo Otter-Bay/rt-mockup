@@ -183,6 +183,7 @@ function render() {
   }
   if (QS.length && S.page === "quiz" && (!S.results || S.reviewing)) h += calcPanel();
   if (S.scale) h += scaleSheet();
+  if (S.askSet && typeof askSheet === "function") h += askSheet();
   h += `<div id="viewer-root"></div>`;
   phone.innerHTML = h;
   const c2 = document.getElementById("content"); if (c2) c2.scrollTop = S.toTop ? 0 : scroll; S.toTop = false;
@@ -322,7 +323,7 @@ document.addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
-  if (S.view) { S.view = null; S.viewEv = false; } else if (S.scale) S.scale = null; else if (S.fb) S.fb = null; else if (S.settings) S.settings = false; else if (S.intro) { S.intro = false; markIntro(); } else return;
+  if (S.view) { S.view = null; S.viewEv = false; } else if (S.askSet) S.askSet = false; else if (S.scale) S.scale = null; else if (S.fb) S.fb = null; else if (S.settings) S.settings = false; else if (S.intro) { S.intro = false; markIntro(); } else return;
   render();
 });
 
