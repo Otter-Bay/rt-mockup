@@ -26,6 +26,9 @@ Clickable design mock-up of the CRT/RRT exam-prep app. Not production code: the 
 | `js/cna_scales.js` | CNA reference cards (vital signs, intake and output, positions, isolation, PPE, fire safety, pressure injuries, range of motion, diets, transfers, charting, abuse, resident rights) | Ken + Claude |
 | `js/home.js`, `css/home.css` | Otter Bay home page, Apps (products) page, themed Stats frame, bottom navigation | Ken + Claude |
 | `js/views.js`, `css/views.css` | Screen layouts: Phone, Tablet and Desktop. The app detects the device and opens in its layout; **Settings → Screen layout** previews the others (desktop: all three; tablet: Tablet and Phone; phone: no choice). Remembered per device. Add `?device=tablet` (or `phone`, `desktop`) to the address to test as another device. | Ken + Claude |
+| `js/voice.js`, `css/voice.css` | **Ask** (voice questions, demo): mic button on Home, Progress, Apps and the question screen. Listens with the browser's speech recognition (or the learner types), matches the question to the info-button cards from all three card files (keyword and synonym index), shows the best match plus up to 2 runner-ups, and reads it aloud. No match: "Send it to our experts" (kept in this browser for the demo; listed in Settings). Learning/protocol note, privacy reminder, and a scope-of-practice note when a card is from another field. `?ask=1` opens straight to listening. | Ken + Claude |
+| `manifest.webmanifest` (one per app folder), `images/icons/` | Web app manifests and icons. Each has an **Ask a question** shortcut (`./?ask=1`) that Android shows on a long-press of the home-screen icon. | Ken + Claude |
+| `docs/voice-demo/` | Screenshots of the Ask screen for the pull request | Ken + Claude |
 | `js/progress.js` | Review list and per-question progress storage (used by both) | Shared: post in Discord before changing |
 | `css/app.css` | Colors, fonts, layout | Shared: post in Discord before changing |
 | `data/questions.json` | 20-question public sample, same fields as the Firebase question document | Ken + Claude |
@@ -41,6 +44,9 @@ The page loads `data/questions.json`, so open it through a local web server inst
 
 ## After changing a CSS or JS file
 In `index.html`, change the `?v=` number on the file links (for example `?v=20261022` → `?v=20261022b`) so everyone's browser loads the new version instead of an old saved copy.
+
+## Ask: voice questions (demo, November 17)
+Tap **Ask** (mic) at the top of Home, Progress, Apps or a question, or open the app with `?ask=1` (for example https://otter-bay.github.io/rt-mockup/?ask=1) to go straight to listening. The answer library for now is the info-button cards; every app loads all three card files (`scales.js`, `sleep_scales.js`, `cna_scales.js`) so the library is shared, and each card file tags its cards with a `field` (`rt`, `sleep`, `cna`) for the scope-of-practice note. Questions the library can't answer can be sent to the team; in the mock-up they stay in the browser (Settings → Questions you've sent). No network or AI calls.
 
 ## CNA sample (November 3)
 CNA Ready lives at `/cna/` with its own review list and stats. Its 20 questions come from the private `cna-question-bank` (batch 1, 200 questions). The home page has a sunrise theme for CNA, and the exam tiles now show four apps in two rows.

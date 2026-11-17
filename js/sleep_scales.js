@@ -154,3 +154,5 @@
       src: "AASM Scoring Manual v3; standard PSG technology texts" },
   });
 })();
+/* Field tag for the shared answer library (voice.js scope notes): cards added above without a field are sleep cards. */
+Object.keys(window.SCALES).forEach((k) => { if (!window.SCALES[k].field) window.SCALES[k].field = "sleep"; });

@@ -73,3 +73,5 @@
       src: "42 CFR 483.10 (resident rights)" },
   });
 })();
+/* Field tag for the shared answer library (voice.js scope notes): cards added above without a field are cna cards. */
+Object.keys(window.SCALES).forEach((k) => { if (!window.SCALES[k].field) window.SCALES[k].field = "cna"; });

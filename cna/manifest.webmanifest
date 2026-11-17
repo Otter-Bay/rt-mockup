@@ -1,0 +1,42 @@
+{
+  "name": "CNA Ready by Otter Bay",
+  "short_name": "CNA",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#E7F4F3",
+  "theme_color": "#5A2340",
+  "icons": [
+    {
+      "src": "../images/icons/app-cna-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "../images/icons/app-cna-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ask a question",
+      "short_name": "Ask",
+      "description": "Opens straight to listening",
+      "url": "./?ask=1",
+      "icons": [
+        {
+          "src": "../images/icons/ask-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        },
+        {
+          "src": "../images/icons/ask-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

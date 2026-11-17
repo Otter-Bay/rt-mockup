@@ -323,3 +323,5 @@ function scaleSheet() {
     ${s.note ? `<p class="scnote">${s.note}</p>` : ""}<p class="scsrc">Source: ${s.src}</p>
     <button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button></div></div>`;
 }
+/* Field tag for the shared answer library (voice.js scope notes): cards added above without a field are rt cards. */
+Object.keys(window.SCALES).forEach((k) => { if (!window.SCALES[k].field) window.SCALES[k].field = "rt"; });

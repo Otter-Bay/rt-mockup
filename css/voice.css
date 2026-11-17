@@ -1,0 +1,79 @@
+/* Voice questions ("Ask") screen and button. Owner: Ken + Claude. See js/voice.js. Kept separate from app.css (shared).
+   Built for one hand on a phone: the big mic sits at the bottom in thumb reach; every tap target is 48px or more. */
+
+/* ---------- Ask button on Home, Progress, Apps and the question screen ---------- */
+.askbtn { min-height: 44px; min-width: 44px; padding: 0 14px 0 11px; margin-right: 2px; border-radius: 22px; border: 2px solid rgba(255,255,255,.55);
+  background: rgba(255,255,255,.14); color: #fff; font: inherit; font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.obtop .askbtn { margin-left: auto; }
+.askbtn.bar { border-color: #AAB4BF; background: #fff; color: #0B4F94; padding: 0 11px 0 9px; font-size: 14px; }
+.askbtn:active { transform: scale(.97); }
+html[data-view="phone"] .askbtn.bar { padding: 0; width: 44px; justify-content: center; }   /* question screen on a phone: icon only, so the bar fits */
+html[data-view="phone"] .askbtn.bar span { display: none; }
+html[data-view="phone"] .appbar:has(.askbtn) { gap: 6px; }
+@media (min-width: 400px) { html[data-view="phone"] .appbar:has(.askbtn) .count { white-space: nowrap; } }
+
+/* ---------- Ask screen ---------- */
+.ask .asktop { justify-content: flex-start; gap: 6px; padding-left: 4px; }
+.askback { min-height: 48px; min-width: 48px; padding: 0 12px 0 6px; border: 0; border-radius: 24px; background: transparent; color: #fff; font: inherit; font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 2px; cursor: pointer; }
+.ask .wm { font-size: 19px; }
+.askscroll { padding: 12px 14px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+.askcare { margin: 0; font-size: 13px; line-height: 1.4; color: #3B4A55; background: #fff; border-radius: 12px; padding: 8px 12px; border-left: 4px solid var(--tide); }
+.askcare b { color: #8A2E08; font-weight: 700; white-space: normal; }
+
+.askq { display: flex; flex-direction: column; gap: 8px; background: #fff; border-radius: 16px; padding: 12px; box-shadow: 0 2px 8px rgba(4,34,48,.08); }
+.askq label { font-size: 14px; font-weight: 700; color: var(--bay); }
+.askq textarea { width: 100%; box-sizing: border-box; min-height: 64px; resize: vertical; border: 2px solid #C9D6DB; border-radius: 12px; padding: 10px 12px; font-size: 18px; line-height: 1.35; color: var(--ink2, #12303D); background: #fff; }
+.askq textarea:focus { border-color: var(--bay); outline: none; }
+.askfind { min-height: 50px; border: 0; border-radius: 12px; background: var(--bay); color: #fff; font: inherit; font-weight: 700; font-size: 17px; cursor: pointer; }
+
+.asktry { display: flex; flex-direction: column; gap: 8px; }
+.asktry p { margin: 4px 0 0; font-size: 14px; font-weight: 700; color: var(--bay); }
+.askex { min-height: 48px; text-align: left; padding: 8px 14px; border-radius: 12px; border: 2px dashed #C9D6DB; background: #fff; color: var(--ink2, #12303D); font: inherit; font-size: 16px; cursor: pointer; }
+
+.askres { display: flex; flex-direction: column; gap: 10px; }
+.asklabel { margin: 4px 0 0; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--bay); }
+.askread { min-height: 54px; border: 0; border-radius: 14px; background: var(--buoy); color: var(--accentInk, #3A2600); font: inherit; font-weight: 700; font-size: 17px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+.askread.on { background: var(--bay); color: #fff; }
+.askcard { background: #fff; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; border-top: 5px solid var(--tide); }
+.askcard h2 { margin: 0; font-family: "Fredoka", var(--font); font-weight: 600; font-size: 21px; color: var(--bay); }
+.asksub { margin: 0; font-size: 15px; line-height: 1.4; color: #24313E; }
+.askscope { margin: 0; font-size: 14px; line-height: 1.4; font-weight: 700; color: #6B3A00; background: #FFF3D1; border: 1.5px solid #E8B13A; border-radius: 10px; padding: 8px 10px; }
+.askalt { display: flex; flex-direction: column; gap: 8px; }
+.askalt1 { min-height: 50px; text-align: left; padding: 8px 14px; border-radius: 12px; border: 2px solid #C9D6DB; background: #fff; color: var(--bay); font: inherit; font-weight: 700; font-size: 16px; cursor: pointer; }
+.askalt1 small { display: block; font-weight: 400; font-size: 12px; color: #6B3A00; }
+.asknot { background: #fff; border-radius: 12px; padding: 4px 12px 10px; }
+.asknot summary { min-height: 44px; display: flex; align-items: center; font-weight: 700; color: var(--bay); cursor: pointer; }
+.asknot[open] { display: flex; flex-direction: column; gap: 8px; }
+
+.asknone { background: #fff; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; border-top: 5px solid var(--buoy); }
+.asknone h2 { margin: 0; font-family: "Fredoka", var(--font); font-weight: 600; font-size: 21px; color: var(--bay); }
+.asknone p { margin: 0; font-size: 15px; line-height: 1.45; }
+.asksend { min-height: 54px; border: 0; border-radius: 14px; background: var(--bay); color: #fff; font: inherit; font-weight: 700; font-size: 17px; cursor: pointer; }
+.askfine { margin: 0; font-size: 13px !important; color: #4A5663; }
+.askthanks { display: flex; flex-direction: column; gap: 4px; background: #E6F4EC; border: 1.5px solid #3FA36B; color: #0B4A2B; border-radius: 12px; padding: 10px 12px; font-size: 15px; line-height: 1.4; }
+
+/* Bottom dock: the mic, in thumb reach */
+.askdock { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 16px max(14px, env(safe-area-inset-bottom, 0px)); background: #fff; border-top: 1px solid #D3E5E7; }
+.askstatus { margin: 0; min-height: 20px; font-size: 14px; font-weight: 700; color: #3B4A55; text-align: center; }
+.askstatus.on { color: var(--bay); }
+.askstatus.err { color: #8A2E08; }
+.askmic { width: 100%; max-width: 360px; min-height: 76px; border: 0; border-radius: 38px; background: var(--bay); color: #fff; font: inherit; font-weight: 700; font-size: 22px;
+  display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; box-shadow: 0 6px 16px rgba(4,34,48,.25); }
+.askmic.on { background: #C2410C; animation: askpulse 1.2s ease-in-out infinite; }
+.askmic:disabled { background: #AAB4BF; box-shadow: none; cursor: default; }
+@keyframes askpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(194,65,12,.45); } 50% { box-shadow: 0 0 0 14px rgba(194,65,12,0); } }
+@media (prefers-reduced-motion: reduce) { .askmic.on { animation: none; } }
+
+/* Settings: questions you've sent */
+.asksent ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.asksent li { display: flex; flex-direction: column; gap: 2px; font-size: 15px; padding: 8px 10px; border-radius: 10px; background: #F6F8FA; }
+.asksent small { font-size: 12px; color: var(--muted); }
+.asksent p { margin: 0; font-size: 14px; color: var(--muted); }
+
+/* ---------- Tablet and desktop: keep the Ask screen a comfortable width ---------- */
+html:is([data-view="tablet"], [data-view="desktop"]) .askscroll > * { width: 100%; max-width: 720px; margin-left: auto; margin-right: auto; box-sizing: border-box; }
+html[data-view="desktop"] .ob.ask { display: flex; }
+html[data-view="desktop"] .ask .obtop { padding-left: 12px; }
+html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
+@media (max-width: 340px) { html[data-view="phone"] .appbar:has(.askbtn) { gap: 2px; padding-left: 10px; } }
