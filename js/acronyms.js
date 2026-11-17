@@ -91,11 +91,15 @@
     const rows = RT.filter((r) => r[2] === g);
     add["abbr_" + g] = { field: "rt", title: `RT abbreviations: ${GROUPS[g]}`, intro: `What common respiratory care abbreviations stand for (${GROUPS[g]}).`,
       body: T(["Abbreviation", "Stands for"], rows.map((r) => [`<b>${r[0]}</b>`, r[1] + (r[3] ? ` <small>${r[3]}</small>` : "")])),
-      note: "Draft for expert review. Respiratory symbols follow the AARC preferred terms and symbols." };
+      note: "Respiratory symbols follow the AARC preferred terms and symbols.",
+      src: "MedlinePlus, \"Some Common Abbreviations\" (National Library of Medicine); AARC, Preferred Terms and Symbols; Open RN nursing textbooks (CC BY 4.0)",
+      links: [["MedlinePlus abbreviations", "https://medlineplus.gov/appendixb.html"], ["AARC preferred terms and symbols", "https://aarc.org/wp-content/uploads/2024/12/respiratory-care-preferred-terms-and-symbols.pdf"]] };
   });
   add.abbr_donotuse = { field: "all", title: "Abbreviations not to use (medication safety)",
     intro: "The Joint Commission's official \"Do Not Use\" list for orders and medication records. These cause dosing errors.",
-    body: T(["Don't write", "Why it's risky", "Instead"], DNU), note: "Your facility may add more to this list (for example, from ISMP's list of error-prone abbreviations). Follow your facility's policy." };
+    body: T(["Don't write", "Why it's risky", "Instead"], DNU), note: "Your facility may add more to this list (for example, from ISMP's list of error-prone abbreviations). Follow your facility's policy.",
+    src: "The Joint Commission, Official \"Do Not Use\" List of Abbreviations",
+    links: [["The Joint Commission: Do Not Use list", "https://jointcommission.org/resources/news-and-multimedia/fact-sheets/facts-about-do-not-use-list"]] };
   Object.assign(window.SCALES, add);
 
   // Quick-answer table for Ask: "what does RSBI stand for?" -> one line, plus the card it's on.

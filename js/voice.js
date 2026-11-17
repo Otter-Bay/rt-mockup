@@ -294,9 +294,27 @@
     const scope = MINE.includes(field) ? "" : `<p class="askscope">This is ${FIELD_NAME[field] || "other field"} information; check what's in your scope of practice.</p>`;
     return `<article class="askcard" aria-labelledby="askCardT">
       ${scope}<h2 id="askCardT">${s.title}</h2><p class="asksub">${s.intro || ""}</p>
-      <div class="sctwrap">${s.body || ""}</div>${s.note ? `<p class="scnote">${s.note}</p>` : ""}<p class="scsrc">Source: ${s.src || ""}</p>
+      <div class="sctwrap">${s.body || ""}</div>${s.note ? `<p class="scnote">${s.note}</p>` : ""}
+      ${sourceBox(k)}
     </article>`;
   }
+  // "Source" button: where the card's information comes from, when it was added and last changed, and its expert-review status.
+  const fmtDate = (d) => { if (!d) return ""; const [y, m, dd] = d.split("-").map(Number); return new Date(y, m - 1, dd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); };
+  function sourceBox(k) {
+    const s = SCALES[k], m = (window.CARD_META || {})[k] || {};
+    const rev = s.reviewed ? `Checked by ${esc(s.reviewed.by)} on ${fmtDate(s.reviewed.date)}` : "Expert review: pending";
+    const links = (s.links || []).map(([t, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join("");
+    return `<details class="asksrc"><summary>${SRCICON}<span>Source</span></summary>
+      <dl>
+        <dt>Where it comes from</dt><dd>${s.src || "Otter Bay"}${links ? `<ul>${links}</ul>` : ""}</dd>
+        <dt>Written by</dt><dd>Otter Bay, in our own words from the sources above</dd>
+        ${m.added ? `<dt>Added</dt><dd>${fmtDate(m.added)}${m.changed && m.changed !== m.added ? ` <span class="asksrcsub">(last changed ${fmtDate(m.changed)})</span>` : ""}</dd>` : ""}
+        <dt>Review</dt><dd>${rev}</dd>
+      </dl>
+      <p class="asksrcnote">The library is checked every 3 months. For learning only: follow your facility's protocols.</p>
+    </details>`;
+  }
+  const SRCICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>`;
   function sendBox() {
     if (V.sent) return `<div class="askthanks" role="status"><b>Thanks! Your question was sent to our experts.</b><span>We review questions every 3 months and add the most-asked ones to the library. See what you've sent in Settings.</span></div>`;
     return `<button type="button" class="asksend" data-act="asksend">Send it to our experts</button>

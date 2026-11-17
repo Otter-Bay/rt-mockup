@@ -83,3 +83,13 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .askabbr { background: #fff; border-left: 4px solid var(--tide, #3FB8B3); border-radius: 12px; padding: 10px 14px; margin: 0 0 12px; }
 .askabbr p { margin: 4px 0; font-size: 17px; }
 .askabbr .asklabel { margin: 0 0 4px; }
+.asksrc { margin: 12px 0 0; border-top: 1px solid #E3E7EB; padding-top: 10px; }
+.asksrc summary { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; border-radius: 22px; border: 1.5px solid var(--bay, #0A4A63);
+  color: var(--bay, #0A4A63); font-weight: 700; font-size: 15px; cursor: pointer; list-style: none; }
+.asksrc summary::-webkit-details-marker { display: none; }
+.asksrc[open] summary { background: var(--bay, #0A4A63); color: #fff; }
+.asksrc dl { margin: 10px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; font-size: 14px; line-height: 1.4; }
+.asksrc dt { font-weight: 700; color: #3E4A57; } .asksrc dd { margin: 0; color: #24313E; }
+.asksrc ul { margin: 4px 0 0; padding-left: 18px; } .asksrc a { color: #0B4F94; font-weight: 700; }
+.asksrcsub { color: #6B7480; } .asksrcnote { margin: 8px 0 0; font-size: 13px; color: #6B7480; }
+@media (max-width: 380px) { .asksrc dl { grid-template-columns: 1fr; } }
