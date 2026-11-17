@@ -36,7 +36,7 @@
     rass: "rass sedation agitation", berlin: "ards acute respiratory distress syndrome", gold: "copd emphysema chronic bronchitis gold",
     naepp: "asthma severity classify", mallampati: "mallampati difficult airway intubation", ahi: "ahi apnea hypopnea index sleep apnea osa severity",
     spaulding: "disinfect disinfection sterilize sterilization equipment cleaning", ls: "lecithin sphingomyelin fetal lung maturity",
-    ardsnet: "peep fio2 table ards", abg: "abg arterial blood gas acid base acidosis alkalosis ph bicarb bicarbonate winters compensation",
+    ardsnet: "peep fio2 table ards", abg: "abg interpret interpretation arterial blood gas acid base acidosis alkalosis ph bicarb bicarbonate winters compensation",
     oxy: "pf ratio gradient alveolar oxygenation index", o2dev: "oxygen nasal cannula mask venturi nonrebreather entrainment fio2 device",
     cylinder: "oxygen tank cylinder how long last duration minutes", ventcalc: "ventilator vent compliance static dynamic resistance plateau tidal volume ibw ideal predicted body weight minute ventilation",
     weaning: "wean weaning extubate extubation sbt spontaneous breathing trial rsbi nif mip", pft: "pulmonary function test spirometry fev1 fvc obstructive restrictive",
@@ -59,10 +59,10 @@
   // Words that mean the same thing in a question (each side is also searched for the other).
   const SYN = { o2: "oxygen", oxygen: "o2", ekg: "ecg", ecg: "ekg", vent: "ventilator", ventilator: "vent", bipap: "bilevel", bilevel: "bipap",
     glasgow: "gcs", gcs: "glasgow", bp: "blood pressure", hr: "pulse", sat: "spo2", sats: "spo2", tube: "ett", ett: "tube", trach: "tracheostomy",
-    copd: "emphysema", bedsore: "pressure", co: "monoxide" };
+    copd: "emphysema", bedsore: "pressure", co: "monoxide", pco2: "paco2", po2: "pao2", co2: "paco2", bicarb: "hco3", hco3: "bicarbonate" };
   const STOP = new Set(("a an the of for to in on at by and or is are was be it its this that what whats how do does did i im me my you your we our can could should would will " +
     "tell about explain show give find get know need want please mean means meaning when why which who where with from into there their them then than " +
-    "use used using like some any much many calculate calculating calculation figure out work whats").split(" "));
+    "use used using like some any much many calculate calculating calculation figure out work whats best good way most right correct proper").split(" "));
   // Light word endings: "scored", "scoring", "scores" and "score" all become "scor"; "injuries" becomes "injury".
   const stem = (w) => {
     if (/^\d/.test(w)) return w;
@@ -70,6 +70,9 @@
     for (const end of ["ing", "ed", "es", "s", "e"]) if (w.endsWith(end) && !w.endsWith("ss") && w.length - end.length >= 3) return w.slice(0, -end.length);
     return w;
   };
+  const PLAIN = {};   // stem -> a readable word, for showing "Searched for"
+  const plainWords = (s) => String(s).toLowerCase().replace(/<[^>]+>/g, " ").replace(/&[a-z]+;/g, " ").replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").split(" ").filter((w) => w.length > 1 && !STOP.has(w));
+  const remember = (s) => plainWords(s).forEach((w) => { const t = stem(w); if (!PLAIN[t] || w.length < PLAIN[t].length) PLAIN[t] = w; });
   const words = (s) => String(s).toLowerCase().replace(/<[^>]+>/g, " ").replace(/&[a-z]+;/g, " ").replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").split(" ").filter((w) => w.length > 1 && !STOP.has(w)).map(stem);
 
   const SYN2 = {};
@@ -80,6 +83,7 @@
       const s = SCALES[k], w = {};
       const add = (txt, wt) => words(txt).forEach((t) => { if (!STOP.has(t) && (w[t] || 0) < wt) w[t] = wt; });
       add(s.body || "", 1); add((s.intro || "") + " " + (s.note || ""), 1.5); add(s.title, 3); add(ALIAS[k] || "", 2);
+      remember([s.title, ALIAS[k] || "", s.intro, s.body, s.note].join(" "));
       return { k, w, seq: " " + words([s.title, ALIAS[k] || "", s.intro, s.body, s.note].join(" ")).join(" ") + " " };
     });
     const df = {};
@@ -88,13 +92,86 @@
     IDX = { cards, idf: (t) => Math.log(1 + N / (df[t] || 0.5)) };
   }
 
+  // ---------- Spelling and sound-alike fixes ----------
+  // Speech recognition and typing both make mistakes ("glascow", "complience", "app gar", "range of moshun").
+  // A word that isn't in the library is swapped for the closest library word: one or two letters off, or the same sound.
+  let VOCAB = null;
+  function vocab() {
+    if (VOCAB) return VOCAB;
+    const wt = {};
+    IDX.cards.forEach((c) => Object.keys(c.w).forEach((t) => { wt[t] = Math.max(wt[t] || 0, c.w[t]); }));
+    Object.keys(SYN2).forEach((t) => { wt[t] = Math.max(wt[t] || 0, 2); });
+    VOCAB = Object.keys(wt).filter((t) => t.length >= 3 && !/^\d+$/.test(t)).map((t) => ({ t, s: sound(t), strong: wt[t] >= 2 }));
+    return VOCAB;
+  }
+  // Rough "sounds like" key: same key = same sound ("moshun" and "motion", "canula" and "cannula").
+  function sound(w) {
+    let s = w.toLowerCase().replace(/tion|sion/g, "xn").replace(/ph/g, "f").replace(/ck|q/g, "k").replace(/sh|ch/g, "x")
+      .replace(/c(?=[eiy])/g, "s").replace(/c/g, "k").replace(/z/g, "s").replace(/x(?![n])/g, "x").replace(/gh/g, "g").replace(/dg/g, "j");
+    s = s[0] + s.slice(1).replace(/[aeiouyhw]/g, "");
+    return s.replace(/(.)\1+/g, "$1");
+  }
+  function dist(a, b) {            // edit distance, with swapped neighbors counting as one
+    if (Math.abs(a.length - b.length) > 2) return 9;
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+    return d[a.length][b.length];
+  }
+  const known = (t) => IDX.cards.some((c) => c.w[t]) || !!SYN2[t];
+  function closest(t) {
+    if (t.length < 4 || /^\d/.test(t) || known(t)) return null;
+    const max = t.length >= 7 ? 2 : 1, st = sound(t);
+    let best = null;
+    for (const v of vocab()) {
+      const dd = dist(t, v.t);
+      const sameSound = v.s === st && v.s.length >= 3 && Math.abs(v.t.length - t.length) <= 2;
+      let score = dd <= max ? dd : sameSound ? max + 0.5 : 9;
+      if (score < 9) score -= (sameSound ? 0.3 : 0) + (v.strong ? 0.1 : 0);   // ties go to same-sounding words and card titles or aliases
+      if (score < 9 && (!best || score < best.score || (score === best.score && v.t.length > best.t.length))) best = { t: v.t, score };
+    }
+    return best && best.t;
+  }
+  // Fix the question's words; also joins two words that should be one ("app gar" -> "apgar").
+  function fixWords(toks, raw) {
+    const out = [], fixes = [], said = (i, n) => raw.slice(i, i + n).join(" "), show = (t) => PLAIN[t] || t;
+    for (let i = 0; i < toks.length; i++) {
+      const t = toks[i];
+      if (known(t) || t.length < 3) { out.push(t); continue; }
+      const next = toks[i + 1];
+      if (next && !known(next)) {
+        const joined = stem(t + next), j = known(joined) ? joined : closest(joined);
+        if (j) { out.push(j); fixes.push([said(i, 2), show(j)]); i++; continue; }
+      }
+      const c = closest(t);
+      if (c) { out.push(c); fixes.push([said(i, 1), show(c)]); } else out.push(t);
+    }
+    return { toks: out, fixes };
+  }
+
+  // Common mishearings of medical terms by speech recognition. This list grows from the questions students send in.
+  const MISHEAR = [[/\b(bye|by|buy|bi) ?pap\b/g, "bipap"], [/\b(see|sea|c) ?pap\b/g, "cpap"], [/\ba ?pap\b/g, "apap"], [/\btrake?s?\b/g, "trach"],
+    [/\ba b g\b/g, "abg"], [/\be k g\b/g, "ekg"], [/\bard s\b|\ba r d s\b/g, "ards"], [/\bc o p d\b/g, "copd"], [/\bpeak flow\b/g, "peak flow"],
+    [/\bo two\b|\boh two\b/g, "o2"], [/\bc o two\b|\bsee oh two\b/g, "co2"], [/\bfi o2\b|\bfio two\b/g, "fio2"], [/\bsp o2\b|\bsat\b/g, "spo2"]];
+  function unmishear(text) {
+    let t = " " + String(text).toLowerCase() + " ";
+    MISHEAR.forEach(([re, w]) => { t = t.replace(re, w); });
+    return t.trim();
+  }
+
   // Returns { best, others, q } with card keys, or best = null when nothing is close enough.
   function match(text) {
     if (!IDX) build();
-    const toks = words(text).filter((t) => !STOP.has(t));
+    const raw = plainWords(unmishear(text)).filter((w) => !STOP.has(stem(w)));
+    const fixed = fixWords(raw.map(stem), raw);
+    const toks = fixed.toks;
+    const unknown = new Set(toks.filter((t) => !known(t)));
     if (!toks.length) return { best: null, others: [], q: text };
     const uniq = [...new Set(toks)];
-    const total = uniq.reduce((a, t) => a + IDX.idf(t), 0);
+    const total = uniq.reduce((a, t) => a + IDX.idf(t) * (unknown.has(t) ? 0.35 : 1), 0);   // words the library doesn't know count for less
     const scored = IDX.cards.map((c) => {
       let score = 0, got = 0;
       for (const t of uniq) {
@@ -105,13 +182,15 @@
       for (let i = 0; i < toks.length - 1; i++) if (c.seq.includes(` ${toks[i]} ${toks[i + 1]} `)) score += IDX.idf(toks[i]) + IDX.idf(toks[i + 1]);   // phrase bonus
       const cover = total ? got / total : 0;
       const field = SCALES[c.k].field || "rt";
-      return { k: c.k, cover, score, final: score * (0.4 + cover) * (MINE.includes(field) ? 1.15 : 1) };
+      return { k: c.k, cover, score, final: score * (0.4 + cover) * (MINE.includes(field) ? 1.4 : 1) };
     }).filter((x) => x.score > 0).sort((a, b) => b.final - a.final);
     const top = scored[0];
-    if (!top || top.cover < 0.5 || top.score < 4) return { best: null, others: [], q: text, near: scored.slice(0, 3) };
+    if (!top || top.cover < 0.5 || top.score < 4) return { best: null, others: [], q: text, near: scored.slice(0, 3), fixes: fixed.fixes };
     const others = scored.slice(1).filter((x) => x.cover >= 0.34 && x.final >= top.final * 0.35).slice(0, 2).map((x) => x.k);
-    return { best: top.k, others, q: text, near: scored.slice(0, 3) };
+    return { best: top.k, others, q: text, near: scored.slice(0, 3), fixes: fixed.fixes };
   }
+
+  window.OB_ASK_MATCH = (t) => match(t);   // for testing
 
   // ---------- Read aloud ----------
   function cardSpeech(k) {
@@ -195,6 +274,7 @@
       <p>Our experts can add it. Send it to us and we'll look at it in the next library update.</p>${sendBox()}</div>`;
     const list = [r.best, ...r.others], k = list[V.pick] || r.best;
     return `<div id="askRes" class="askres" role="status">
+      ${r.fixes && r.fixes.length ? `<p class="askfix">Searched for: ${r.fixes.map((f) => `<b>${esc(f[1])}</b>`).join(", ")} <small>(you said ${r.fixes.map((f) => `“${esc(f[0])}”`).join(", ")})</small></p>` : ""}
       <p class="asklabel">${V.pick === 0 ? "Best match" : "Another match"}</p>
       ${TTS ? `<button type="button" class="askread ${V.speaking ? "on" : ""}" data-act="askread" data-k="${k}" aria-pressed="${V.speaking}">${SPK}<span>${V.speaking ? "Stop reading" : "Read aloud"}</span></button>` : ""}
       ${cardHtml(k)}

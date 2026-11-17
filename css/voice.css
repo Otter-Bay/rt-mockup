@@ -77,3 +77,6 @@ html[data-view="desktop"] .ob.ask { display: flex; }
 html[data-view="desktop"] .ask .obtop { padding-left: 12px; }
 html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 @media (max-width: 340px) { html[data-view="phone"] .appbar:has(.askbtn) { gap: 2px; padding-left: 10px; } }
+
+.askfix { margin: 0 0 6px; font-size: 14px; color: #3E4A57; }
+.askfix small { color: #6B7480; }
