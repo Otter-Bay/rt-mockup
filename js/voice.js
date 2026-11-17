@@ -339,7 +339,7 @@
   function ask() {
     const status = V.listening ? "Listening… ask your question" : V.err ? (ERR[V.err] || ERR.nosupport) : !SR ? "Type your question below." : "Tap the mic and ask, or type below.";
     return `<div class="ob ask" style="${themeVars()}">
-      <header class="obtop asktop"><button type="button" class="askback" data-act="askback" aria-label="Back">${BACK}<span>Back</span></button><span class="wm">Ask a question<small>Answers from our expert-checked library</small></span></header>
+      <header class="obtop asktop"><button type="button" class="askback" data-act="askback" aria-label="Back">${BACK}<span>Back</span></button><span class="wm">Ask a question<small>Answers from our reference library</small></span></header>
       <div class="obscroll askscroll">
         <p class="askcare"><span>For learning only. At work, follow your facility's protocols and your supervisor.</span> <b>Never say patient names or details.</b></p>
         <div class="askq"><label for="askText">Your question</label>
