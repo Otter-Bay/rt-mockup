@@ -12,7 +12,7 @@
   const FIELD_NAME = { rt: "respiratory therapy", sleep: "sleep technology", cna: "nurse assistant" };
   // Which card fields are in scope for each app. SDS is an NBRC specialty for respiratory therapists, so RT cards count there too.
   const APP_FIELDS = { RRT: ["rt"], SDS: ["rt", "sleep"], RPSGT: ["sleep"], CNA: ["cna"] };
-  const MINE = APP_FIELDS[EXAM] || ["rt"];
+  const MINE = [...(APP_FIELDS[EXAM] || ["rt"]), "all"];   // "all" = cards for every field (for example medication safety)
   // Same colors as each app's home theme in home.js (kept short on purpose).
   const THEME = { RRT: ["#0A4A63", "#3FB8B3", "#E7F4F3", "#F5B83D", "#3A2600"], SDS: ["#14193F", "#7E8FD6", "#ECEEF8", "#C9B8FF", "#1C1240"],
     RPSGT: ["#123B2E", "#7CC4A0", "#EAF4EE", "#F2A65A", "#3A1E00"], CNA: ["#5A2340", "#F2A3A0", "#FBEFF0", "#FFD37A", "#3A2400"] }[EXAM] || [];
@@ -54,7 +54,7 @@
     vitals: "vital signs normal pulse rate heart rate blood pressure temperature respirations", io: "intake output fluid", positions: "fowler sims supine prone lateral position positioning",
     isolation: "isolation precautions", ppe: "glove gloves gown mask donning doffing ppe put on take off", fire: "fire race pass extinguisher",
     pressure: "bed sore bedsore pressure ulcer injury", rom: "range of motion abduction flexion", diets: "diet diets clear liquid",
-    transfers: "gait belt transfer wheelchair walking", documentation: "charting chart documentation", abuse: "abuse neglect report", rights: "resident rights",
+    transfers: "gait belt transfer wheelchair walking", documentation: "charting chart documentation", abbr_donotuse: "do not use dangerous unsafe banned abbreviation abbreviations unit units qd qod daily every other day trailing leading zero ms mso4 mgso4 medication error safe", abuse: "abuse neglect report", rights: "resident rights",
   };
   // Words that mean the same thing in a question (each side is also searched for the other).
   const SYN = { o2: "oxygen", oxygen: "o2", ekg: "ecg", ecg: "ekg", vent: "ventilator", ventilator: "vent", bipap: "bilevel", bilevel: "bipap",
@@ -162,8 +162,42 @@
     return t.trim();
   }
 
+  // ---------- Abbreviations: "what does RSBI stand for?" gets a one-line quick answer (acronyms.js) ----------
+  const ABBR_COMMON = new Set(["raw", "mas", "pep", "is", "be", "ic", "pc", "nc", "pe", "mg", "f", "va", "ve", "dp", "rv", "oi", "hb", "cf", "tb", "vc", "ms"]);
+  function abbrHits(text) {
+    const A = window.ACRONYMS;
+    if (!A) return { hits: [], asked: false };
+    const src = String(text);
+    const asked = /\b(stand|stands) for\b|\bshort for\b|\babbreviation\b|\bacronym\b|^\s*what (does|do|is) \S+( \S+)? mean/i.test(src);
+    const keys = [];
+    const m = src.match(/what (?:does|do|is) (?:the )?(?:abbreviation |acronym )?(.+?) (?:stand for|stands for|mean|short for)/i);
+    if (m) keys.push(A.norm(m[1].replace(/\b([a-z])\s(?=[a-z]\b)/gi, "$1")));
+    // Spoken letters ("r s b i") become one word; then each word is checked. Short or everyday words count only in capitals or when asked.
+    const joined = src.replace(/\b([a-z0-9])(?:[ .]+(?=[a-z0-9]\b))/gi, "$1");
+    joined.split(/\s+/).forEach((w) => {
+      const k = A.norm(w);
+      if (!k || !A.map[k]) return;
+      const caps = /[A-Z]/.test(w) && w.replace(/[^A-Za-z]/g, "").length >= 2 && w === w.toUpperCase();
+      if (caps || asked || (k.length >= 3 && !ABBR_COMMON.has(k))) keys.push(k);
+    });
+    const seen = new Set(), hits = [];
+    keys.forEach((k) => (A.map[k] || []).forEach((h) => { if (!seen.has(h.abbr)) { seen.add(h.abbr); hits.push(h); } }));
+    return { hits: hits.slice(0, 3), asked };
+  }
+
   // Returns { best, others, q } with card keys, or best = null when nothing is close enough.
   function match(text) {
+    const ab = abbrHits(text);
+    const r = matchCards(text);
+    r.abbr = ab.hits;
+    if (ab.hits.length && (ab.asked || !r.best)) {   // a "stand for" question goes to the glossary card
+      const cards = [...new Set(ab.hits.map((h) => h.card))];
+      r.others = [...new Set([...cards.slice(1), r.best, ...r.others])].filter((x) => x && x !== cards[0]).slice(0, 2);
+      r.best = cards[0];
+    }
+    return r;
+  }
+  function matchCards(text) {
     if (!IDX) build();
     const raw = plainWords(unmishear(text)).filter((w) => !STOP.has(stem(w)));
     const fixed = fixWords(raw.map(stem), raw);
@@ -212,7 +246,8 @@
   function speak(k) {
     if (!TTS) return;
     stopSpeak();
-    const u = new SpeechSynthesisUtterance(cardSpeech(k));
+    const ab = V.res && V.res.abbr && V.res.abbr.length ? V.res.abbr.map((h) => `${h.abbr.split("").join(" ")} stands for ${h.meaning}.`).join(" ") + " " : "";
+    const u = new SpeechSynthesisUtterance(ab + cardSpeech(k));
     u.lang = "en-US"; u.rate = 1;
     u.onend = u.onerror = () => { V.speaking = false; if (S.page === "ask") render(); };
     V.speaking = true;
@@ -273,7 +308,8 @@
     if (!r.best) return `<div class="asknone" id="askRes" role="status"><h2>Good question! It's not in our library yet.</h2>
       <p>Our experts can add it. Send it to us and we'll look at it in the next library update.</p>${sendBox()}</div>`;
     const list = [r.best, ...r.others], k = list[V.pick] || r.best;
-    return `<div id="askRes" class="askres" role="status">
+    const quick = r.abbr && r.abbr.length ? `<div class="askabbr"><p class="asklabel">Quick answer</p>${r.abbr.map((h) => `<p><b>${esc(h.abbr)}</b> = ${esc(h.meaning)}</p>`).join("")}</div>` : "";
+    return `<div id="askRes" class="askres" role="status">${quick}
       ${r.fixes && r.fixes.length ? `<p class="askfix">Searched for: ${r.fixes.map((f) => `<b>${esc(f[1])}</b>`).join(", ")} <small>(you said ${r.fixes.map((f) => `“${esc(f[0])}”`).join(", ")})</small></p>` : ""}
       <p class="asklabel">${V.pick === 0 ? "Best match" : "Another match"}</p>
       ${TTS ? `<button type="button" class="askread ${V.speaking ? "on" : ""}" data-act="askread" data-k="${k}" aria-pressed="${V.speaking}">${SPK}<span>${V.speaking ? "Stop reading" : "Read aloud"}</span></button>` : ""}

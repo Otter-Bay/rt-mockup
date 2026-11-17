@@ -80,3 +80,6 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 
 .askfix { margin: 0 0 6px; font-size: 14px; color: #3E4A57; }
 .askfix small { color: #6B7480; }
+.askabbr { background: #fff; border-left: 4px solid var(--tide, #3FB8B3); border-radius: 12px; padding: 10px 14px; margin: 0 0 12px; }
+.askabbr p { margin: 4px 0; font-size: 17px; }
+.askabbr .asklabel { margin: 0 0 4px; }
