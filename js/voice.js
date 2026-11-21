@@ -163,7 +163,7 @@
   }
 
   // ---------- Abbreviations: "what does RSBI stand for?" gets a one-line quick answer (acronyms.js) ----------
-  const ABBR_COMMON = new Set(["raw", "mas", "pep", "is", "be", "ic", "pc", "nc", "pe", "mg", "f", "va", "ve", "dp", "rv", "oi", "hb", "cf", "tb", "vc", "ms"]);
+  const ABBR_COMMON = new Set(["raw", "mas", "pep", "is", "be", "ic", "pc", "nc", "pe", "mg", "f", "va", "ve", "dp", "rv", "oi", "hb", "cf", "tb", "vc", "ms", "sl", "mt", "ca", "ta", "ga", "hh", "lm", "dc", "ai", "hi", "se", "w", "pat", "rip", "rem"]);
   function abbrHits(text) {
     const A = window.ACRONYMS;
     if (!A) return { hits: [], asked: false };
@@ -182,6 +182,7 @@
     });
     const seen = new Set(), hits = [];
     keys.forEach((k) => (A.map[k] || []).forEach((h) => { if (!seen.has(h.abbr)) { seen.add(h.abbr); hits.push(h); } }));
+    hits.sort((a, b) => (MINE.includes(b.field) ? 1 : 0) - (MINE.includes(a.field) ? 1 : 0));   // this app's meaning first
     return { hits: hits.slice(0, 3), asked };
   }
 

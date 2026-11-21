@@ -6,8 +6,8 @@ window.CARD_META = {
 "file": "js/acronyms.js"
 },
 "abbr_donotuse": {
-"added": "2026-11-17",
-"changed": "2026-11-17",
+"added": "2026-11-20",
+"changed": "2026-11-20",
 "file": "js/acronyms.js"
 },
 "abbr_dx": {
@@ -46,343 +46,373 @@ window.CARD_META = {
 "file": "js/acronyms.js"
 },
 "abg": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "abuse": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "acls": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "actionplan": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "ahi": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "airwaycare": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "airwaysize": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "alt_tx": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "apgar": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "ardsnet": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "arousal": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "artifacts": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "berlin": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "borg": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "cardiac": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "cf": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "circadian": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "cms": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "croup": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "cylinder": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "diets": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "documentation": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "download": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "dyshb": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "ecg": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "electrodes": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "ess": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "fire": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "gcs": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "gold": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "hfnc": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "hsat": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "hypopnea": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "infant": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "io": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "isolation": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "ls": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "mallampati": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "mslt": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "naepp": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "niv": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "nrp": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "o2dev": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "o2titr": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "oxy": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "papmodes": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "peds_resp": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "pft": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "plm": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "positions": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "ppe": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "precautions": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "pressure": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "rass": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "resp_adult": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "rights": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "rom": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
+"sabbr_move": {
+"added": "2026-11-20",
+"changed": "2026-11-20",
+"file": "js/acronyms.js"
+},
+"sabbr_org": {
+"added": "2026-11-20",
+"changed": "2026-11-20",
+"file": "js/acronyms.js"
+},
+"sabbr_peds": {
+"added": "2026-11-20",
+"changed": "2026-11-20",
+"file": "js/acronyms.js"
+},
+"sabbr_rec": {
+"added": "2026-11-20",
+"changed": "2026-11-20",
+"file": "js/acronyms.js"
+},
+"sabbr_resp": {
+"added": "2026-11-20",
+"changed": "2026-11-20",
+"file": "js/acronyms.js"
+},
+"sabbr_stage": {
+"added": "2026-11-20",
+"changed": "2026-11-20",
+"file": "js/acronyms.js"
+},
 "spaulding": {
-"added": "2026-10-22",
-"changed": "2026-10-22",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "staging": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "start": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "stats": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "stopbang": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "tech": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "titration": {
-"added": "2026-10-23",
-"changed": "2026-10-23",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/sleep_scales.js"
 },
 "transfers": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "ventcalc": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 },
 "vitals": {
-"added": "2026-11-03",
-"changed": "2026-11-03",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
 "weaning": {
-"added": "2026-10-25",
-"changed": "2026-10-25",
+"added": "2026-11-05",
+"changed": "2026-11-05",
 "file": "js/scales.js"
 }
 };

@@ -26,10 +26,12 @@ first = git("log", "--reverse", "--format=%ad", "--date=short", "--", f).split("
 last = git("log", "-1", "--format=%ad", "--date=short", "--", f) or today
 for g in ["gas", "vent", "mode", "pft", "equip", "dx", "rx", "care"]:
     meta.setdefault("abbr_" + g, {"added": first, "file": f})
+for g in ["rec", "stage", "peds", "resp", "move", "org"]:
+    meta.setdefault("sabbr_" + g, {"added": today, "file": f})
 for k, v in meta.items():
     # Last commit that touched this card's own lines (from "key: {" to its "src:" line); glossary cards use the file.
     rng = f"/^ *{k}: {{/,/src:/:{v['file']}"
-    ch = git("log", "-1", "--format=%ad", "--date=short", "-L", rng).split("\n")[0] if not k.startswith("abbr_") else ""
+    ch = git("log", "-1", "--format=%ad", "--date=short", "-L", rng).split("\n")[0] if not k.startswith(("abbr_", "sabbr_")) else ""
     if not re.match(r"\d{4}-\d\d-\d\d$", ch or ""):
         ch = git("log", "-1", "--format=%ad", "--date=short", "--", v["file"]) or today
     v["changed"] = ch
