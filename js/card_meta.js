@@ -2,7 +2,7 @@
 window.CARD_META = {
 "abbr_care": {
 "added": "2026-11-17",
-"changed": "2026-11-17",
+"changed": "2026-11-20",
 "file": "js/acronyms.js"
 },
 "abbr_donotuse": {
@@ -12,37 +12,37 @@ window.CARD_META = {
 },
 "abbr_dx": {
 "added": "2026-11-17",
-"changed": "2026-11-17",
+"changed": "2026-11-20",
 "file": "js/acronyms.js"
 },
 "abbr_equip": {
 "added": "2026-11-17",
-"changed": "2026-11-17",
+"changed": "2026-11-20",
 "file": "js/acronyms.js"
 },
 "abbr_gas": {
 "added": "2026-11-17",
-"changed": "2026-11-17",
+"changed": "2026-11-20",
 "file": "js/acronyms.js"
 },
 "abbr_mode": {
 "added": "2026-11-17",
-"changed": "2026-11-17",
+"changed": "2026-11-20",
 "file": "js/acronyms.js"
 },
 "abbr_pft": {
 "added": "2026-11-17",
-"changed": "2026-11-17",
+"changed": "2026-11-20",
 "file": "js/acronyms.js"
 },
 "abbr_rx": {
 "added": "2026-11-17",
-"changed": "2026-11-17",
+"changed": "2026-11-20",
 "file": "js/acronyms.js"
 },
 "abbr_vent": {
 "added": "2026-11-17",
-"changed": "2026-11-17",
+"changed": "2026-11-20",
 "file": "js/acronyms.js"
 },
 "abg": {

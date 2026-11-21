@@ -1,14 +1,18 @@
 """Run before every push that changes the mock-up:  python3 tools/release.py
 
-Sets one build number (the current Pacific date and time) in:
+Runs the Ask tests first (tools/test_ask.js) and stops if any fail. Then sets one build number (the current Pacific date and time) in:
   - version.json (the file the app checks on every launch, never cached), and
   - every app page: window.BUILD and every ?v= on its scripts and stylesheets.
 When someone opens an older cached copy (Discord's built-in browser keeps pages a while),
 the page sees a newer build in version.json and reloads itself once with a fresh address,
 so the latest version shows up with no ?fresh=1 or closing Discord.
 """
-import datetime, json, re, pathlib, zoneinfo
+import datetime, json, re, pathlib, subprocess, sys, zoneinfo
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+# Ask must still answer its test questions correctly before anything ships (tools/test_ask.js).
+t = subprocess.run(["node", str(ROOT / "tools" / "test_ask.js")], capture_output=True, text=True)
+if t.returncode:
+    sys.exit(t.stdout + "\nRelease stopped: fix Ask before pushing.")
 PAGES = ["index.html", "sds/index.html", "rpsgt/index.html", "cna/index.html"]
 build = datetime.datetime.now(zoneinfo.ZoneInfo("America/Los_Angeles")).strftime("%Y%m%d%H%M")
 CHECK = ('<script>window.BUILD = "{b}"; /* Auto-update: see tools/release.py */\n'

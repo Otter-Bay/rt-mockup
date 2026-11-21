@@ -62,7 +62,8 @@
     copd: "emphysema", bedsore: "pressure", co: "monoxide", pco2: "paco2", po2: "pao2", co2: "paco2", bicarb: "hco3", hco3: "bicarbonate" };
   const STOP = new Set(("a an the of for to in on at by and or is are was be it its this that what whats how do does did i im me my you your we our can could should would will " +
     "tell about explain show give find get know need want please mean means meaning when why which who where with from into there their them then than " +
-    "use used using like some any much many calculate calculating calculation figure out work whats best good way most right correct proper").split(" "));
+    "use used using like some any much many calculate calculating calculation figure out work whats best good way most right correct proper " +
+    "hi hello hey thanks thank ok okay um uh").split(" "));   // greetings and filler from spoken questions
   // Light word endings: "scored", "scoring", "scores" and "score" all become "scor"; "injuries" becomes "injury".
   const stem = (w) => {
     if (/^\d/.test(w)) return w;
@@ -164,19 +165,26 @@
 
   // ---------- Abbreviations: "what does RSBI stand for?" gets a one-line quick answer (acronyms.js) ----------
   const ABBR_COMMON = new Set(["raw", "mas", "pep", "is", "be", "ic", "pc", "nc", "pe", "mg", "f", "va", "ve", "dp", "rv", "oi", "hb", "cf", "tb", "vc", "ms", "sl", "mt", "ca", "ta", "ga", "hh", "lm", "dc", "ai", "hi", "se", "w", "pat", "rip", "rem"]);
+  // Everyday words that are also abbreviations ("is" = incentive spirometry, "be" = base excess, "hi" = hypopnea index).
+  // They count only when they are the thing being asked about ("what does IS stand for?") or the whole question ("IS?").
+  const GRAMMAR = new Set([...STOP, ..."am as if no so up us he go oh ok hi".split(" ")]);
   function abbrHits(text) {
     const A = window.ACRONYMS;
     if (!A) return { hits: [], asked: false };
     const src = String(text);
     const asked = /\b(stand|stands) for\b|\bshort for\b|\babbreviation\b|\bacronym\b|^\s*what (does|do|is) \S+( \S+)? mean/i.test(src);
     const keys = [];
-    const m = src.match(/what (?:does|do|is) (?:the )?(?:abbreviation |acronym )?(.+?) (?:stand for|stands for|mean|short for)/i);
+    // The word being asked about: "what does X stand for / mean", "what is X short for", "meaning of X", or a one-word question.
+    const m = src.match(/what (?:does|do|is) (?:the )?(?:abbreviation |acronym )?(.+?) (?:stand for|stands for|mean|short for)/i)
+      || src.match(/\b(?:meaning of|abbreviation|acronym)\s+(?:of |for )?(?:the )?(\S+(?: \S+)?)\s*\??\s*$/i)
+      || src.match(/^\s*(\S+)\s*\??\s*$/);
     if (m) keys.push(A.norm(m[1].replace(/\b([a-z])\s(?=[a-z]\b)/gi, "$1")));
-    // Spoken letters ("r s b i") become one word; then each word is checked. Short or everyday words count only in capitals or when asked.
+    // Spoken letters ("r s b i") become one word; then each word is checked. Short or everyday words count only in capitals or when asked;
+    // grammar words ("is", "be", "an") never count here.
     const joined = src.replace(/\b([a-z0-9])(?:[ .]+(?=[a-z0-9]\b))/gi, "$1");
     joined.split(/\s+/).forEach((w) => {
       const k = A.norm(w);
-      if (!k || !A.map[k]) return;
+      if (!k || !A.map[k] || GRAMMAR.has(k)) return;
       const caps = /[A-Z]/.test(w) && w.replace(/[^A-Za-z]/g, "").length >= 2 && w === w.toUpperCase();
       if (caps || asked || (k.length >= 3 && !ABBR_COMMON.has(k))) keys.push(k);
     });
