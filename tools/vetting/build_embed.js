@@ -1,7 +1,7 @@
 /* Builds the Ask bundle that goes inside the private question-vetting pages (Claude artifacts).
    Usage: node tools/vetting/build_embed.js OUT.js
    The bundle: the whole current info-card library (scales.js, sleep_scales.js, cna_scales.js, acronyms.js, card_meta.js),
-   Ask's matching code from js/voice.js (spelling fixes, abbreviations, scoring), and tools/vetting/ask_ui.js.
+   Ask's matching code from js/voice.js (spelling fixes, abbreviations, scoring), tools/vetting/ask_ui.js and tools/vetting/nav_ui.js (Go to question).
    The library is added to the page's existing window.SCALES, so newer card versions replace older copies in the page.
    Re-run and re-embed whenever the library changes. */
 const fs = require("fs"), vm = require("vm"), path = require("path");
@@ -24,6 +24,7 @@ Object.assign(window.SCALES = window.SCALES || {}, ${J(win.SCALES)});
 window.CARD_META = ${J(win.CARD_META)};
 window.ACRONYMS = { norm: (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, ""), map: ${J(win.ACRONYMS.map)} };
 ${matcher}
-${fs.readFileSync(path.join(__dirname, "ask_ui.js"), "utf8")}`;
+${fs.readFileSync(path.join(__dirname, "ask_ui.js"), "utf8")}
+${fs.readFileSync(path.join(__dirname, "nav_ui.js"), "utf8")}`;
 fs.writeFileSync(process.argv[2], out.replace(/<\/script/gi, "<\\/script"));
 console.log("cards:", Object.keys(win.SCALES).length, "abbreviations:", Object.keys(win.ACRONYMS.map).length, "bytes:", out.length);
