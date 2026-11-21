@@ -11,6 +11,8 @@ BACK_BTN = ('${window.VET_MODE && S.page === "stats" && QS.length ? `<button typ
             '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back to question ${S.qi + 1}</button>` : `')
 COUNT_BTN = BACK_BTN + ('${S.page === "quiz" && !S.results && window.VET_MODE ? `<button type="button" class="count countbtn" data-act="stats" aria-label="Question ${S.qi + 1} of ${S.set.length}. Open the list to go to any question">'
              'Question ${S.qi + 1} of ${S.set.length}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>` : `' + COUNT + '`}`}')
+CHART = '<button type="button" class="iconbtn" data-act="stats" aria-label="Stats and review list">${ICON.chart}</button>'
+CHART_VET = '${window.VET_MODE ? "" : `' + CHART + '`}'   # vetting: the question button opens the same list, so no chart icon (Ken, Nov 20)
 CHIPS = '<div class="chips">${chip("all", "All " + n.total)}'
 START, END = "<script>\n/* OB vetting additions */\n", "\n/* end OB vetting additions */\n</script>\n"
 for f in sys.argv[3:]:
@@ -18,6 +20,7 @@ for f in sys.argv[3:]:
     s = re.sub(re.escape(START) + r".*?" + re.escape(END), "", s, flags=re.S)
     s = re.sub(r"<script>\n/\* Ask in the vetting pages\..*?</script>\n", "", s, flags=re.S)   # older form of the Ask addition
     if COUNT in s: s = s.replace(COUNT, COUNT_BTN, 1)
+    if CHART in s: s = s.replace(CHART, CHART_VET, 1)
     if "obGotoBox" not in s: s = s.replace(CHIPS, '${window.obGotoBox ? window.obGotoBox() : ""}' + CHIPS, 1)
     s = s.replace('\n    <div class="row"><button type="button" class="btn grey" data-act="backquiz">Back to questions</button></div>', "")   # replaced by the top-bar button
     s = s.replace("Scale and rule cards appear after you answer.", "Scale and rule cards, and Ask, appear after you answer.")
