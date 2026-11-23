@@ -14,7 +14,15 @@
 .obgoto div{display:flex;gap:8px}
 .obgoto input{flex:1;min-width:0;font:inherit;font-size:17px;padding:10px 12px;border:1.5px solid #AAB4BF;border-radius:10px}
 .obgoto button{min-height:46px;padding:0 18px;border-radius:10px;border:0;background:#0B5CAD;color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer}
-.obgoto p{margin:0;font-size:13px;color:#4A5663}.obgoto p.err{color:#A3360A;font-weight:700}`;
+.obgoto p{margin:0;font-size:13px;color:#4A5663}.obgoto p.err{color:#A3360A;font-weight:700}
+/* A phone turned sideways (Ken, Nov 22): fill the screen instead of showing a small phone frame with notes around it,
+   so a rotated EKG or tracing gets the whole screen. */
+@media (max-height:540px) and (pointer:coarse){
+  .stage{padding:0!important;display:block!important}
+  .stage>.note{display:none!important}
+  .holder{width:100%!important;height:100dvh!important}
+  .phone{position:relative!important;transform:none!important;width:100%!important;height:100dvh!important;border-radius:0!important;border:0!important;box-shadow:none!important}
+}`;
   document.head.appendChild(css);
   let err = "";
   const qAt = (i) => QS[S.set[i]];   // S.set holds positions in QS, the question list

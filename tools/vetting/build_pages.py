@@ -23,6 +23,8 @@ for f in sys.argv[3:]:
     if CHART in s: s = s.replace(CHART, CHART_VET, 1)
     if "obGotoBox" not in s: s = s.replace(CHIPS, '${window.obGotoBox ? window.obGotoBox() : ""}' + CHIPS, 1)
     s = s.replace('\n    <div class="row"><button type="button" class="btn grey" data-act="backquiz">Back to questions</button></div>', "")   # replaced by the top-bar button
+    # Image viewer: open sideways only when the screen is upright; a sideways phone or a computer shows it straight (Ken, Nov 22)
+    s = s.replace("S.zoom = 1; S.rot = true; }", "S.zoom = 1; S.rot = innerWidth < innerHeight; }")
     s = s.replace("Scale and rule cards appear after you answer.", "Scale and rule cards, and Ask, appear after you answer.")
     s = s.replace("Tap the chart icon (top right) to see your progress or jump to any question.", "Tap “Question 1 of 200” at the top to go to any question.")
     s = s.replace("Tap the list icon (top right) to see progress or jump to any question.", "Tap “Question 1 of 200” at the top to go to any question.")
