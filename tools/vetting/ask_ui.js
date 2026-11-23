@@ -43,6 +43,13 @@
 .obasknone{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;background:#F6F8FA;border:1px solid #E3E7EB}.obasknone p{margin:0;font-size:14px;line-height:1.45}
 .obasknote{align-self:flex-start;min-height:42px;padding:0 14px;border-radius:12px;border:2px solid #AAB4BF;background:#fff;font:inherit;font-weight:700;font-size:14px;cursor:pointer}
 .obaskfine{margin:0;font-size:12px;color:#4A5663}
+.obaskq{border:1.5px solid #C9D2DC;border-radius:12px;background:#F6F8FA}
+.obaskq summary{cursor:pointer;min-height:44px;display:flex;align-items:center;padding:0 12px;font-weight:700;color:#0B4F94;font-size:14px}
+.obaskqbody{padding:0 12px 12px;max-height:38vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;font-size:15px;line-height:1.55}
+.obaskqbody p{margin:0}.obaskqbody .lbl{font-size:12px;font-weight:700;color:#4A5663;letter-spacing:.03em}
+.obaskw{display:inline;border:0;background:none;padding:1px 1px;margin:0;font:inherit;color:inherit;cursor:pointer;border-radius:4px;text-align:left}
+.obaskw:hover,.obaskw:focus-visible{background:#DDEBFA;color:#0B4F94}
+.obaskw.added{background:#D6EEDF}
 @media (max-width:500px){.obask{padding:0;align-items:stretch}.obaskdlg{border-radius:0;max-width:none}}`;
   document.head.appendChild(css);
 
@@ -54,7 +61,7 @@
     return base + `<div class="obaskrow"><button type="button" class="obaskbtn" data-obask="open">${MIC}<span>Ask about this question</span></button></div>`;
   };
 
-  const A = { q: null, text: "", res: null, pick: null, listening: false, msg: "", noted: false };
+  const A = { q: null, text: "", res: null, pick: null, listening: false, msg: "", noted: false, qopen: false };
   let rec = null, box = null;
 
   function related(q) {
@@ -84,10 +91,20 @@
         ${m.added ? `<dt>Added</dt><dd>${fmtDate(m.added)}${m.changed && m.changed !== m.added ? ` (last changed ${fmtDate(m.changed)})` : ""}</dd>` : ""}
         <dt>Review</dt><dd>${rev}</dd></dl></details></article>`;
   }
+  // The question itself, inside Ask, so the spelling of a term is right there (Ken, Nov 22). Tap a word to add it to the question box.
+  const words = (t) => strip(t).split(/(\s+)/).map((w) => /\S/.test(w) ? `<button type="button" class="obaskw" data-obask="word" data-w="${esc(w.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9%]+$/g, ""))}">${esc(w)}</button>` : w).join("");
+  function questionBlock(q) {
+    const rows = (q.rows || []).map((r) => `<p>${words(r[0])}: ${words(r[1])}</p>`).join("");
+    const opts = (q.opts || []).map((o, i) => `<p><b>${"ABCD"[i]}.</b> ${words(o)}</p>`).join("");
+    return `<details class="obaskq"${A.qopen ? " open" : ""} data-obask="qtoggle"><summary>See the question (tap a word to add it)</summary><div class="obaskqbody">
+      <p>${words(q.stem)}</p>${rows}${q.after ? `<p>${words(q.after)}</p>` : ""}${opts}
+      ${q.why ? `<p class="lbl">EXPLANATION</p><p>${words(q.why)}</p>` : ""}</div></details>`;
+  }
   function draw() {
     if (!box) return;
     const q = A.q, rel = related(q), r = A.res;
     const keep = document.activeElement && document.activeElement.id === "obaskIn";
+    const qb = box.querySelector(".obaskqbody"), qScroll = qb ? qb.scrollTop : 0;
     let res = "";
     if (r && r.best) {
       const list = [r.best, ...(r.others || [])], k = A.pick && list.includes(A.pick) ? A.pick : r.best;
@@ -105,12 +122,14 @@
       <div class="obaskhead"><div style="flex:1"><h2 id="obaskT">Ask</h2><p>${esc(q.id)}${q.topic ? " · " + esc(q.topic) : ""}</p></div>
         <button type="button" class="obaskx" data-obask="close" aria-label="Close">${X}</button></div>
       ${rel.length ? `<p class="obasklbl">RELATED TO THIS QUESTION</p><div class="obaskchips">${rel.map((k) => `<button type="button" class="obaskchip" data-obask="rel" data-k="${k}" aria-pressed="${!r && A.pick === k}">${esc(strip(window.SCALES[k].title))}</button>`).join("")}</div>` : ""}
+      ${questionBlock(q)}
       <form class="obaskform" data-obask="form"><input id="obaskIn" type="text" autocomplete="off" placeholder="Type a question, e.g. What does WASO stand for?" value="${esc(A.text)}" aria-label="Your question">
         ${SR ? `<button type="button" class="obaskmic${A.listening ? " on" : ""}" data-obask="mic" aria-label="${A.listening ? "Stop listening" : "Speak your question"}">${MIC}</button>` : ""}
         <button type="submit" class="obaskgo">Ask</button></form>
       ${A.msg ? `<p class="obaskmsg" role="status">${esc(A.msg)}</p>` : ""}
       ${res}
       <p class="obaskfine">Answers come from our reference library (draft, being vetted). For learning only: follow your facility's protocols.</p></div>`;
+    const qb2 = box.querySelector(".obaskqbody"); if (qb2) qb2.scrollTop = qScroll;
     if (keep) { const i = document.getElementById("obaskIn"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
   }
   function open() {
@@ -144,6 +163,10 @@
     else if (a === "rel") { A.res = null; A.pick = b.dataset.k; A.msg = ""; draw(); }
     else if (a === "pick") { A.pick = b.dataset.k; draw(); }
     else if (a === "mic") listen();
+    else if (a === "word") {
+      const i = document.getElementById("obaskIn"), w = b.dataset.w; if (!i || !w) return;
+      i.value = (i.value.trim() ? i.value.trim() + " " : "") + w; A.text = i.value; b.classList.add("added");
+    }
     else if (a === "note") {
       const el = document.getElementById("vetNotes");
       if (el && !A.noted) { el.value = (el.value ? el.value.trimEnd() + "\n" : "") + `Ask gap: "${A.text}" isn't in the library.`; el.dispatchEvent(new Event("input", { bubbles: true })); A.noted = true; draw(); }
@@ -153,6 +176,7 @@
     if (!e.target.matches || !e.target.matches('[data-obask="form"]')) return;
     e.preventDefault(); const i = document.getElementById("obaskIn"); ask(i ? i.value : "");
   });
+  document.addEventListener("toggle", (e) => { if (e.target.classList && e.target.classList.contains("obaskq")) A.qopen = e.target.open; }, true);
   document.addEventListener("input", (e) => { if (e.target.id === "obaskIn") A.text = e.target.value; });
   document.addEventListener("keydown", (e) => {
     if (!box) return;
