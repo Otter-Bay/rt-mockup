@@ -24,6 +24,16 @@ const CHECKS = [
   ["SDS", "what does WASO stand for", null, ["WASO"], []],
   ["RPSGT", "what does SOREMP mean", null, ["SOREMP"], []],
   ["RPSGT", "WASO", null, ["WASO"], []],
+  // An abbreviation question shows the card about it, with its tables (Ken, Nov 22), not just the glossary
+  ["SDS", "what does AHI stand for", "ahi", ["AHI"], []],
+  ["SDS", "what does RERA stand for", "resp_adult", ["RERA"], []],
+  ["SDS", "what does REM stand for", "staging", ["REM"], []],
+  ["SDS", "what does ASV stand for", "papmodes", ["ASV"], []],
+  ["SDS", "what does HSAT stand for", "hsat", ["HSAT"], []],
+  ["RRT", "what does ABG stand for", "abg", ["ABG"], []],
+  ["RRT", "what does GCS stand for", "gcs", ["GCS"], []],
+  ["RRT", "what does RSBI stand for", "weaning", ["RSBI"], []],
+  ["RRT", "what does ARDS stand for", "berlin", ["ARDS"], []],
   // Ordinary questions
   ["RRT", "glascow coma scale", "gcs", [], []],
   ["CNA", "normal pulse range", "vitals", [], []],

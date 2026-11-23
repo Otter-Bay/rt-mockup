@@ -195,14 +195,50 @@
   }
 
   // Returns { best, others, q } with card keys, or best = null when nothing is close enough.
+  // Cards that are really about an abbreviation: they use the abbreviation itself (as a whole word, in capitals) or spell
+  // out its meaning. Ranked by how much they talk about it, with this app's field first. Glossary cards are left out here.
+  const plain = (h) => String(h || "").replace(/<[^>]+>/g, " ").replace(/&[a-z]+;/g, " ");
+  // A few abbreviations whose main card names them another way (the staging card says "stage R", not "REM").
+  const TOPIC_FOR = { REM: "staging", NREM: "staging", N1: "staging", N2: "staging", N3: "staging", SWS: "staging" };
+  function topicCards(h) {
+    if (TOPIC_FOR[h.abbr] && SCALES[TOPIC_FOR[h.abbr]]) return [TOPIC_FOR[h.abbr]];
+    const m = String(h.meaning).toLowerCase();
+    // the meaning and any alternate name in brackets, e.g. "rapid eye movement sleep (stage r)" -> both phrases
+    const phrases = m.split(/[:()]/).map((x) => x.trim()).filter((x) => x.length > 3 && !/^(e\.g\.|for example)/.test(x));
+    const words = phrases[0] ? phrases[0].split(/\s+/) : [];
+    const pairs = words.slice(0, -1).map((w, i) => w + " " + words[i + 1]).filter((x) => x.length >= 7 && !/\b(of|the|and|in|to|a|per)\b/.test(x));
+    const re = new RegExp("(^|[^A-Za-z0-9])" + h.abbr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![A-Za-z0-9])", "g");
+    const out = [];
+    for (const k of Object.keys(SCALES)) {
+      if (/^s?abbr_/.test(k)) continue;
+      const c = SCALES[k], title = plain(c.title), tl = title.toLowerCase(), text = plain([c.title, c.intro, c.body, c.note].join(" ")), lo = text.toLowerCase();
+      let score = (text.match(re) || []).length;
+      phrases.forEach((ph) => { score += Math.min(lo.split(ph).length - 1, 4); });
+      re.lastIndex = 0;
+      if (re.test(title) || phrases.some((ph) => tl.includes(ph)) || pairs.some((pr) => tl.includes(pr))) score += 6;
+      re.lastIndex = 0;
+      if (!score) continue;
+      if (MINE.includes(c.field || "rt")) score += 2;
+      out.push([k, score]);
+    }
+    return out.sort((a, b) => b[1] - a[1]).filter((x) => x[1] >= 3).slice(0, 2).map((x) => x[0]);
+  }
+
   function match(text) {
     const ab = abbrHits(text);
     const r = matchCards(text);
     r.abbr = ab.hits;
-    if (ab.hits.length && (ab.asked || !r.best)) {   // a "stand for" question goes to the glossary card
-      const cards = [...new Set(ab.hits.map((h) => h.card))];
-      r.others = [...new Set([...cards.slice(1), r.best, ...r.others])].filter((x) => x && x !== cards[0]).slice(0, 2);
-      r.best = cards[0];
+    if (ab.hits.length && (ab.asked || !r.best)) {
+      // An abbreviation question: the quick answer gives the meaning; the card shown is the one ABOUT that meaning, with its
+      // tables and graphics (Ken, Nov 22), and the glossary card comes next. Only when no card covers it does the glossary lead.
+      const GLOSS = /^s?abbr_/;
+      const glossary = [...new Set(ab.hits.map((h) => h.card))];
+      const topic = [];
+      ab.hits.forEach((h) => topicCards(h).forEach((k) => { if (!topic.includes(k)) topic.push(k); }));
+      if (r.best && !GLOSS.test(r.best) && !topic.includes(r.best) && !ab.asked) topic.unshift(r.best);
+      const order = [...new Set([...topic.slice(0, 2), ...glossary, ...topic.slice(2)])];
+      r.best = order[0];
+      r.others = order.slice(1, 3);
     }
     return r;
   }
