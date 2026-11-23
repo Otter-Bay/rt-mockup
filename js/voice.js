@@ -25,6 +25,7 @@
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const TTS = "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
   const KEY = "obAskSent";
+  const CUE_KEY = "obAskQCue";   // one-time highlight on the See-the-question button (Ken, Nov 23)
   const loadSent = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } };
   const V = { text: "", listening: false, res: null, pick: 0, from: "home", sent: false, err: "", speaking: false };
   let rec = null;
@@ -425,6 +426,7 @@
   const SPK = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
   const BACK = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
   window.ASK_ICON = MIC.replace('width="34" height="34"', 'width="20" height="20"');
+  const QICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>';
 
   function cardHtml(k, hit) {
     const s = SCALES[k], field = s.field || "rt";
@@ -488,7 +490,7 @@
     const q = V.q; if (!q) return "";
     const rows = (q.rows || []).map((r) => `<p>${askWords(r[0])}: ${askWords(r[1])}</p>`).join("");
     const opts = (q.opts || []).map((o, i) => `<p><b>${"ABCD"[i]}.</b> ${askWords(o)}</p>`).join("");
-    return `<details class="askqview"${V.qOpen ? " open" : ""}><summary>See the question (tap a word to add it)</summary><div class="askqbody">
+    return `<details class="askqview${V.qCue ? " cue" : ""}"${V.qOpen ? " open" : ""}><summary><span class="askqicon" aria-hidden="true">${QICON}</span><span class="askqsum"><span class="askqtitle">See the question</span><span class="askqtip">Tip: tap any word in the question to add it to your question</span></span></summary><div class="askqbody">
       <p>${askWords(q.stem)}</p>${rows}${q.after ? `<p>${askWords(q.after)}</p>` : ""}${opts}
       ${V.qWhy && q.why ? `<p class="asklabel">Explanation</p><p>${askWords(q.why)}</p>` : ""}</div></details>`;
   }
@@ -517,6 +519,8 @@
     else if (S.page !== "ask") V.q = null;
     S.page = "ask"; S.settings = false; S.scale = null;
     V.res = null; V.text = ""; V.err = ""; V.sent = false;
+    V.qCue = false;
+    if (V.q) { try { if (!localStorage.getItem(CUE_KEY)) { V.qCue = true; localStorage.setItem(CUE_KEY, "1"); } } catch (e) {} }
     if (listenNow && SR) { listen(); return false; }
     return undefined;
   }
@@ -556,7 +560,7 @@
   render = function () {
     if (S.page !== "ask" && (V.listening || V.speaking)) { stopListening(); stopSpeak(); }
     r0();
-    if (S.page === "ask") { const ta = document.getElementById("askText"); if (ta && ta.value !== V.text) ta.value = V.text; return; }
+    if (S.page === "ask") { const ta = document.getElementById("askText"); if (ta && ta.value !== V.text) ta.value = V.text; V.qCue = false; return; }
     const btn = `<button type="button" class="askbtn" data-act="ask" aria-label="Ask a question">${window.ASK_ICON}<span>Ask</span></button>`;
     const top = document.querySelector("#phone .obtop .obgear"); if (top) top.insertAdjacentHTML("beforebegin", btn);
     const bar = document.querySelector('#phone .appbar [data-act="stats"]'); if (bar) bar.insertAdjacentHTML("beforebegin", btn.replace("askbtn", "askbtn bar"));

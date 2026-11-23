@@ -97,11 +97,22 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .asksrcsub { color: #6B7480; } .asksrcnote { margin: 8px 0 0; font-size: 13px; color: #6B7480; }
 @media (max-width: 380px) { .asksrc dl { grid-template-columns: 1fr; } }
 
-/* The question inside Ask (Ken, Nov 22): see the question and tap a word to add it to the question box. */
-.askqview { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(4,34,48,.08); }
-.askqview summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; padding: 0 14px; font-weight: 700; font-size: 15px; color: var(--bay, #0A4A63); }
+/* The question inside Ask (Ken, Nov 22 / Nov 23): a clear button, a tip to tap a word, and a one-time highlight. */
+.askqview { background: #FFF8E8; border: 1.5px solid var(--buoy, #F5B83D); border-radius: 16px; box-shadow: 0 2px 8px rgba(4,34,48,.08); }
+.askqview summary { cursor: pointer; min-height: 56px; display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-weight: 700; font-size: 16px; color: var(--bay, #0A4A63); list-style: none; }
+.askqview summary::-webkit-details-marker, .askqview summary::marker { display: none; content: none; }
+.askqview summary::after { content: ""; width: 8px; height: 8px; margin-left: auto; flex-shrink: 0; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .15s ease; }
+.askqview[open] summary::after { transform: rotate(-135deg); margin-top: 4px; }
+.askqicon { flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; background: var(--buoy, #F5B83D); color: var(--accentInk, #3A2600); display: flex; align-items: center; justify-content: center; }
+.askqsum { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.askqtitle { font-size: 16px; font-weight: 700; line-height: 1.25; }
+.askqtip { font-size: 13px; font-weight: 400; line-height: 1.35; color: #3B4A55; }
+.askqview.cue { animation: askqcue 1.4s ease-in-out 2; }
+@keyframes askqcue { 0%, 100% { box-shadow: 0 2px 8px rgba(4,34,48,.08); } 50% { box-shadow: 0 0 0 5px var(--buoy, #F5B83D), 0 4px 16px rgba(4,34,48,.18); } }
+@media (prefers-reduced-motion: reduce) { .askqview.cue { animation: none; box-shadow: 0 0 0 4px var(--buoy, #F5B83D); } }
 .askqbody { padding: 0 14px 14px; max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 16px; line-height: 1.6; color: var(--ink2, #12303D); }
 .askqbody p { margin: 0; }
-.askw { display: inline; border: 0; background: none; padding: 1px; margin: 0; font: inherit; color: inherit; cursor: pointer; border-radius: 4px; text-align: left; }
-.askw:hover, .askw:focus-visible { background: #DDEBFA; color: var(--bay, #0A4A63); }
-.askw.added { background: #D6EEDF; }
+.askw { display: inline; border: 0; background: none; padding: 0 1px; margin: 0; font: inherit; color: inherit; cursor: pointer; border-radius: 4px; text-align: left;
+  text-decoration: underline; text-decoration-style: dotted; text-decoration-color: var(--tide, #3FB8B3); text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+.askw:hover, .askw:focus-visible { background: #DDEBFA; color: var(--bay, #0A4A63); text-decoration-color: var(--bay, #0A4A63); }
+.askw.added { background: #D6EEDF; text-decoration-color: #3FA36B; }

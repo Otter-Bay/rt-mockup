@@ -43,13 +43,23 @@
 .obasknone{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;background:#F6F8FA;border:1px solid #E3E7EB}.obasknone p{margin:0;font-size:14px;line-height:1.45}
 .obasknote{align-self:flex-start;min-height:42px;padding:0 14px;border-radius:12px;border:2px solid #AAB4BF;background:#fff;font:inherit;font-weight:700;font-size:14px;cursor:pointer}
 .obaskfine{margin:0;font-size:12px;color:#4A5663}
-.obaskq{border:1.5px solid #C9D2DC;border-radius:12px;background:#F6F8FA}
-.obaskq summary{cursor:pointer;min-height:44px;display:flex;align-items:center;padding:0 12px;font-weight:700;color:#0B4F94;font-size:14px}
+.obaskq{border:1.5px solid #E8B13A;border-radius:12px;background:#FFF8E8}
+.obaskq summary{cursor:pointer;min-height:52px;display:flex;align-items:center;gap:10px;padding:8px 12px;font-weight:700;color:#0B4F94;font-size:15px;list-style:none}
+.obaskq summary::-webkit-details-marker,.obaskq summary::marker{display:none;content:none}
+.obaskq summary::after{content:"";width:8px;height:8px;margin-left:auto;flex-shrink:0;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg)}
+.obaskq[open] summary::after{transform:rotate(-135deg);margin-top:4px}
+.obaskqicon{flex-shrink:0;width:32px;height:32px;border-radius:9px;background:#E8B13A;color:#3A2600;display:flex;align-items:center;justify-content:center}
+.obaskqsum{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.obaskqtitle{font-size:15px;font-weight:700;line-height:1.25}
+.obaskqtip{font-size:12px;font-weight:400;line-height:1.35;color:#3B4A55}
+.obaskq.cue{animation:obaskqcue 1.4s ease-in-out 2}
+@keyframes obaskqcue{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 5px #E8B13A}}
+@media (prefers-reduced-motion:reduce){.obaskq.cue{animation:none;box-shadow:0 0 0 4px #E8B13A}}
 .obaskqbody{padding:0 12px 12px;max-height:38vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;font-size:15px;line-height:1.55}
 .obaskqbody p{margin:0}.obaskqbody .lbl{font-size:12px;font-weight:700;color:#4A5663;letter-spacing:.03em}
-.obaskw{display:inline;border:0;background:none;padding:1px 1px;margin:0;font:inherit;color:inherit;cursor:pointer;border-radius:4px;text-align:left}
-.obaskw:hover,.obaskw:focus-visible{background:#DDEBFA;color:#0B4F94}
-.obaskw.added{background:#D6EEDF}
+.obaskw{display:inline;border:0;background:none;padding:0 1px;margin:0;font:inherit;color:inherit;cursor:pointer;border-radius:4px;text-align:left;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:#1F5FA8;text-underline-offset:3px;text-decoration-thickness:1.5px}
+.obaskw:hover,.obaskw:focus-visible{background:#DDEBFA;color:#0B4F94;text-decoration-color:#0B4F94}
+.obaskw.added{background:#D6EEDF;text-decoration-color:#3FA36B}
 .obaskrowans{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#FFF8E8;border-left:4px solid #E8B13A;font-size:15px;line-height:1.4}
 .sct tr.askhit td{background:#FFF3D1!important;box-shadow:inset 3px 0 0 #E8B13A;font-weight:600}
 @media (max-width:500px){.obask{padding:0;align-items:stretch}.obaskdlg{border-radius:0;max-width:none}}`;
@@ -99,7 +109,8 @@
   function questionBlock(q) {
     const rows = (q.rows || []).map((r) => `<p>${words(r[0])}: ${words(r[1])}</p>`).join("");
     const opts = (q.opts || []).map((o, i) => `<p><b>${"ABCD"[i]}.</b> ${words(o)}</p>`).join("");
-    return `<details class="obaskq"${A.qopen ? " open" : ""} data-obask="qtoggle"><summary>See the question (tap a word to add it)</summary><div class="obaskqbody">
+    const QICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>';
+    return `<details class="obaskq${A.cue ? " cue" : ""}"${A.qopen ? " open" : ""} data-obask="qtoggle"><summary><span class="obaskqicon" aria-hidden="true">${QICON}</span><span class="obaskqsum"><span class="obaskqtitle">See the question</span><span class="obaskqtip">Tip: tap any word in the question to add it to your question</span></span></summary><div class="obaskqbody">
       <p>${words(q.stem)}</p>${rows}${q.after ? `<p>${words(q.after)}</p>` : ""}${opts}
       ${q.why ? `<p class="lbl">EXPLANATION</p><p>${words(q.why)}</p>` : ""}</div></details>`;
   }
@@ -137,10 +148,12 @@
       <p class="obaskfine">Answers come from our reference library (draft, being vetted). For learning only: follow your facility's protocols.</p></div>`;
     const qb2 = box.querySelector(".obaskqbody"); if (qb2) qb2.scrollTop = qScroll;
     if (keep) { const i = document.getElementById("obaskIn"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+    A.cue = false;
   }
   function open() {
     const q = typeof Q === "function" ? Q() : null; if (!q) return;
-    Object.assign(A, { q, text: "", res: null, pick: null, msg: "", noted: false });
+    Object.assign(A, { q, text: "", res: null, pick: null, msg: "", noted: false, cue: false });
+    try { if (!localStorage.getItem("obAskQCue")) { A.cue = true; localStorage.setItem("obAskQCue", "1"); } } catch (e) {}
     box = document.createElement("div"); box.className = "obask";
     document.body.appendChild(box); draw();
     const i = document.getElementById("obaskIn"); if (i) i.focus();

@@ -78,6 +78,21 @@ for (const [exam, q, best, row] of ROW_CHECKS) {
   if (errs.length) bad++;
   console.log(`${errs.length ? "FAIL" : "ok  "} [${exam}] ${q} -> ${r.best} row:${text || "none"}${errs.length ? "  <- " + errs.join("; ") : ""}`);
 }
-const total = CHECKS.length + ROW_CHECKS.length;
+// The See-the-question button stays easy to find in the apps and the vetting Ask window (Ken, Nov 23)
+const TIP = "Tip: tap any word in the question to add it to your question";
+const UI_FILES = [
+  ["js/voice.js", [TIP, "obAskQCue", "askqview", "cue"]],
+  ["css/voice.css", ["askqcue", "text-decoration-style: dotted", ".askqview.cue"]],
+  ["tools/vetting/ask_ui.js", [TIP, "obAskQCue", "obaskqtip", "obaskqcue", "text-decoration-style:dotted"]],
+];
+let ui = 0;
+for (const [file, needles] of UI_FILES) {
+  const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+  const missing = needles.filter((n) => !src.includes(n));
+  if (missing.length) { bad++; ui++; console.log(`FAIL [ui] ${file} missing: ${missing.join(", ")}`); }
+  else console.log(`ok   [ui] ${file}`);
+}
+
+const total = CHECKS.length + ROW_CHECKS.length + UI_FILES.length;
 console.log(bad ? `\n${bad} of ${total} checks failed` : `\nAll ${total} checks passed`);
 process.exit(bad ? 1 : 0);
