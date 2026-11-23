@@ -267,8 +267,11 @@ window.SCALES = {
       ["Dalton's law", "Total pressure = the sum of each gas's partial pressure", "Not applicable", "Inspired PO2 = FIO2 × (PB − 47); room air at sea level is about 150 mm Hg"],
       ["Henry's law", "The amount of gas dissolved in a liquid rises with that gas's partial pressure", "Temperature", "Dissolved O2 = 0.003 mL/dL for each mm Hg of PaO2; hyperbaric O2 raises it"],
       ["Poiseuille's law", "Resistance to flow rises with tube length and gas viscosity, and with 1 ÷ radius to the 4th power", "Not applicable", "Halve an airway's radius and resistance goes up 16 times"],
-      ["Laplace's law", "Pressure in a bubble = 2 × surface tension ÷ radius", "Not applicable", "Surfactant lowers surface tension so small alveoli don't collapse"]]),
-    note: "Memory hook: Boyle = squeeze (syringe), Charles = heat (kettle), Henry = soda bottle, Laplace = bubble, Poiseuille = tube.",
+      ["Laplace's law", "Pressure in a bubble = 2 × surface tension ÷ radius", "Not applicable", "Surfactant lowers surface tension so small alveoli don't collapse"],
+      ["Bernoulli's principle", "As a gas speeds up through a narrowing, its lateral (side-wall) pressure falls; its total energy stays the same", "Not applicable", "The pressure drop beside a fast jet pulls in room air or liquid, as in air-entrainment masks and jet nebulizers"],
+      ["Venturi principle", "A gradual widening (about 15° or less) after a narrowing restores the pressure, so a jet can pull in (entrain) a second gas", "Not applicable", "Air-entrainment (Venturi) masks set FIO2 by jet size and entrainment ports: more entrained air = lower FIO2 and higher total flow"],
+      ["Graham's law", "A gas's rate of diffusion is inversely proportional to the square root of its gram molecular weight", "Not applicable", "Together with Henry's law: CO2 is heavier than O2 but far more soluble, so it diffuses about 20 times faster across the alveolar-capillary membrane"]]),
+    note: "Memory hook: Boyle = squeeze (syringe), Charles = heat (kettle), Henry = soda bottle, Laplace = bubble, Poiseuille = tube, Bernoulli = airplane wing or jet, Venturi = hourglass-shaped tube, Graham = small, fast runner.",
     src: "Standard gas physics as taught in respiratory care texts, in our own words" },
 };
 

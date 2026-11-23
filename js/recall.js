@@ -71,6 +71,9 @@
   }
   // Idea outlines (hints only; off by default). First match wins: the row's own words, then the card's title, then the field.
   const IDEAS = [
+    [/bernoulli/, "wing", "an airplane wing or a jet: fast gas, low side pressure"],
+    [/venturi/, "hourglass", "an hourglass-shaped tube: narrow, then gently wider"],
+    [/graham/, "runner", "a small, fast runner: light gases diffuse faster"],
     [/boyle/, "syringe", "a syringe: squeeze it, pressure up, volume down"],
     [/charles/, "kettle", "a kettle: heat it and the gas expands"],
     [/gay.lussac/, "gauge", "a pressure gauge on a hot tank"],
@@ -169,6 +172,14 @@
     shield: (x, y, w, h, c) => P(`M${x - 8} ${y - 8}q${w / 2 + 8} -10 ${w + 16} 0v${h * 0.6}q0 ${h * 0.4 + 10} -${w / 2 + 8} ${h * 0.4 + 22}q-${w / 2 + 8} -12 -${w / 2 + 8} -${h * 0.4 + 22}z`, c),
     moon: (x, y, w, h, c) => `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2 + 14}" ry="${h / 2 + 12}" fill="none" stroke="${c}" stroke-width="1.6"/>` +
       P(`M${x - 4} ${y - 4}q-14 ${h / 2 + 4} 0 ${h + 8}`, c) + P(`M${x + w + 16} ${y - 14}l2 5 5 1-5 2-2 5-2-5-5-2 5-1z`, c),
+    wing: (x, y, w, h, c) => P(`M${x - 10} ${y + h * 0.55}C${x - 6} ${y - 16} ${x + w * 0.55} ${y - 18} ${x + w + 14} ${y + h * 0.35}C${x + w * 0.6} ${y + h + 10} ${x + w * 0.1} ${y + h + 12} ${x - 10} ${y + h * 0.55}z`, c) +
+      P(`M${x - 30} ${y - 6}h16M${x - 30} ${y + h * 0.5}h14M${x - 30} ${y + h + 6}h16`, c, 'stroke-dasharray="4 3"'),
+    hourglass: (x, y, w, h, c) => P(`M${x - 12} ${y - 8}L${x + w * 0.3} ${y + h * 0.2}Q${x + w * 0.38} ${y - 2} ${x + w * 0.5} ${y - 2}L${x + w + 12} ${y - 10}M${x - 12} ${y + h + 8}L${x + w * 0.3} ${y + h * 0.8}Q${x + w * 0.38} ${y + h + 2} ${x + w * 0.5} ${y + h + 2}L${x + w + 12} ${y + h + 10}`, c) +
+      P(`M${x - 26} ${y + h / 2}h12l-4-3m4 3l-4 3`, c),
+    runner: (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="none" stroke="${c}" stroke-width="1.6"/>` +
+      `<circle cx="${x + w + 14}" cy="${y - 10}" r="4" fill="none" stroke="${c}" stroke-width="1.6"/>` +
+      P(`M${x + w + 12} ${y - 5}l-4 10l6 6l-2 9M${x + w + 8} ${y + 5}l-7 6M${x + w + 10} ${y - 1}l8 4M${x + w + 8} ${y + 5}l-6 2`, c) +
+      P(`M${x - 6} ${y - 8}h-14M${x - 6} ${y - 2}h-10`, c, 'opacity=".7"'),
     lungs: (x, y, w, h, c) => P(`M${x + w / 2} ${y - 18}v12M${x + w / 2} ${y - 6}l-14 10M${x + w / 2} ${y - 6}l14 10`, c) +
       P(`M${x + w / 2 - 8} ${y}q-${w * 0.25}-6 -${w / 2 - 2} 10q-10 ${h * 0.5} -2 ${h}q${w * 0.2} 6 ${w / 2 - 6} 2z`, c) +
       P(`M${x + w / 2 + 8} ${y}q${w * 0.25}-6 ${w / 2 - 2} 10q10 ${h * 0.5} 2 ${h}q-${w * 0.2} 6 -${w / 2 - 6} 2z`, c),
@@ -176,17 +187,48 @@
 
   // ---------- Recall map (SVG) ----------
   // opts: { mode: "filled"|"practice", ideas: bool, hideNames: bool }
+  // opts.screen: laid out for a phone screen (narrower page, never shrunk; it grows taller and the screen scrolls with the app's
+  // down-arrow cue). Without it: laid out for one letter page (shrinks if it must). A built page keeps the screen layout so the
+  // learner's drawing lines up, and print fits it to the page.
+  function lines(x, y, text, fs, maxW, attrs, lh) {
+    const ls = wrap(text, maxW, fs, /font-weight="700"/.test(attrs || ""));
+    lh = lh || fs * 1.25;
+    return { h: ls.length * lh, svg: ls.map((l, i) => `<text x="${x}" y="${y + i * lh}" font-size="${fs}" ${attrs || ""}>${esc(l)}</text>`).join("") };
+  }
   function recallSvg(m, opts) {
     opts = opts || {};
-    const practice = opts.mode === "practice";
-    const Wd = 612, M = 22;
-    let H = 792, out = null;
-    const head = 92 + (m.intro ? 12 : 0) + (m.answer && !practice ? 16 : 0);
-    const foot = 122 + (m.note ? 16 : 0);
-    for (let grow = 0; grow < 8 && !out; grow++, H = Math.round(H * 1.18))
-      for (const s of [1.45, 1.3, 1.18, 1.08, 1, 0.93, 0.86, 0.8, 0.74, 0.68, 0.62]) { out = layout(m, opts, s, Wd, H, M, head, foot); if (out) { out.H = H; break; } }
+    const practice = opts.mode === "practice", scr = !!opts.screen;
+    const Wd = scr ? 400 : 612, M = scr ? 14 : 22;
+    // header (measured first so the drawing area knows where to start)
+    let hd = `<image href="${LOGO}" x="${M}" y="16" width="26" height="26"/>`;
+    hd += `<text x="${M + 32}" y="27" font-size="9" font-weight="700" fill="${BAY}">${esc(APP)} · Otter Bay</text><text x="${M + 32}" y="39" font-size="8.5" fill="#5A6670">Study sheet: recall map${practice ? " (practice)" : ""}</text>`;
+    hd += `<text x="${Wd - M}" y="27" text-anchor="end" font-size="8.5" fill="#5A6670">Name ${scr ? "______________" : "______________________"}</text><text x="${Wd - M}" y="40" text-anchor="end" font-size="8.5" fill="#5A6670">Date ____________</text>`;
+    let hy = 66;
+    const t1 = lines(M, hy, m.title, 19, Wd - 2 * M, 'font-weight="700" fill="#14222C"', 22); hd += t1.svg; hy += t1.h - 22;
+    if (m.intro) { const t = lines(M, hy + 15, m.intro, 9.5, Wd - 2 * M, 'fill="#3B4A55"', 12); hd += t.svg; hy += 15 + t.h - 12; }
+    if (m.answer && !practice) { const t = lines(M, hy + 16, "You asked: “" + m.q + "” → " + m.answer, 10, Wd - 2 * M, 'fill="#14222C"', 13); hd += t.svg; hy += 16 + t.h - 13; }
+    const head = hy + 20;
+    hd += `<line x1="${M}" y1="${head - 6}" x2="${Wd - M}" y2="${head - 6}" stroke="#D5DDE2"/>`;
+    // footer rows (measured first, drawn after the layout)
+    const FW = Wd - 2 * M, rows = [];
+    const links = [...m.abbrs.map((a) => `${a.abbr} = ${a.meaning}`), ...m.related.map((t) => "See also: " + t)];
+    if (links.length) rows.push({ h: 20 * (scr ? 2 : 1), links: true });
+    if (m.note) { const t = lines(0, 0, (practice ? "⚠ Remember:" : "⚠ Remember: " + m.note), 9, FW, "", 11.5); rows.push({ h: t.h + 5, text: practice ? "⚠ Remember:" : "⚠ Remember: " + m.note, fs: 9, fill: "#24313E", line: practice }); }
+    const used = [...new Set(m.facts.map((f) => f.sev).filter(Boolean))];
+    if (used.length) rows.push({ h: 16, key: true });
+    const steps = "How to use: 1) Draw your own picture around each fact (odd or funny sticks best). 2) Later, print Practice and fill it in from memory. 3) Check it against Filled and add what you missed in another color.";
+    const why = "Why it works: drawing and making your own notes, then recalling them, help memory (Wammes et al. 2016; Slamecka & Graf 1978; Roediger & Karpicke 2006).";
+    const src = "Source: " + (m.src || "Otter Bay") + ". Written by Otter Bay in our own words. For learning only; follow your facility's protocols.";
+    [[steps, 8.2, "#24313E"], [why, 7.2, "#5A6670"], [src, 7.2, "#5A6670"]].forEach(([t, fs, fill]) => rows.push({ h: lines(0, 0, t, fs, FW, "", fs * 1.3).h + 3, text: t, fs, fill }));
+    const foot = rows.reduce((a, r) => a + r.h, 0) + 16;
+    // the drawing area: screen keeps the text full size and grows taller; print shrinks first, then grows (and print fits the page)
+    let H = scr ? 640 : 792, out = null;
+    const SCALES = scr ? [1.15, 1.08, 1] : [1.45, 1.3, 1.18, 1.08, 1, 0.93, 0.86, 0.8, 0.74, 0.68, 0.62, 0.58];
+    for (let grow = 0; grow < (scr ? 24 : 8) && !out; grow++, H = Math.round(H * (scr ? 1.12 : 1.18)))
+      for (const s of SCALES) { out = layout(m, opts, s, Wd, H, M, head, foot); if (out) { out.H = H; break; } }
     if (!out) return "";
     const { boxes, x0, y0, x1, y1, s, title } = out;
+    H = out.H;
     const cu = opts.custom || {}, uid = "r" + (++SVGN);
     boxes.forEach((b, i) => { const mv = (cu.moves || {})[i]; if (!mv) return; ["x1", "x2", "cx1", "cx2"].forEach((q) => { b[q] += mv[0]; }); ["y1", "y2", "cy1", "cy2"].forEach((q) => { b[q] += mv[1]; }); });
     H = out.H;
@@ -229,46 +271,34 @@
     });
     // the learner's own drawing, on top
     (cu.ink || []).forEach((k) => { g += inkPath(k); });
-    // header
-    let hd = `<image href="${LOGO}" x="${M}" y="16" width="26" height="26"/>`;
-    hd += `<text x="${M + 32}" y="27" font-size="9" font-weight="700" fill="${BAY}">${esc(APP)} · Otter Bay</text><text x="${M + 32}" y="39" font-size="8.5" fill="#5A6670">Study sheet: recall map${practice ? " (practice)" : ""}</text>`;
-    hd += `<text x="${Wd - M}" y="27" text-anchor="end" font-size="8.5" fill="#5A6670">Name ______________________</text><text x="${Wd - M}" y="40" text-anchor="end" font-size="8.5" fill="#5A6670">Date ____________</text>`;
-    hd += `<text x="${M}" y="66" font-size="19" font-weight="700" fill="#14222C">${esc(m.title)}</text>`;
-    let hy = 66;
-    if (m.intro) { hy += 15; hd += `<text x="${M}" y="${hy}" font-size="9.5" fill="#3B4A55">${esc(clip(m.intro, Wd - 2 * M, 9.5))}</text>`; }
-    if (m.answer && !practice) { hy += 16; hd += `<text x="${M}" y="${hy}" font-size="10" fill="#14222C"><tspan font-weight="700" fill="${BAY}">You asked: </tspan>${esc(clip("“" + m.q + "” → " + m.answer, Wd - 2 * M - 60, 10))}</text>`; }
-    hd += `<line x1="${M}" y1="${head - 6}" x2="${Wd - M}" y2="${head - 6}" stroke="#D5DDE2"/>`;
-    // footer: links, note, legend, steps, sources
+    // footer
     let fy = H - foot + 14, ft = `<line x1="${M}" y1="${H - foot}" x2="${Wd - M}" y2="${H - foot}" stroke="#D5DDE2"/>`;
-    const links = [...m.abbrs.map((a) => `${a.abbr} = ${a.meaning}`), ...m.related.map((t) => "See also: " + t)];
-    if (links.length) {
-      let lx = M + 70;
-      ft += `<text x="${M}" y="${fy + 4}" font-size="8.5" font-weight="700" fill="${BAY}">Connects to</text>`;
-      links.forEach((t) => {
-        const tw = Math.min(textW(t, 8) + 14, Wd - M - lx); if (tw < 40) return;
-        ft += `<path d="M${x0} ${y0}Q${(x0 + lx + tw / 2) / 2} ${(y0 + fy) / 2 - 8} ${lx + tw / 2} ${fy - 6}" fill="none" stroke="#7A8791" stroke-width="1" stroke-dasharray="1.5 3"/>`;
-        ft += `<rect x="${lx}" y="${fy - 6}" width="${tw}" height="14" rx="7" fill="#fff" stroke="#7A8791" stroke-dasharray="1.5 2.5"/><text x="${lx + 7}" y="${fy + 4}" font-size="8" fill="#24313E">${esc(clip(t, tw - 12, 8))}</text>`;
-        lx += tw + 6;
-      });
-      fy += 20;
-    }
+    rows.forEach((r) => {
+      if (r.links) {
+        let lx = M + 70, ly = fy;
+        ft += `<text x="${M}" y="${fy + 4}" font-size="8.5" font-weight="700" fill="${BAY}">Connects to</text>`;
+        links.forEach((t) => {
+          let tw = Math.min(textW(t, 8) + 14, Wd - M - (M + 70));
+          if (lx + tw > Wd - M) { if (!scr || ly > fy) return; lx = M + 70; ly += 20; }
+          ft += `<path d="M${x0} ${y0}Q${(x0 + lx + tw / 2) / 2} ${(y0 + ly) / 2 - 8} ${lx + tw / 2} ${ly - 6}" fill="none" stroke="#7A8791" stroke-width="1" stroke-dasharray="1.5 3"/>`;
+          ft += `<rect x="${lx}" y="${ly - 6}" width="${tw}" height="14" rx="7" fill="#fff" stroke="#7A8791" stroke-dasharray="1.5 2.5"/><text x="${lx + 7}" y="${ly + 4}" font-size="8" fill="#24313E">${esc(clip(t, tw - 12, 8))}</text>`;
+          lx += tw + 6;
+        });
+      } else if (r.key) {
+        let lx = M + 30;
+        ft += `<text x="${M}" y="${fy + 4}" font-size="8" font-weight="700" fill="#5A6670">Key</text>`;
+        Object.keys(SEV).filter((x) => used.includes(x)).forEach((x) => { const v = SEV[x];
+          ft += `<rect x="${lx}" y="${fy - 5}" width="22" height="11" rx="3" fill="${v.c}" fill-opacity=".08" stroke="${v.c}" stroke-width="${v.w}"${v.dash ? ` stroke-dasharray="${v.dash}"` : ""}/><text x="${lx + 27}" y="${fy + 4}" font-size="8" fill="#24313E">${v.name}</text>`; lx += 34 + textW(v.name, 8); });
+      } else {
+        const t = lines(M, fy + 4, r.text, r.fs, FW, `fill="${r.fill}"`, r.fs * (r.fs === 9 ? 1.28 : 1.3));
+        ft += t.svg.replace(/>(⚠ Remember:|How to use:|Why it works:)/, (x, w) => `><tspan font-weight="700"${w[0] === "⚠" ? ' fill="#8A2E08"' : ""}>${w}</tspan>`);
+        if (r.line) ft += `<line x1="${M + 70}" y1="${fy + 6}" x2="${Wd - M}" y2="${fy + 6}" stroke="#7A8791" stroke-width=".9"/>`;
+      }
+      fy += r.h;
+    });
     out.facts = boxes;
-    if (m.note) { ft += `<text x="${M}" y="${fy + 4}" font-size="9" fill="#24313E"><tspan font-weight="700" fill="#8A2E08">⚠ Remember: </tspan>${practice ? "" : esc(clip(m.note, Wd - 2 * M - 70, 9))}</text>`;
-      if (practice) ft += `<line x1="${M + 70}" y1="${fy + 6}" x2="${Wd - M}" y2="${fy + 6}" stroke="#7A8791" stroke-width=".9"/>`; fy += 16; }
-    const used = [...new Set(m.facts.map((f) => f.sev).filter(Boolean))];
-    if (used.length) {
-      let lx = M + 46;
-      ft += `<text x="${M}" y="${fy + 4}" font-size="8" font-weight="700" fill="#5A6670">Key</text>`;
-      Object.keys(SEV).filter((x) => used.includes(x)).forEach((x) => { const v = SEV[x];
-        ft += `<rect x="${lx}" y="${fy - 5}" width="22" height="11" rx="3" fill="${v.c}" fill-opacity=".08" stroke="${v.c}" stroke-width="${v.w}"${v.dash ? ` stroke-dasharray="${v.dash}"` : ""}/><text x="${lx + 27}" y="${fy + 4}" font-size="8" fill="#24313E">${v.name}</text>`; lx += 34 + textW(v.name, 8); });
-      fy += 16;
-    }
-    ft += `<text x="${M}" y="${fy + 4}" font-size="8.2" fill="#24313E"><tspan font-weight="700">How to use: </tspan>1) Draw your own picture around each fact (odd or funny sticks best).  2) Later, print Practice and fill it in from memory.</text>`; fy += 11;
-    ft += `<text x="${M + 50}" y="${fy + 4}" font-size="8.2" fill="#24313E">3) Check it against Filled and add what you missed in another color.</text>`; fy += 14;
-    ft += `<text x="${M}" y="${fy + 4}" font-size="7.2" fill="#5A6670">Why it works: drawing and making your own notes, then recalling them, help memory (Wammes et al. 2016; Slamecka &amp; Graf 1978; Roediger &amp; Karpicke 2006).</text>`; fy += 12;
-    ft += `<text x="${M}" y="${fy + 4}" font-size="7.2" fill="#5A6670">${esc(clip("Source: " + (m.src || "Otter Bay") + ". Written by Otter Bay in our own words. For learning only; follow your facility's protocols.", Wd - 2 * M, 7.2))}</text>`;
-    LAST = { boxes, H };
-    return `<svg class="recallsvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Wd} ${H}" width="${Wd}" height="${H}" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Recall map: ${esc(m.title)}">` +
+    LAST = { boxes, H, s, Wd };
+    return `<svg class="recallsvg${scr ? " screen" : ""}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Wd} ${H}" width="${Wd}" height="${H}" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Recall map: ${esc(m.title)}">` +
       `<rect width="${Wd}" height="${H}" fill="#fff"/>${hd}${g}${ft}</svg>`;
   }
   let SVGN = 0, LAST = null;
@@ -294,7 +324,7 @@
     let t = 0.02, pref = "down";
     for (const f of m.facts) {
       let done = null;
-      const sizes = [258, 228, 198, 172].map((bw) => {
+      const sizes = [258, 228, 290, 198, 172].map((bw) => {
         const inner = bw - 2 * spX - 2 * pad;
         const label = wrap(f.label, inner, lfs, true);
         const lines = [];
@@ -312,10 +342,13 @@
         const ax = x0 + (x1 - x0) * tt, ay = y0 + (y1 - y0) * tt;
         for (const side of [pref, pref === "up" ? "down" : "up"]) {
           for (const z of sizes) {
-            let r;
-            if (side === "up") { const yb = ay + z.h / 2, xr = slashX(yb) - 10 * s; r = [xr - z.bw, ay - z.h / 2, xr, yb]; if (xr > ax) continue; }
-            else { const yt = ay - z.h / 2, xl = slashX(yt) + 10 * s; r = [xl, yt, xl + z.bw, ay + z.h / 2]; }
-            if (!hits(r)) { done = { r, z, side, ax, ay, tt }; break; }
+            for (const fr of [0.5, 0.25, 0.75]) {   // where the branch meets the space: middle, upper or lower part
+              let r;
+              if (side === "up") { const yb = ay + z.h * (1 - fr), xr = slashX(yb) - 10 * s; r = [xr - z.bw, yb - z.h, xr, yb]; if (xr > ax) continue; }
+              else { const yt = ay - z.h * fr, xl = slashX(yt) + 10 * s; r = [xl, yt, xl + z.bw, yt + z.h]; }
+              if (!hits(r)) { done = { r, z, side, ax, ay, tt }; break; }
+            }
+            if (done) break;
           }
           if (done) break;
         }
@@ -347,14 +380,15 @@
         return `<tr${f && f.hit && !practice ? ' class="hit"' : ""}>${cells}</tr>`;
       }));
     });
-    return `<article class="tsheet">
+    const long = m.facts.length > 7 || plain(card.body).length > 1400;   // long cards: tighter print so it stays on one page
+    return `<article class="tsheet${long ? " long" : ""}">
       <header><img src="${LOGO}" alt="" width="26" height="26"><div><b>${esc(APP)} · Otter Bay</b><span>Study sheet${practice ? " (practice: fill in the blanks)" : ""}</span></div><p>Name ____________________<br>Date __________</p></header>
       <h1>${esc(m.title)}</h1>${m.intro ? `<p class="ts-intro">${esc(m.intro)}</p>` : ""}
       ${m.answer && !practice ? `<p class="ts-ans"><b>You asked:</b> “${esc(m.q)}”<br><b>Answer:</b> ${esc(m.answer)}</p>` : ""}
       <div class="tbody">${body}</div>
       ${m.note ? `<p class="ts-note"><b>Remember:</b> ${practice ? '<span class="ts-blankline"></span>' : esc(m.note)}</p>` : ""}
       ${m.abbrs.length ? `<p class="ts-abbrs"><b>Abbreviations:</b> ${m.abbrs.map((a) => `${esc(a.abbr)} = ${esc(a.meaning)}`).join("; ")}</p>` : ""}
-      <div class="ts-mynotes"><b>My notes</b>${"<span></span>".repeat(5)}</div>
+      <div class="ts-mynotes"><b>My notes</b>${"<span></span>".repeat(long ? 2 : 5)}</div>
       <footer>Source: ${esc(m.src || "Otter Bay")}. Written by Otter Bay in our own words. For learning only; follow your facility's protocols.</footer>
     </article>`;
   }
@@ -382,7 +416,7 @@
   }
   const COLORS = [["#C62828", "Red"], ["#E65100", "Orange"], ["#B08900", "Gold"], ["#2E7D32", "Green"], ["#1565C0", "Blue"], ["#6A1B9A", "Purple"], ["#14222C", "Black"]];
   const STICKERS = [["syringe", "Syringe"], ["kettle", "Kettle"], ["gauge", "Gauge"], ["layers", "Layers"], ["bottle", "Bottle"], ["tube", "Tube"], ["bubble", "Bubble"],
-    ["lungs", "Lungs"], ["heart", "Heart"], ["drop", "Drop"], ["brain", "Cloud"], ["moon", "Moon"], ["clock", "Clock"], ["thermo", "Thermometer"], ["shield", "Shield"]];
+    ["wing", "Wing"], ["hourglass", "Venturi tube"], ["runner", "Runner"], ["lungs", "Lungs"], ["heart", "Heart"], ["drop", "Drop"], ["brain", "Cloud"], ["moon", "Moon"], ["clock", "Clock"], ["thermo", "Thermometer"], ["shield", "Shield"]];
   const PROMPTS = ["What does “{f}” remind you of? Draw it around the box.", "Picture “{f}” at the bedside. What would you see?",
     "Odd and funny sticks best. What silly picture fits “{f}”?", "If “{f}” were an object, what would it be?"];
   const mdl = (k) => model(k || ST.k, { hit: ST.hit, q: ST.q, answer: ST.answer, related: ST.related });
@@ -395,7 +429,7 @@
   }
   // Which facts have a picture yet (a sticker, or a line drawn in or across their space)
   function decorated(m) {
-    recallSvg(m, { custom: PG, builder: true });
+    recallSvg(m, { custom: PG, builder: true, screen: true });
     const bx = (LAST && LAST.boxes) || [];
     return bx.map((b, i) => !!(PG.stickers[i]) || PG.ink.some((k) => k.pts.some((p) => p[0] >= b.x1 - 6 && p[0] <= b.x2 + 6 && p[1] >= b.y1 - 6 && p[1] <= b.y2 + 6)));
   }
@@ -415,7 +449,7 @@
         ${ST.style === "map" ? `<label class="stchk"><input type="checkbox" data-act="stideas" ${ST.ideas ? "checked" : ""}> Show ideas (a starter picture)</label>` : ""}
         <p class="sthelp">${ST.mode === "practice" ? "Fill it in from memory, then switch to Filled and check. Add what you missed in another color." : ST.style === "map" ? "Each fact has an empty space. Draw your own picture around it after you print." : "A plain page with the full table, ready to print."}</p></div>`;
       h += `<button type="button" class="stprint" data-act="stprint">${PRINTICON}<span>Print this sheet</span></button>`;
-      h += `<div class="stpaper ${ST.zoom ? "zoom" : ""}">${ST.style === "map" ? recallSvg(m, { mode: ST.mode, ideas: ST.ideas }) : traditionalHtml(m, { mode: ST.mode })}</div>
+      h += `<div class="stpaper ${ST.zoom ? "zoom" : ""}">${ST.style === "map" ? recallSvg(m, { mode: ST.mode, ideas: ST.ideas, screen: true }) : traditionalHtml(m, { mode: ST.mode })}</div>
         <button type="button" class="stzoom" data-act="stzoom">${ST.zoom ? "Fit to screen" : "Zoom in"}</button>`;
     } else h += builder(m);
     return h + `</section>`;
@@ -434,7 +468,7 @@
       <button type="button" data-act="ststicker" data-s="" aria-label="No shape"><span class="none">✕</span><span>None</span></button></div>`;
     if (ST.tool === "move") h += `<p class="sthelp">Drag a fact to where it makes sense to you. Its branch follows.</p>`;
     if (ST.tool === "draw") h += `<p class="sthelp">Draw with your finger or mouse right on the page.</p>`;
-    h += `<div class="stpaper builder tool-${ST.tool} ${ST.zoom ? "zoom" : ""}">${recallSvg(m, { custom: PG, builder: true, sel: ST.tool === "sticker" ? ST.sel : null }).replace('class="recallsvg"', 'class="recallsvg builder"')}</div>
+    h += `<div class="stpaper builder tool-${ST.tool} ${ST.zoom ? "zoom" : ""}">${recallSvg(m, { custom: PG, builder: true, screen: true, sel: ST.tool === "sticker" ? ST.sel : null }).replace('class="recallsvg', 'class="recallsvg builder')}</div>
       <div class="strow"><button type="button" data-act="stzoom">${ST.zoom ? "Fit to screen" : "Zoom in"}</button><button type="button" data-act="stundo" ${PG.hist.length ? "" : "disabled"}>↶ Undo</button><button type="button" data-act="stclear">Clear</button></div>
       <p class="stprog"><span class="stbar"><i style="width:${n ? Math.round(100 * got / n) : 0}%"></i></span>${got} of ${n} facts have a picture${PG.done ? ' · <b>🏅 Page built!</b>' : ""}</p>
       <button type="button" class="stprint" data-act="stprint">${PRINTICON}<span>Print my page</span></button>
@@ -448,7 +482,7 @@
   function printHtml() {
     const m = mdl();
     if (ST.style === "trad") return traditionalHtml(m, { mode: ST.mode });
-    if (ST.map === "build") return recallSvg(m, { custom: PG });
+    if (ST.map === "build") return recallSvg(m, { custom: PG, screen: true });   // same layout as the builder, so the drawing lines up
     return recallSvg(m, { mode: ST.mode, ideas: ST.ideas });
   }
   function preparePrint() {
@@ -462,9 +496,9 @@
   function thumb(k) {
     const p = getPage(k); if (!p) return "";
     const keep = PG, kk = ST.k; PG = p; ST.k = k;
-    const svg = recallSvg(model(k, {}), { custom: p });
+    const svg = recallSvg(model(k, {}), { custom: p, screen: true });
     PG = keep; ST.k = kk;
-    return svg.replace('class="recallsvg"', 'class="recallsvg thumb"');
+    return svg.replace('class="recallsvg', 'class="recallsvg thumb');
   }
   // Drawing and dragging on the page
   let pen = null, drag = null;

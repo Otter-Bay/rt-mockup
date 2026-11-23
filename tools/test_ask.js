@@ -42,6 +42,8 @@ const CHECKS = [
   ["RRT", "what is boyles law", "gaslaws", [], []],
   ["RRT", "Charles's law", "gaslaws", [], []],
   ["SDS", "Dalton's law of partial pressures", "gaslaws", [], []],
+  ["RRT", "What is the Bernoulli principle?", "gaslaws", [], []],
+  ["RRT", "Graham's law", "gaslaws", [], []],
 ];
 // A question about one row of a table still returns that card, names the row, and does not invent a row for a general abbreviation question (Ken, Nov 23)
 const ROW_CHECKS = [
@@ -49,6 +51,8 @@ const ROW_CHECKS = [
   ["RPSGT", "What is the duration for an arousal?", "arousal", "Duration"],
   ["SDS", "what does AHI stand for", "ahi", null],
   ["RRT", "What is Boyle's law?", "gaslaws", "Boyle"],
+  ["RRT", "What is the Bernoulli principle?", "gaslaws", "Bernoulli"],
+  ["RRT", "What is Graham's law?", "gaslaws", "Graham"],
 ];
 
 function load(exam) {
@@ -130,9 +134,22 @@ function loadStudy(exam) {
   study("Practice hides the answers", (filled.match(/>Severe<\/text>/g) || []).length === 2 && (practice.match(/>Severe<\/text>/g) || []).length === 1, "answers still showing");
   study("ideas are off unless asked for", !filled.includes('opacity=".55"') && SB.recallSvg(ahi, { ideas: true }).includes('opacity=".55"'), "ideas showing by default");
   const gl = SB.model("gaslaws", {}), ideaOf = (l) => (gl.facts.find((f) => f.label.startsWith(l)) || { idea: {} }).idea.shape;
-  study("gas-law ideas: Boyle syringe, Charles kettle, Henry bottle, Laplace bubble", ideaOf("Boyle") === "syringe" && ideaOf("Charles") === "kettle" && ideaOf("Henry") === "bottle" && ideaOf("Laplace") === "bubble", [ideaOf("Boyle"), ideaOf("Charles")].join());
+  study("gas-law ideas: Boyle syringe, Charles kettle, Henry bottle, Laplace bubble, Bernoulli wing, Venturi hourglass, Graham runner",
+    ideaOf("Boyle") === "syringe" && ideaOf("Charles") === "kettle" && ideaOf("Henry") === "bottle" && ideaOf("Laplace") === "bubble" && ideaOf("Bernoulli") === "wing" && ideaOf("Venturi") === "hourglass" && ideaOf("Graham") === "runner",
+    ["Boyle", "Charles", "Henry", "Laplace", "Bernoulli", "Venturi", "Graham"].map(ideaOf).join());
+  const glSvg = SB.recallSvg(gl, { ideas: true }), glH = Number((glSvg.match(/viewBox="0 0 612 (\d+)"/) || [])[1]);
+  study("10-row Gas laws card prints on one letter page at 85% size or more", gl.facts.length === 10 && glH && 792 / glH >= 0.84, `${gl.facts.length} rows, height ${glH}`);
+  // On screen nothing is shrunk: the page grows taller and scrolls (Ken, Nov 23: "we use a down arrow head on any screen that can scroll")
+  const small = keys.filter((k) => { SB.recallSvg(SB.model(k, {}), { screen: true }); const L = SB.last(); return !(L.s >= 1 && L.Wd === 400); });
+  study("on screen every card keeps full-size text (scrolls instead of shrinking)", !small.length, small.join(", "));
+  const scrOver = keys.filter((k) => { SB.recallSvg(SB.model(k, {}), { screen: true }); const L = SB.last(), r = L.boxes.map((b) => [b.x1, b.y1, b.x2, b.y2]);
+    return r.some((a, i) => a[0] < 0 || a[2] > 400 || a[3] > L.H || r.some((b, j) => j > i && a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1])); });
+  study("on screen no fact spaces overlap or leave the page", !scrOver.length, scrOver.join(", "));
   const built = SB.recallSvg(ahi, { custom: { ink: [{ c: "#C62828", pts: [[100, 300], [140, 320]] }], stickers: { 3: { shape: "lungs", c: "#C62828" } }, moves: { 0: [10, -5] } } });
   study("a built page prints the learner's drawing and shapes", built.includes('class="rink"') && built.includes('stroke="#C62828" stroke-width="2.4"'), "drawing missing");
+  // The builder and thumbnail tag the SVG by rewriting its class; if that rewrite stops matching, taps on the page do nothing (caught Nov 23)
+  const scrSvg = SB.recallSvg(ahi, { screen: true }), tags = [...fs.readFileSync(path.join(ROOT, "js/recall.js"), "utf8").matchAll(/\.replace\('(class="recallsvg[^']*)'/g)].map((m) => m[1]);
+  study("builder and thumbnail class tags match the drawn SVG", tags.length >= 2 && tags.every((t) => scrSvg.includes(t)), tags.join(" | "));
   study("Why this works lists 5 sources with links", SB.WHY.refs.length === 5 && SB.WHY.refs.every((r) => /^https:\/\/doi\.org\//.test(r[1])), "sources");
   const C2 = loadStudy("CNA"), vit = C2.OB_STUDY.model("vitals", {});
   study("CNA vitals: no false severity colors", vit.facts.every((f) => !f.sev), vit.facts.map((f) => f.sev).join());

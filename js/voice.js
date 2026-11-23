@@ -52,7 +52,7 @@
     circadian: "circadian shift work delayed phase", mslt: "mslt mwt nap test narcolepsy", electrodes: "electrode sensor placement", infant: "infant baby",
     o2titr: "oxygen bleed titration", papmodes: "bilevel bipap apap asv pap mode", download: "download compliance leak", alt_tx: "oral appliance surgery alternative",
     hsat: "home sleep test hsat", artifacts: "artifact artifacts",
-    gaslaws: "gas law laws boyle boyles charles charless gay lussac dalton daltons henry henrys poiseuille poiseuilles laplace laplaces partial pressure",
+    gaslaws: "gas law laws boyle boyles charles charless gay lussac dalton daltons henry henrys poiseuille poiseuilles laplace laplaces partial pressure bernoulli bernoullis venturi entrainment entrain graham grahams diffusion rate",
     vitals: "vital signs normal pulse rate heart rate blood pressure temperature respirations", io: "intake output fluid", positions: "fowler sims supine prone lateral position positioning",
     isolation: "isolation precautions", ppe: "glove gloves gown mask donning doffing ppe put on take off", fire: "fire race pass extinguisher",
     pressure: "bed sore bedsore pressure ulcer injury", rom: "range of motion abduction flexion", diets: "diet diets clear liquid",
