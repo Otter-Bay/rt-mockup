@@ -6,8 +6,8 @@ window.CARD_META = {
 "file": "js/acronyms.js"
 },
 "abbr_donotuse": {
-"added": "2026-11-20",
-"changed": "2026-11-20",
+"added": "2026-11-22",
+"changed": "2026-11-22",
 "file": "js/acronyms.js"
 },
 "abbr_dx": {
@@ -331,33 +331,33 @@ window.CARD_META = {
 "file": "js/cna_scales.js"
 },
 "sabbr_move": {
-"added": "2026-11-20",
-"changed": "2026-11-20",
+"added": "2026-11-22",
+"changed": "2026-11-22",
 "file": "js/acronyms.js"
 },
 "sabbr_org": {
-"added": "2026-11-20",
-"changed": "2026-11-20",
+"added": "2026-11-22",
+"changed": "2026-11-22",
 "file": "js/acronyms.js"
 },
 "sabbr_peds": {
-"added": "2026-11-20",
-"changed": "2026-11-20",
+"added": "2026-11-22",
+"changed": "2026-11-22",
 "file": "js/acronyms.js"
 },
 "sabbr_rec": {
-"added": "2026-11-20",
-"changed": "2026-11-20",
+"added": "2026-11-22",
+"changed": "2026-11-22",
 "file": "js/acronyms.js"
 },
 "sabbr_resp": {
-"added": "2026-11-20",
-"changed": "2026-11-20",
+"added": "2026-11-22",
+"changed": "2026-11-22",
 "file": "js/acronyms.js"
 },
 "sabbr_stage": {
-"added": "2026-11-20",
-"changed": "2026-11-20",
+"added": "2026-11-22",
+"changed": "2026-11-22",
 "file": "js/acronyms.js"
 },
 "spaulding": {

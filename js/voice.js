@@ -345,6 +345,18 @@
       <details class="asknot"><summary>Not what you asked?</summary>${sendBox()}</details>
     </div>`;
   }
+  // The question that was on screen, inside Ask, so the spelling of a term is right there (Ken, Nov 22). Tap a word to add it.
+  // The explanation shows only once the answer is revealed, so Ask never gives away an answer.
+  const askWords = (t) => String(t || "").replace(/<[^>]+>/g, " ").split(/(\s+)/).map((w) => /\S/.test(w)
+    ? `<button type="button" class="askw" data-act="askword" data-w="${esc(w.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9%]+$/g, ""))}">${esc(w)}</button>` : w).join("");
+  function askQuestion() {
+    const q = V.q; if (!q) return "";
+    const rows = (q.rows || []).map((r) => `<p>${askWords(r[0])}: ${askWords(r[1])}</p>`).join("");
+    const opts = (q.opts || []).map((o, i) => `<p><b>${"ABCD"[i]}.</b> ${askWords(o)}</p>`).join("");
+    return `<details class="askqview"${V.qOpen ? " open" : ""}><summary>See the question (tap a word to add it)</summary><div class="askqbody">
+      <p>${askWords(q.stem)}</p>${rows}${q.after ? `<p>${askWords(q.after)}</p>` : ""}${opts}
+      ${V.qWhy && q.why ? `<p class="asklabel">Explanation</p><p>${askWords(q.why)}</p>` : ""}</div></details>`;
+  }
   function ask() {
     const status = V.listening ? "Listening… ask your question" : V.err ? (ERR[V.err] || ERR.nosupport) : !SR ? "Type your question below." : "Tap the mic and ask, or type below.";
     return `<div class="ob ask" style="${themeVars()}">
@@ -354,6 +366,7 @@
         <div class="askq"><label for="askText">Your question</label>
           <textarea id="askText" rows="2" enterkeyhint="search" placeholder="For example: What is static compliance?">${esc(V.text)}</textarea>
           <button type="button" class="askfind" data-act="askfind">Find the answer</button></div>
+        ${askQuestion()}
         ${results()}
       </div>
       <div class="askdock">
@@ -365,6 +378,8 @@
 
   function open(listenNow) {
     if (S.page !== "ask") V.from = S.page === "quiz" || window.PAGES[S.page] ? S.page : "home";
+    if (S.page === "quiz" && typeof Q === "function") { try { V.q = Q(); V.qWhy = typeof revealed === "function" && revealed(); } catch (e) { V.q = null; } }
+    else if (S.page !== "ask") V.q = null;
     S.page = "ask"; S.settings = false; S.scale = null;
     V.res = null; V.text = ""; V.err = ""; V.sent = false;
     if (listenNow && SR) { listen(); return false; }
@@ -377,6 +392,11 @@
     askback: () => { stopListening(); stopSpeak(); S.page = V.from || "home"; },
     askmic: () => { if (V.listening) { try { rec && rec.stop(); } catch (e) {} return false; } listen(); return false; },
     askfind: () => { stopListening(); find(); return false; },
+    askword: (b) => {
+      const w = b.dataset.w; if (!w) return false;
+      V.text = (V.text.trim() ? V.text.trim() + " " : "") + w; setBox(V.text); b.classList.add("added");
+      return false;   // no re-render, so the question stays open where it was
+    },
     askex: (b) => { V.text = b.dataset.q; setBox(V.text); find(); return false; },
     askpick: (b) => { stopSpeak(); V.pick = Number(b.dataset.i) || 0; },
     askread: (b) => { if (V.speaking) stopSpeak(); else speak(b.dataset.k); },
@@ -407,6 +427,7 @@
     const bar = document.querySelector('#phone .appbar [data-act="stats"]'); if (bar) bar.insertAdjacentHTML("beforebegin", btn.replace("askbtn", "askbtn bar"));
   };
   document.addEventListener("input", (e) => { if (e.target && e.target.id === "askText") V.text = e.target.value; });
+  document.addEventListener("toggle", (e) => { if (e.target.classList && e.target.classList.contains("askqview")) V.qOpen = e.target.open; }, true);
   document.addEventListener("keydown", (e) => {
     if (e.target && e.target.id === "askText" && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); stopListening(); find(); }
   });

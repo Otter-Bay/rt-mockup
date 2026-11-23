@@ -93,3 +93,12 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .asksrc ul { margin: 4px 0 0; padding-left: 18px; } .asksrc a { color: #0B4F94; font-weight: 700; }
 .asksrcsub { color: #6B7480; } .asksrcnote { margin: 8px 0 0; font-size: 13px; color: #6B7480; }
 @media (max-width: 380px) { .asksrc dl { grid-template-columns: 1fr; } }
+
+/* The question inside Ask (Ken, Nov 22): see the question and tap a word to add it to the question box. */
+.askqview { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(4,34,48,.08); }
+.askqview summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; padding: 0 14px; font-weight: 700; font-size: 15px; color: var(--bay, #0A4A63); }
+.askqbody { padding: 0 14px 14px; max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 16px; line-height: 1.6; color: var(--ink2, #12303D); }
+.askqbody p { margin: 0; }
+.askw { display: inline; border: 0; background: none; padding: 1px; margin: 0; font: inherit; color: inherit; cursor: pointer; border-radius: 4px; text-align: left; }
+.askw:hover, .askw:focus-visible { background: #DDEBFA; color: var(--bay, #0A4A63); }
+.askw.added { background: #D6EEDF; }
