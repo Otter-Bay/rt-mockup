@@ -224,6 +224,95 @@
     return out.sort((a, b) => b[1] - a[1]).filter((x) => x[1] >= 3).slice(0, 2).map((x) => x[0]);
   }
 
+
+  // When the question names one row of a card's table (for example "severe AHI" or "duration for an arousal"),
+  // remember that row so the screen can put its answer on top and highlight it in the full table (Ken, Nov 23).
+  const HIT_SKIP = new Set(["stand", "stands", "abbreviation", "acronym", "short"]);
+  const HIT_GENERIC = new Set(("score scored scoring rule rules used using plus need needed required standard recommended alternative optional versus vs range usual normal measure measured calculate calculated definition criterion criteria event events item sign stand stands abbreviation acronym short").split(" "));
+  const rowToks = (s) => String(s).toLowerCase().replace(/<[^>]+>/g, " ").replace(/&[a-z]+;/g, " ").replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").split(" ").filter((w) => w && (w.length > 1 || /\d/.test(w)) && !STOP.has(w) && !HIT_SKIP.has(w)).map(stem);
+  function cardTables(body) {
+    const tables = [];
+    const tableRe = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+    let tm;
+    while ((tm = tableRe.exec(body || ""))) {
+      const html = tm[1];
+      const heads = [...html.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map((m) => plain(m[1]));
+      const tbody = html.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
+      const src = tbody ? tbody[1] : html, rows = [];
+      const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+      let rm;
+      while ((rm = rowRe.exec(src))) {
+        const cells = [...rm[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => plain(m[1]));
+        if (cells.length) rows.push({ cells, text: cells.join(" ") });
+      }
+      tables.push({ heads, rows });
+    }
+    return tables;
+  }
+  function findHitRow(k, text) {
+    const s = SCALES[k];
+    if (!s) return null;
+    const tables = cardTables(s.body || "");
+    if (!tables.length) return null;
+    const qToks = [...new Set(rowToks(text))];
+    const qRaw = String(text).toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").split(" ").filter(Boolean);
+    const titleToks = new Set(rowToks((s.title || "") + " " + (s.intro || "")));
+    if (!qToks.length && !qRaw.some((w) => w.length === 1 || /\d/.test(w))) return null;
+    let best = null;
+    tables.forEach((tb, ti) => {
+      const n = tb.rows.length;
+      const cellsToks = tb.rows.map((r) => r.cells.map(rowToks));
+      const allToks = cellsToks.map((cs) => cs.flat());
+      const count = {};
+      allToks.forEach((set) => { const seen = new Set(); set.forEach((t) => { if (!seen.has(t)) { seen.add(t); count[t] = (count[t] || 0) + 1; } }); });
+      tb.rows.forEach((r, ri) => {
+        let score = 0;
+        const qset = new Set(qToks);
+        qRaw.forEach((w) => { if ((w.length === 1 || /^\d+$/.test(w)) && !STOP.has(w)) qset.add(w); });
+        r.cells.forEach((c, ci) => {
+          const ct = cellsToks[ri][ci];
+          if (!ct.length) return;
+          const matched = ct.filter((t) => qset.has(t));
+          if (!matched.length) return;
+          const allIn = matched.length === ct.length, short = ct.length <= 3, first = ci === 0;
+          if (first && allIn && (ct.length > 1 || count[ct[0]] < n)) score += 4 + ct.length;
+          else if (short && allIn) score += 3 + ct.length;
+          else if (first && matched.some((t) => count[t] === 1)) score += 3;
+        });
+        allToks[ri].forEach((t) => {
+          if (!qset.has(t) || HIT_GENERIC.has(t) || t.length < 3 || titleToks.has(t)) return;
+          if ((count[t] || 0) !== 1) return;
+          const inFirst = cellsToks[ri][0].includes(t);
+          const inShort = cellsToks[ri].some((ct) => ct.includes(t) && ct.length <= 3);
+          if (inFirst || inShort) return;
+          score += 2;
+        });
+        qRaw.forEach((w) => {
+          if (w.length !== 1 || STOP.has(w)) return;
+          const fc = plain(r.cells[0] || "").toLowerCase();
+          if (fc === w && tb.rows.filter((row) => plain(row.cells[0] || "").toLowerCase() === w).length === 1) score += 4;
+        });
+        if (score >= 2 && (!best || score > best.score)) best = { table: ti, row: ri, cells: r.cells, heads: tb.heads, score };
+      });
+    });
+    return best;
+  }
+  function highlightBody(body, hit) {
+    if (!hit || hit.row == null) return body || "";
+    let t = 0;
+    return String(body || "").replace(/<table[\s\S]*?<\/table>/gi, (table) => {
+      const ti = t++;
+      if (ti !== hit.table) return table;
+      let r = 0;
+      return table.replace(/<tbody[\s\S]*?<\/tbody>/i, (tbody) => tbody.replace(/<tr\b([^>]*)>/gi, (tag, attrs) => {
+        const ri = r++;
+        if (ri !== hit.row) return tag;
+        if (/\bclass\s*=/.test(tag)) return tag.replace(/class\s*=\s*(['"])/i, "class=$1askhit ");
+        return "<tr class=\"askhit\"" + attrs + ">";
+      }));
+    });
+  }
+
   function match(text) {
     const ab = abbrHits(text);
     const r = matchCards(text);
@@ -240,6 +329,7 @@
       r.best = order[0];
       r.others = order.slice(1, 3);
     }
+    r.hit = r.best ? findHitRow(r.best, text) : null;
     return r;
   }
   function matchCards(text) {
@@ -269,6 +359,8 @@
     return { best: top.k, others, q: text, near: scored.slice(0, 3), fixes: fixed.fixes };
   }
 
+  window.OB_ASK_HIT = findHitRow;          // row of a table the question named, or null
+  window.OB_ASK_MARK = highlightBody;      // add askhit to that row in the card's HTML
   window.OB_ASK_MATCH = (t) => match(t);   // for testing
 
   // ---------- Read aloud ----------
@@ -334,14 +426,19 @@
   const BACK = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
   window.ASK_ICON = MIC.replace('width="34" height="34"', 'width="20" height="20"');
 
-  function cardHtml(k) {
+  function cardHtml(k, hit) {
     const s = SCALES[k], field = s.field || "rt";
     const scope = MINE.includes(field) ? "" : `<p class="askscope">This is ${FIELD_NAME[field] || "other field"} information; check what's in your scope of practice.</p>`;
     return `<article class="askcard" aria-labelledby="askCardT">
       ${scope}<h2 id="askCardT">${s.title}</h2><p class="asksub">${s.intro || ""}</p>
-      <div class="sctwrap">${s.body || ""}</div>${s.note ? `<p class="scnote">${s.note}</p>` : ""}
+      <div class="sctwrap">${highlightBody(s.body || "", hit)}</div>${s.note ? `<p class="scnote">${s.note}</p>` : ""}
       ${sourceBox(k)}
     </article>`;
+  }
+  function rowAnswer(hit) {
+    const cells = ((hit && hit.cells) || []).map((c) => String(c).trim()).filter(Boolean);
+    if (!cells.length) return "";
+    return `<b>${esc(cells[0])}</b>${cells.length > 1 ? " · " + cells.slice(1).map(esc).join(" · ") : ""}`;
   }
   // "Source" button: where the card's information comes from, when it was added and last changed, and its expert-review status.
   const fmtDate = (d) => { if (!d) return ""; const [y, m, dd] = d.split("-").map(Number); return new Date(y, m - 1, dd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); };
@@ -371,12 +468,14 @@
     if (!r.best) return `<div class="asknone" id="askRes" role="status"><h2>Good question! It's not in our library yet.</h2>
       <p>Our experts can add it. Send it to us and we'll look at it in the next library update.</p>${sendBox()}</div>`;
     const list = [r.best, ...r.others], k = list[V.pick] || r.best;
+    const hit = findHitRow(k, r.q);
+    const direct = hit ? `<div class="askabbr askrowans"><p class="asklabel">Direct answer</p><p>${rowAnswer(hit)}</p></div>` : "";
     const quick = r.abbr && r.abbr.length ? `<div class="askabbr"><p class="asklabel">Quick answer</p>${r.abbr.map((h) => `<p><b>${esc(h.abbr)}</b> = ${esc(h.meaning)}</p>`).join("")}</div>` : "";
-    return `<div id="askRes" class="askres" role="status">${quick}
+    return `<div id="askRes" class="askres" role="status">${direct}${quick}
       ${r.fixes && r.fixes.length ? `<p class="askfix">Searched for: ${r.fixes.map((f) => `<b>${esc(f[1])}</b>`).join(", ")} <small>(you said ${r.fixes.map((f) => `“${esc(f[0])}”`).join(", ")})</small></p>` : ""}
       <p class="asklabel">${V.pick === 0 ? "Best match" : "Another match"}</p>
       ${TTS ? `<button type="button" class="askread ${V.speaking ? "on" : ""}" data-act="askread" data-k="${k}" aria-pressed="${V.speaking}">${SPK}<span>${V.speaking ? "Stop reading" : "Read aloud"}</span></button>` : ""}
-      ${cardHtml(k)}
+      ${cardHtml(k, hit)}
       ${list.length > 1 ? `<p class="asklabel">Also close</p><div class="askalt">${list.map((x, i) => i === V.pick ? "" : `<button type="button" class="askalt1" data-act="askpick" data-i="${i}">${SCALES[x].title}${MINE.includes(SCALES[x].field || "rt") ? "" : ` <small>${FIELD_NAME[SCALES[x].field]}</small>`}</button>`).join("")}</div>` : ""}
       <details class="asknot"><summary>Not what you asked?</summary>${sendBox()}</details>
     </div>`;

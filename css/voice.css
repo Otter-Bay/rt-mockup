@@ -83,6 +83,9 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .askabbr { background: #fff; border-left: 4px solid var(--tide, #3FB8B3); border-radius: 12px; padding: 10px 14px; margin: 0 0 12px; }
 .askabbr p { margin: 4px 0; font-size: 17px; }
 .askabbr .asklabel { margin: 0 0 4px; }
+
+.askrowans { border-left-color: var(--buoy, #F5B83D); background: #FFF8E8; }
+.sct tr.askhit td { background: #FFF3D1 !important; box-shadow: inset 3px 0 0 var(--buoy, #F5B83D); font-weight: 600; }
 .asksrc { margin: 12px 0 0; border-top: 1px solid #E3E7EB; padding-top: 10px; }
 .asksrc summary { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; border-radius: 22px; border: 1.5px solid var(--bay, #0A4A63);
   color: var(--bay, #0A4A63); font-weight: 700; font-size: 15px; cursor: pointer; list-style: none; }

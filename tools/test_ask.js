@@ -39,6 +39,12 @@ const CHECKS = [
   ["CNA", "normal pulse range", "vitals", [], []],
   ["SDS", "How is a hypopnea scored?", "hypopnea", [], ["IS"]],
 ];
+// A question about one row of a table still returns that card, names the row, and does not invent a row for a general abbreviation question (Ken, Nov 23)
+const ROW_CHECKS = [
+  ["SDS", "What is a severe AHI?", "ahi", "Severe"],
+  ["RPSGT", "What is the duration for an arousal?", "arousal", "Duration"],
+  ["SDS", "what does AHI stand for", "ahi", null],
+];
 
 function load(exam) {
   const ctx = vm.createContext({ console }); ctx.window = ctx; ctx.EXAM = exam;
@@ -62,5 +68,16 @@ for (const [exam, q, best, must, mustNot] of CHECKS) {
   if (errs.length) bad++;
   console.log(`${errs.length ? "FAIL" : "ok  "} [${exam}] ${q} -> ${r.best}${ab.length ? " (" + ab.join(", ") + ")" : ""}${errs.length ? "  <- " + errs.join("; ") : ""}`);
 }
-console.log(bad ? `\n${bad} of ${CHECKS.length} checks failed` : `\nAll ${CHECKS.length} checks passed`);
+for (const [exam, q, best, row] of ROW_CHECKS) {
+  const r = (M[exam] = M[exam] || load(exam))(q);
+  const text = ((r.hit && r.hit.cells) || []).join(" ");
+  const errs = [];
+  if (r.best !== best) errs.push(`best card ${r.best}, expected ${best}`);
+  if (row && !text.includes(row)) errs.push(`expected row mentioning ${row}, got ${text || "no row"}`);
+  if (!row && r.hit) errs.push(`should not highlight a row, got ${text}`);
+  if (errs.length) bad++;
+  console.log(`${errs.length ? "FAIL" : "ok  "} [${exam}] ${q} -> ${r.best} row:${text || "none"}${errs.length ? "  <- " + errs.join("; ") : ""}`);
+}
+const total = CHECKS.length + ROW_CHECKS.length;
+console.log(bad ? `\n${bad} of ${total} checks failed` : `\nAll ${total} checks passed`);
 process.exit(bad ? 1 : 0);

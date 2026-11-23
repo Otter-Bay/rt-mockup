@@ -50,6 +50,8 @@
 .obaskw{display:inline;border:0;background:none;padding:1px 1px;margin:0;font:inherit;color:inherit;cursor:pointer;border-radius:4px;text-align:left}
 .obaskw:hover,.obaskw:focus-visible{background:#DDEBFA;color:#0B4F94}
 .obaskw.added{background:#D6EEDF}
+.obaskrowans{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#FFF8E8;border-left:4px solid #E8B13A;font-size:15px;line-height:1.4}
+.sct tr.askhit td{background:#FFF3D1!important;box-shadow:inset 3px 0 0 #E8B13A;font-weight:600}
 @media (max-width:500px){.obask{padding:0;align-items:stretch}.obaskdlg{border-radius:0;max-width:none}}`;
   document.head.appendChild(css);
 
@@ -78,13 +80,14 @@
     return out.slice(0, 5);
   }
   const fmtDate = (d) => { if (!d) return ""; const [y, m, dd] = d.split("-").map(Number); return new Date(y, m - 1, dd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); };
-  function card(k) {
+  function card(k, hit) {
     const s = window.SCALES[k], field = s.field || "rt", m = (window.CARD_META || {})[k] || {};
     const scope = MINE.includes(field) ? "" : `<p class="obaskscope">This is ${FIELD_NAME[field] || "other field"} information; check what's in your scope of practice.</p>`;
     const links = (s.links || []).map(([t, u]) => `<li><a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join("");
     const rev = s.reviewed ? `Checked by ${esc(s.reviewed.by)} on ${fmtDate(s.reviewed.date)}` : "Expert review: pending";
+    const body = (hit && typeof window.OB_ASK_MARK === "function") ? window.OB_ASK_MARK(s.body || "", hit) : (s.body || "");
     return `<article class="obaskcard">${scope}<h3>${s.title}</h3>${s.intro ? `<p class="asksub">${s.intro}</p>` : ""}
-      <div class="sctwrap">${s.body || ""}</div>${s.note ? `<p class="scnote">${s.note}</p>` : ""}
+      <div class="sctwrap">${body}</div>${s.note ? `<p class="scnote">${s.note}</p>` : ""}
       <details class="obasksrc"><summary>Source</summary><dl>
         <dt>Where it comes from</dt><dd>${s.src || "Otter Bay"}${links ? `<ul>${links}</ul>` : ""}</dd>
         <dt>Written by</dt><dd>Otter Bay, in our own words</dd>
@@ -108,10 +111,13 @@
     let res = "";
     if (r && r.best) {
       const list = [r.best, ...(r.others || [])], k = A.pick && list.includes(A.pick) ? A.pick : r.best;
+      const hit = (typeof window.OB_ASK_HIT === "function") ? window.OB_ASK_HIT(k, A.text) : (k === r.best ? r.hit : null);
+      const cells = ((hit && hit.cells) || []).map((c) => String(c).trim()).filter(Boolean);
+      const direct = cells.length ? `<p class="obaskrowans"><b>${esc(cells[0])}</b>${cells.slice(1).map((c) => " · " + esc(c)).join("")}</p>` : "";
       const quick = (r.abbr || []).map((h) => `<b>${esc(h.abbr)}</b> = ${esc(h.meaning)}${MINE.includes(h.field) ? "" : ` <small>(${FIELD_NAME[h.field]})</small>`}`).join("<br>");
-      res = `${quick ? `<p class="obaskquick">${quick}</p>` : ""}
+      res = `${direct}${quick ? `<p class="obaskquick">${quick}</p>` : ""}
         ${list.length > 1 ? `<div class="obaskchips">${list.map((x) => `<button type="button" class="obaskchip" data-obask="pick" data-k="${x}" aria-pressed="${x === k}">${esc(strip(window.SCALES[x].title))}</button>`).join("")}</div>` : ""}
-        ${card(k)}`;
+        ${card(k, hit)}`;
     } else if (r) {
       res = `<div class="obasknone"><p><b>Not in the library yet.</b> If learners would ask this, add it to your notes for this question and we'll consider a new card at the next library update.</p>
         ${document.getElementById("vetNotes") ? `<button type="button" class="obasknote" data-obask="note">${A.noted ? "Added to your notes ✓" : "Add to my notes"}</button>` : ""}</div>`;
