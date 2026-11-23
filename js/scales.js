@@ -259,6 +259,17 @@ window.SCALES = {
       ["Red", "Below 50%", "Medical alert; take quick-relief medicine and get emergency help now"]]),
     note: "Each patient's plan uses their own personal best peak flow, measured when they are well.",
     src: "NAEPP Expert Panel Report 3 (2007); NHLBI asthma action plan" },
+  gaslaws: { title: "Gas laws for respiratory care", intro: "How pressure, volume, temperature and flow of a gas relate. Temperatures in gas-law math are in kelvin (°C + 273).",
+    body: T(["Law", "What it says", "Held constant", "RT example"], [
+      ["Boyle's law", "P1V1 = P2V2: pressure and volume move in opposite directions", "Temperature", "The chest expands, alveolar pressure falls, and air flows in"],
+      ["Charles's law", "V1/T1 = V2/T2: volume rises as temperature rises", "Pressure", "Gas warmed by a heated humidifier takes up more volume"],
+      ["Gay-Lussac's law", "P1/T1 = P2/T2: pressure rises as temperature rises", "Volume", "A cylinder stored in heat builds up pressure"],
+      ["Dalton's law", "Total pressure = the sum of each gas's partial pressure", "Not applicable", "Inspired PO2 = FIO2 × (PB − 47); room air at sea level is about 150 mm Hg"],
+      ["Henry's law", "The amount of gas dissolved in a liquid rises with that gas's partial pressure", "Temperature", "Dissolved O2 = 0.003 mL/dL for each mm Hg of PaO2; hyperbaric O2 raises it"],
+      ["Poiseuille's law", "Resistance to flow rises with tube length and gas viscosity, and with 1 ÷ radius to the 4th power", "Not applicable", "Halve an airway's radius and resistance goes up 16 times"],
+      ["Laplace's law", "Pressure in a bubble = 2 × surface tension ÷ radius", "Not applicable", "Surfactant lowers surface tension so small alveoli don't collapse"]]),
+    note: "Memory hook: Boyle = squeeze (syringe), Charles = heat (kettle), Henry = soda bottle, Laplace = bubble, Poiseuille = tube.",
+    src: "Standard gas physics as taught in respiratory care texts, in our own words" },
 };
 
 /* Shown only after the final answer (team decision), so a card never gives the answer away. */

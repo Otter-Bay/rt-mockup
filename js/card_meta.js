@@ -185,6 +185,11 @@ window.CARD_META = {
 "changed": "2026-11-05",
 "file": "js/cna_scales.js"
 },
+"gaslaws": {
+"added": "2026-11-23",
+"changed": "2026-11-23",
+"file": "js/scales.js"
+},
 "gcs": {
 "added": "2026-11-05",
 "changed": "2026-11-05",

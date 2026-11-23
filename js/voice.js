@@ -52,6 +52,7 @@
     circadian: "circadian shift work delayed phase", mslt: "mslt mwt nap test narcolepsy", electrodes: "electrode sensor placement", infant: "infant baby",
     o2titr: "oxygen bleed titration", papmodes: "bilevel bipap apap asv pap mode", download: "download compliance leak", alt_tx: "oral appliance surgery alternative",
     hsat: "home sleep test hsat", artifacts: "artifact artifacts",
+    gaslaws: "gas law laws boyle boyles charles charless gay lussac dalton daltons henry henrys poiseuille poiseuilles laplace laplaces partial pressure",
     vitals: "vital signs normal pulse rate heart rate blood pressure temperature respirations", io: "intake output fluid", positions: "fowler sims supine prone lateral position positioning",
     isolation: "isolation precautions", ppe: "glove gloves gown mask donning doffing ppe put on take off", fire: "fire race pass extinguisher",
     pressure: "bed sore bedsore pressure ulcer injury", rom: "range of motion abduction flexion", diets: "diet diets clear liquid",
@@ -415,7 +416,7 @@
   function find() {
     const ta = document.getElementById("askText"); if (ta) V.text = ta.value;
     V.err = ""; V.sent = false; V.pick = 0;
-    V.res = V.text.trim() ? match(V.text) : null;
+    V.res = V.text.trim() ? match(V.text) : null; V.sheet = false;
     render();
     const sc = document.querySelector(".askscroll"), r = document.getElementById("askRes");   // bring the answer into view
     if (sc && r) sc.scrollTop += r.getBoundingClientRect().top - sc.getBoundingClientRect().top - 8;
@@ -477,10 +478,26 @@
       ${r.fixes && r.fixes.length ? `<p class="askfix">Searched for: ${r.fixes.map((f) => `<b>${esc(f[1])}</b>`).join(", ")} <small>(you said ${r.fixes.map((f) => `“${esc(f[0])}”`).join(", ")})</small></p>` : ""}
       <p class="asklabel">${V.pick === 0 ? "Best match" : "Another match"}</p>
       ${TTS ? `<button type="button" class="askread ${V.speaking ? "on" : ""}" data-act="askread" data-k="${k}" aria-pressed="${V.speaking}">${SPK}<span>${V.speaking ? "Stop reading" : "Read aloud"}</span></button>` : ""}
+      ${studyButtons(k)}
       ${cardHtml(k, hit)}
       ${list.length > 1 ? `<p class="asklabel">Also close</p><div class="askalt">${list.map((x, i) => i === V.pick ? "" : `<button type="button" class="askalt1" data-act="askpick" data-i="${i}">${SCALES[x].title}${MINE.includes(SCALES[x].field || "rt") ? "" : ` <small>${FIELD_NAME[SCALES[x].field]}</small>`}</button>`).join("")}</div>` : ""}
       <details class="asknot"><summary>Not what you asked?</summary>${sendBox()}</details>
     </div>`;
+  }
+  // Study sheet: print the topic just asked about (js/recall.js). If the learner already built a page for this card, it comes back
+  // here, keyed by the card, so any wording or abbreviation that lands on the same card finds it (Ken, Nov 23).
+  function studyButtons(k) {
+    const SB = window.OB_STUDY; if (!SB || !SB.open) return "";
+    const mine = SB.hasPage(k);
+    return `<div class="askstudy">${mine ? `<button type="button" class="askmypage" data-act="askstudy" data-k="${k}" data-build="1"><span class="thumbwrap">${SB.thumb(k)}</span><span><b>Your study page</b><small>View it, keep building, or print it again</small></span></button>` : ""}
+      <button type="button" class="askprint" data-act="askstudy" data-k="${k}">${PRINT_ICON}<span>Print study sheet</span></button></div>`;
+  }
+  const PRINT_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>';
+  function openStudy(k, build) {
+    const r = V.res || {}, hit = r.q ? findHitRow(k, r.q) : null;
+    const cells = ((hit && hit.cells) || []).map((c) => String(c).trim()).filter(Boolean);
+    window.OB_STUDY.open(k, { q: r.q || "", hit, answer: cells.join(" · "), related: [r.best, ...(r.others || [])].filter((x) => x && x !== k), build });
+    V.sheet = true;
   }
   // The question that was on screen, inside Ask, so the spelling of a term is right there (Ken, Nov 22). Tap a word to add it.
   // The explanation shows only once the answer is revealed, so Ask never gives away an answer.
@@ -500,11 +517,10 @@
       <header class="obtop asktop"><button type="button" class="askback" data-act="askback" aria-label="Back">${BACK}<span>Back</span></button><span class="wm">Ask a question<small>Answers from our reference library</small></span></header>
       <div class="obscroll askscroll">
         <p class="askcare"><span>For learning only. At work, follow your facility's protocols and your supervisor.</span> <b>Never say patient names or details.</b></p>
-        <div class="askq"><label for="askText">Your question</label>
+        <div class="askq"${V.sheet ? " hidden" : ""}><label for="askText">Your question</label>
           <textarea id="askText" rows="2" enterkeyhint="search" placeholder="For example: What is static compliance?">${esc(V.text)}</textarea>
           <button type="button" class="askfind" data-act="askfind">Find the answer</button></div>
-        ${askQuestion()}
-        ${results()}
+        ${V.sheet && window.OB_STUDY ? window.OB_STUDY.screen() : askQuestion() + results()}
       </div>
       <div class="askdock">
         <p class="askstatus ${V.listening ? "on" : ""} ${V.err ? "err" : ""}" aria-live="polite">${status}</p>
@@ -518,7 +534,7 @@
     if (S.page === "quiz" && typeof Q === "function") { try { V.q = Q(); V.qWhy = typeof revealed === "function" && revealed(); } catch (e) { V.q = null; } }
     else if (S.page !== "ask") V.q = null;
     S.page = "ask"; S.settings = false; S.scale = null;
-    V.res = null; V.text = ""; V.err = ""; V.sent = false;
+    V.res = null; V.text = ""; V.err = ""; V.sent = false; V.sheet = false;
     V.qCue = false;
     if (V.q) { try { if (!localStorage.getItem(CUE_KEY)) { V.qCue = true; localStorage.setItem(CUE_KEY, "1"); } } catch (e) {} }
     if (listenNow && SR) { listen(); return false; }
@@ -536,6 +552,9 @@
       V.text = (V.text.trim() ? V.text.trim() + " " : "") + w; setBox(V.text); b.classList.add("added");
       return false;   // no re-render, so the question stays open where it was
     },
+    askstudy: (b) => { stopSpeak(); openStudy(b.dataset.k, !!b.dataset.build); const sc = document.querySelector(".askscroll"); if (sc) setTimeout(() => { sc.scrollTop = 0; }, 0); },
+    stback: () => { V.sheet = false; },
+    stopenpage: (b) => { open(false); V.res = { best: b.dataset.k, others: [], q: "" }; V.text = ""; openStudy(b.dataset.k, true); },
     askex: (b) => { V.text = b.dataset.q; setBox(V.text); find(); return false; },
     askpick: (b) => { stopSpeak(); V.pick = Number(b.dataset.i) || 0; },
     askread: (b) => { if (V.speaking) stopSpeak(); else speak(b.dataset.k); },
@@ -553,6 +572,13 @@
     return `<fieldset class="asksent"><legend>Questions you've sent</legend>${list.length
       ? `<ul>${list.slice(0, 10).map((x) => `<li><span>“${esc(x.q)}”</span><small>${new Date(x.at).toLocaleDateString([], { month: "short", day: "numeric" })} · ${x.app}</small></li>`).join("")}</ul>`
       : `<p>None yet. When the library can't answer, tap <b>Send it to our experts</b> on the Ask screen.</p>`}</fieldset>`;
+  });
+  // Settings: the study pages this learner has built (saved on this device).
+  (window.SETTINGS_EXTRA = window.SETTINGS_EXTRA || []).push(() => {
+    const list = window.OB_STUDY && window.OB_STUDY.listPages ? window.OB_STUDY.listPages() : [];
+    return `<fieldset class="asksent"><legend>My study pages</legend>${list.length
+      ? `<ul>${list.slice(0, 20).map((x) => `<li><button type="button" class="stlistbtn" data-act="stopenpage" data-k="${x.k}">${esc(x.title)}${x.done ? " 🏅" : ""}</button><small>${new Date(x.at).toLocaleDateString([], { month: "short", day: "numeric" })}</small></li>`).join("")}</ul>`
+      : `<p>None yet. On any Ask answer, tap <b>Print study sheet</b>, then <b>Build it here</b>.</p>`}</fieldset>`;
   });
 
   // Ask button on the main screens (Home, Progress, Apps, Questions): added after each render so home.js and app.js stay untouched.

@@ -38,12 +38,17 @@ const CHECKS = [
   ["RRT", "glascow coma scale", "gcs", [], []],
   ["CNA", "normal pulse range", "vitals", [], []],
   ["SDS", "How is a hypopnea scored?", "hypopnea", [], ["IS"]],
+  // Gas laws card (Ken, Nov 23: the kettle / syringe example)
+  ["RRT", "what is boyles law", "gaslaws", [], []],
+  ["RRT", "Charles's law", "gaslaws", [], []],
+  ["SDS", "Dalton's law of partial pressures", "gaslaws", [], []],
 ];
 // A question about one row of a table still returns that card, names the row, and does not invent a row for a general abbreviation question (Ken, Nov 23)
 const ROW_CHECKS = [
   ["SDS", "What is a severe AHI?", "ahi", "Severe"],
   ["RPSGT", "What is the duration for an arousal?", "arousal", "Duration"],
   ["SDS", "what does AHI stand for", "ahi", null],
+  ["RRT", "What is Boyle's law?", "gaslaws", "Boyle"],
 ];
 
 function load(exam) {
@@ -93,6 +98,51 @@ for (const [file, needles] of UI_FILES) {
   else console.log(`ok   [ui] ${file}`);
 }
 
-const total = CHECKS.length + ROW_CHECKS.length + UI_FILES.length;
+
+// Study sheets (js/recall.js): every card prints as a recall map and a traditional page, nothing overlaps, and the parts Ken asked for are there (Nov 23)
+let st = 0;
+const study = (name, ok, why) => { st++; if (!ok) bad++; console.log(`${ok ? "ok  " : "FAIL"} [study] ${name}${ok ? "" : "  <- " + why}`); };
+function loadStudy(exam) {
+  const ctx = vm.createContext({ console }); ctx.window = ctx; ctx.EXAM = exam;
+  for (const f of ["js/scales.js", "js/sleep_scales.js", "js/cna_scales.js", "js/acronyms.js", "js/recall.js"])
+    vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), ctx, { filename: f });
+  return ctx;
+}
+{
+  const C = loadStudy("SDS"), SB = C.OB_STUDY;
+  const keys = Object.keys(C.SCALES), broken = [], overlap = [], trad = [];
+  for (const k of keys) {
+    const svg = SB.recallSvg(SB.model(k, {}), {});
+    if (!svg.startsWith("<svg")) { broken.push(k); continue; }
+    const H = Number(svg.match(/viewBox="0 0 612 (\d+)/)[1]), bx = SB.last().boxes;
+    const r = bx.map((b) => [b.x1, b.y1, b.x2, b.y2]);
+    if (r.some((a, i) => a[0] < 0 || a[2] > 612 || a[1] < 0 || a[3] > H || r.some((b, j) => j > i && a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]))) overlap.push(k);
+    if (!/<table class="tsheettbl"/.test(SB.traditionalHtml(SB.model(k, {}), {}))) trad.push(k);
+  }
+  study(`all ${keys.length} cards make a recall map`, !broken.length, broken.join(", "));
+  study("no fact spaces overlap or leave the page", !overlap.length, overlap.join(", "));
+  study("all cards make a traditional sheet with the full table", !trad.length, trad.join(", "));
+  const ahi = SB.model("ahi", { hit: { table: 0, row: 3 } });
+  study("AHI rows colored normal, mild, moderate, severe", ahi.facts.map((f) => f.sev).join() === "normal,mild,moderate,severe", ahi.facts.map((f) => f.sev).join());
+  const filled = SB.recallSvg(ahi, {}), practice = SB.recallSvg(ahi, { mode: "practice" });
+  study("draw-your-own space and prompt on every fact", (filled.match(/class="rspace"/g) || []).length === 4 && filled.includes("Draw something that reminds you of this"), "missing spaces or prompt");
+  study("the row asked about is starred", filled.includes("You asked about this"), "no star");
+  study("Practice hides the answers", (filled.match(/>Severe<\/text>/g) || []).length === 2 && (practice.match(/>Severe<\/text>/g) || []).length === 1, "answers still showing");
+  study("ideas are off unless asked for", !filled.includes('opacity=".55"') && SB.recallSvg(ahi, { ideas: true }).includes('opacity=".55"'), "ideas showing by default");
+  const gl = SB.model("gaslaws", {}), ideaOf = (l) => (gl.facts.find((f) => f.label.startsWith(l)) || { idea: {} }).idea.shape;
+  study("gas-law ideas: Boyle syringe, Charles kettle, Henry bottle, Laplace bubble", ideaOf("Boyle") === "syringe" && ideaOf("Charles") === "kettle" && ideaOf("Henry") === "bottle" && ideaOf("Laplace") === "bubble", [ideaOf("Boyle"), ideaOf("Charles")].join());
+  const built = SB.recallSvg(ahi, { custom: { ink: [{ c: "#C62828", pts: [[100, 300], [140, 320]] }], stickers: { 3: { shape: "lungs", c: "#C62828" } }, moves: { 0: [10, -5] } } });
+  study("a built page prints the learner's drawing and shapes", built.includes('class="rink"') && built.includes('stroke="#C62828" stroke-width="2.4"'), "drawing missing");
+  study("Why this works lists 5 sources with links", SB.WHY.refs.length === 5 && SB.WHY.refs.every((r) => /^https:\/\/doi\.org\//.test(r[1])), "sources");
+  const C2 = loadStudy("CNA"), vit = C2.OB_STUDY.model("vitals", {});
+  study("CNA vitals: no false severity colors", vit.facts.every((f) => !f.sev), vit.facts.map((f) => f.sev).join());
+}
+const PAGES_HTML = ["index.html", "sds/index.html", "rpsgt/index.html", "cna/index.html"];
+const missingRecall = PAGES_HTML.filter((p) => !fs.readFileSync(path.join(ROOT, p), "utf8").includes("js/recall.js"));
+study("all four apps load the study sheet", !missingRecall.length, missingRecall.join(", "));
+const vsrc = fs.readFileSync(path.join(ROOT, "js/voice.js"), "utf8");
+study("Ask offers Print study sheet and brings back Your study page", vsrc.includes("Print study sheet") && vsrc.includes("Your study page") && vsrc.includes("My study pages"), "button text missing");
+
+const total = CHECKS.length + ROW_CHECKS.length + UI_FILES.length + st;
 console.log(bad ? `\n${bad} of ${total} checks failed` : `\nAll ${total} checks passed`);
 process.exit(bad ? 1 : 0);
