@@ -14,6 +14,9 @@
 .obgoto div{display:flex;gap:8px}
 .obgoto input{flex:1;min-width:0;font:inherit;font-size:17px;padding:10px 12px;border:1.5px solid #AAB4BF;border-radius:10px}
 .obgoto button{min-height:46px;padding:0 18px;border-radius:10px;border:0;background:#0B5CAD;color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer}
+.obresume{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:900;display:flex;align-items:center;gap:10px;padding:10px 12px 10px 16px;border-radius:14px;background:#12202E;color:#fff;font-size:15px;box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:calc(100% - 24px);box-sizing:border-box}
+.obresume button{min-height:40px;padding:0 14px;border-radius:10px;border:0;background:#3FA36B;color:#fff;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+.obresume .x{background:transparent;padding:0 8px;color:#C9D4DF}
 .obgoto p{margin:0;font-size:13px;color:#4A5663}.obgoto p.err{color:#A3360A;font-weight:700}
 /* A phone turned sideways (Ken, Nov 22): fill the screen instead of showing a small phone frame with notes around it,
    so a rotated EKG or tracing gets the whole screen. */
@@ -40,6 +43,27 @@
     if (exact >= 0) return exact;
     const digits = v.replace(/\D/g, "");
     return digits ? S.set.findIndex((_, i) => String(qAt(i).id).replace(/\D/g, "") === digits.padStart(4, "0")) : -1;
+  }
+  // If the reviewer tapped around before their saved verdicts finished loading, the page stays put instead of jumping ahead.
+  // Then offer a one-tap "Continue from #N" so they're never stranded at the start (Ken, Nov 23).
+  if (typeof vetAfterLoad === "function") {
+    const origAfter = vetAfterLoad; let offered = false;
+    window.vetAfterLoad = function () {
+      origAfter.apply(this, arguments);
+      try {
+        if (offered || !VREADY || !S.set.length) return;
+        let last = -1; S.set.forEach((qx, i) => { if (V[QS[qx].id]) last = i; });
+        const next = last + 1;
+        if (last < 0 || next >= S.set.length || S.qi >= next || S.page !== "quiz") return;
+        offered = true;
+        const t = document.createElement("div"); t.className = "obresume"; t.setAttribute("role", "status");
+        t.innerHTML = `<span>You've reviewed up to #${next}.</span><button type="button">Continue from #${next + 1}</button><button type="button" class="x" aria-label="Dismiss">✕</button>`;
+        t.querySelector("button").onclick = () => { t.remove(); const b = document.createElement("button"); b.dataset.act = "vetjump"; b.dataset.i = next; b.hidden = true; document.body.appendChild(b); b.click(); b.remove(); };
+        t.querySelector(".x").onclick = () => t.remove();
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 30000);
+      } catch (e) {}
+    };
   }
   document.addEventListener("submit", (e) => {
     if (!e.target.matches || !e.target.matches('[data-obgoto="form"]')) return;
