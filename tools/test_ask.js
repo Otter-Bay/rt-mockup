@@ -201,6 +201,8 @@ study("Ask offers Print study sheet and brings back Your study page", vsrc.inclu
   const ap = D.apgar.table;
   study("Build the Table: Apgar is a 5 × 3 grid with its row and column names", ap.rowHeads.length === 5 && ap.colHeads.map((c) => c.t).join() === "0,1,2" && ap.cells.every((r) => r.length === 3), JSON.stringify(ap.colHeads));
   study("Apgar answer blocks each have a picture and a score color", ap.cellIcons.length === 5 && ap.cellIcons.every((r) => r.length === 3 && r.every(Boolean)) && new Set(ap.cellIcons.flat()).size === 15 && ap.cellTone.every((r) => r.join() === "0,1,2"), "cell pictures");
+  study("every answer on all three cards has a picture and a color", Object.values(D).every((d) => d.pairs.every((p) => p.bicon && p.tone != null) && d.table.cells.every((r, i) => r.every((_, j) => d.table.cellIcons[i][j]))), "pair or cell without a picture");
+  study("answers stay up until Next (no auto-advance), and number games offer a calculator", !/after\(\(\) =>/.test(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8")) && /bgnext:/.test(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8")) && /calcBox\(\)/.test(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8")), "auto-advance left");
   let babyOk = true, babyWhy = "";
   for (let i = 0; i < 200; i++) { const s = BN.scenario("apgar"), parts = s.why.match(/(\d) \+ .* = (\d+)/), nums = s.why.split("=")[0].match(/\d/g).map(Number), tot = +s.a;
     const band = tot >= 7 ? "reassuring" : tot >= 4 ? "moderately abnormal" : "low";

@@ -354,3 +354,16 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .bin .tone3 { background: #E3F2FD !important; border: 2px double #1565C0 !important; }
 .bin .gtile.tone0, .bin .gtile.tone1, .bin .gtile.tone2 { color: #1E3A44; }
 .gbc i { display: block; font-style: normal; font-size: 20px; }
+/* answer held until Next; calculator */
+.bin .gopt.right, .bin .gcol.right, .bin .gbc.right { background: #C8E6C9 !important; border: 3px solid #1B5E20 !important; box-shadow: 0 0 0 3px rgba(27,94,32,.25); animation: gpop .35s; }
+.bin .gopt.wrong { background: #FFCDD2 !important; border: 3px solid #B71C1C !important; text-decoration: line-through; }
+.gopt:disabled { cursor: default; } .gopt:not(.right):not(.wrong):disabled { opacity: .55; }
+.gopt i, .gcol i { font-style: normal; }
+.gwait { display: flex; flex-direction: column; gap: 8px; }
+.gcwans { display: block; font-style: normal; font-weight: 700; color: #1B5E20; margin-top: 2px; letter-spacing: .08em; }
+.gcalc { background: #263238; border-radius: 16px; padding: 8px 10px; color: #fff; }
+.gcalc summary { min-height: 40px; display: flex; align-items: center; font-weight: 700; cursor: pointer; list-style: none; }
+.gcalcd { background: #CFD8DC; color: #102027; border-radius: 10px; padding: 8px 12px; text-align: right; font: 700 24px ui-monospace, Menlo, monospace; min-height: 30px; overflow-x: auto; white-space: nowrap; }
+.gkeys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+.gkeys button { min-height: 46px; border: 0; border-radius: 10px; background: #455A64; color: #fff; font: inherit; font-weight: 700; font-size: 20px; cursor: pointer; }
+.gkeys button.op { background: #F5B83D; color: #3A2800; } .gkeys button:active { transform: translateY(2px); }

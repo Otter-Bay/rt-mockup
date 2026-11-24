@@ -28,12 +28,12 @@
       words: [["PINK", "Appearance scores 2: ___ all over"], ["BLUE", "Appearance scores 0: ___ or pale all over"], ["ABSENT", "Pulse or respiration that scores 0"],
         ["GRIMACE", "Reflex irritability that scores 1"], ["LIMP", "Muscle tone that scores 0"], ["FLEXION", "Activity scores 1: some ___"], ["CRY", "Respiration scores 2: good effort; strong ___"],
         ["SNEEZE", "Grimace scores 2: cry, cough, or ___"], ["TEN", "The highest total score"], ["FIVE", "Apgar is scored at 1 and ___ minutes after birth"]] },
-    gaslaws: { cat: "Laws and relationships", rec: "match", use: "case", boss: ["🐙", "The Pressure Kraken"], icons: ["💉", "🫖", "🌡️", "🎂", "🥤", "🚰", "🫧", "✈️", "⏳", "🏃"], heldIcons: { Temperature: "🔥", Pressure: "🎈", Volume: "📦", "Not applicable": "➖" },
+    gaslaws: { cat: "Laws and relationships", rec: "match", use: "case", boss: ["🐙", "The Pressure Kraken"], icons: ["💉", "🫖", "🌡️", "🎂", "🥤", "🚰", "🫧", "✈️", "⏳", "🏃"], bIcons: ["🗜️", "🎈", "🧯", "➕", "💧", "🐍", "🔵", "💨", "🌪️", "⚖️"], heldIcons: { Temperature: "🔥", Pressure: "🎈", Volume: "📦", "Not applicable": "➖" },
       words: [["BOYLE", "P1V1 = P2V2"], ["CHARLES", "V1/T1 = V2/T2"], ["DALTON", "Total pressure = the sum of each gas's partial pressure"], ["HENRY", "Dissolved gas rises with that gas's partial pressure"],
         ["LAPLACE", "Pressure in a bubble = 2 × surface tension ÷ radius"], ["GRAHAM", "Diffusion rate is inversely proportional to the square root of gram molecular weight"],
         ["VENTURI", "A gradual widening after a narrowing restores pressure so a jet can entrain a second gas"], ["BERNOULLI", "As gas speeds up through a narrowing, its lateral pressure falls"],
         ["KELVIN", "Gas-law math uses temperature in ___ (°C + 273)"], ["SIXTEEN", "Halve an airway's radius and resistance goes up ___ times"]] },
-    abg: { cat: "Equations and numbers", rec: "blanks", use: "calc", boss: ["🐉", "The Acid Dragon"], icons: ["🧪", "💨", "🧁", "⚖️", "🫁", "🩸"], oxyIcons: ["➗", "🎈", "📏"],
+    abg: { cat: "Equations and numbers", rec: "blanks", use: "calc", boss: ["🐉", "The Acid Dragon"], icons: ["🧪", "💨", "🧁", "⚖️", "🫁", "🩸"], oxyIcons: ["➗", "🎈", "📏"], bIcons: ["🍋", "🌫️", "🧂", "🎚️", "🌬️", "❤️", "✖️", "➖", "📐"],
       words: [["WINTERS", "Formula for the expected PaCO2 in metabolic acidosis"], ["SHUNT", "The A–a gradient widens with V/Q mismatch, ___, or diffusion problems"], ["AGE", "The A–a gradient rises with ___"],
         ["NORMAL", "The A–a gradient in pure hypoventilation"], ["GRADIENT", "PAO2 − PaO2 = the A–a ___"], ["FORTYSEVEN", "Subtract this from PB in the PAO2 equation"],
         ["ANIONGAP", "Na+ − (Cl- + HCO3-)"], ["SEVEN", "Normal pH starts with ___ point three five"], ["HUNDRED", "PAO2 at sea level on room air is about one ___ mm Hg"]] },
@@ -44,7 +44,8 @@
   // ---------- Facts from the cards, shaped for games ----------
   // pairs: prompt (a, with an icon) and answer (b). table: headers and cells. sort: columns and items. qs(): multiple-choice questions.
   const num = (s) => Number(String(s).replace("−", "-").replace("+", ""));
-  function data(k0) {
+  function data(k0) { const D = data0(k0); if (D) deco(D); return D; }
+  function data0(k0) {
     const k = exKey(k0); if (!k) return null;
     const E = EX[k], card = W.SCALES[k], title = W.OB_STUDY.plain(card.title);
     if (k === "apgar") {
@@ -53,7 +54,7 @@
       return { k, E, title, pairs, table: { corner: "Sign", rowHeads: signs.map((s, i) => ({ t: s, icon: E.icons[i] })), colHeads: cols.map((c, j) => ({ t: c, tone: j })), cells: t.rows.map((r) => r.slice(1)), cellIcons: E.cellIcons, cellTone: t.rows.map(() => [0, 1, 2]) },
         sort: { cols: cols.map((c) => "Scores " + c), items: pairs.map((p) => ({ t: `${p.bicon} ${signs[p.row]}: ${p.b}`, col: p.col, tone: p.tone })) },
         oddRound() { const c = rnd(0, 2), same = shuffle(pairs.filter((p) => p.col === c)).slice(0, 3), odd = pick(pairs.filter((p) => p.col !== c && !same.some((s) => s.row === p.row && s.b === p.b)));
-          return { q: "Three of these score the same. Which one doesn't?", tiles: shuffle([...same.map((p) => ({ t: `${p.icon} ${signs[p.row]}: ${p.b}`, odd: false })), { t: `${odd.icon} ${signs[odd.row]}: ${odd.b}`, odd: true }]), why: `The other three score ${cols[c]}; “${odd.b}” scores ${cols[odd.col]} for ${signs[odd.row]}.` }; },
+          return { q: "Three of these score the same. Which one doesn't?", tiles: shuffle([...same.map((p) => ({ t: `${p.bicon} ${signs[p.row]}: ${p.b}`, odd: false })), { t: `${odd.bicon} ${signs[odd.row]}: ${odd.b}`, odd: true }]), why: `The other three score ${cols[c]}; “${odd.b}” scores ${cols[odd.col]} for ${signs[odd.row]}.` }; },
         qs() { return shuffle(pairs).map((p) => Math.random() < 0.6
           ? { p: `${p.icon} ${signs[p.row]} scores ${cols[p.col]}: ___`, a: p.b, o: opts(p.b, [...pairs.filter((x) => x.row === p.row).map((x) => x.b), pick(pairs).b]) }
           : { p: `${p.icon} ${signs[p.row]}: “${p.b}” scores how many points?`, a: cols[p.col], o: cols.slice() }); },
@@ -97,6 +98,19 @@
           ...c.rows.map((r) => ({ p: `${r[0]}: expected compensation?`, a: r[1], o: opts(r[1], cb, 3) })),
           ...o.rows.slice(0, 3).map((r, i) => ({ p: `${E.oxyIcons[i]} ${r[0]} = ___`, a: r[1], o: opts(r[1], ob) }))]); },
       note: W.OB_STUDY.plain(card.note) };
+  }
+
+  // a picture and color for every answer: pairs (Match, Bingo), table cells, and multiple-choice options through D.deco
+  function deco(D) {
+    const E = D.E, T = D.table;
+    if (D.k === "gaslaws") D.pairs.forEach((p, i) => { p.bicon = E.bIcons[i]; p.tone = D.sort.cols.indexOf(p.held); });
+    if (D.k === "abg") { D.pairs.forEach((p, i) => { p.bicon = E.bIcons[i]; p.tone = i < 6 ? 2 : 3; }); T.cellIcons = T.cells.map((r, i) => [E.bIcons[i]]); T.cellTone = T.cells.map(() => [2]); }
+    const m = {};
+    D.pairs.forEach((p) => { m[p.b] = { icon: p.bicon, tone: p.tone }; if (D.k === "gaslaws") m[p.a] = { icon: p.icon, tone: null }; });
+    T.colHeads.forEach((c) => { if (c.tone != null) m[c.t] = m[c.t] || { icon: "", tone: c.tone }; });
+    if (D.k === "apgar") D.sort.cols.forEach((c, j) => { m[c] = { icon: "", tone: j }; });
+    if (E.heldIcons) Object.keys(E.heldIcons).forEach((h) => { m[h] = { icon: E.heldIcons[h], tone: D.sort.cols.indexOf(h) }; });
+    D.deco = m;
   }
 
   // ---------- "Use it": apply the card to a case ----------
@@ -233,7 +247,7 @@
   const hit = (ok, msg, i) => { G.fb = { ok, msg: msg || "", i, n: (G.fb ? G.fb.n : 0) + 1 }; if (ok) { G.score += 10 + Math.min(G.streak, 5) * 2; G.streak++; G.right++; G.best = Math.max(G.best, G.streak); beep("ok"); } else { G.streak = 0; G.wrong++; beep("no"); } };
   function start(game, k) {
     const D = data(k); if (!D) return;
-    G = { game, k, D, score: 0, streak: 0, best: 0, right: 0, wrong: 0, i: 0, fb: null, over: false, t0: Date.now() };
+    G = { game, k, D, wait: null, calc: "", score: 0, streak: 0, best: 0, right: 0, wrong: 0, i: 0, fb: null, over: false, t0: Date.now() };
     const g = G;
     if (game === "table") {
       const T = D.table, blocks = [];
@@ -269,13 +283,36 @@
     save(); beep(win ? "win" : "no");
   }
   function nextFall() { const g = G; clearTimeout(g.timer); g.fallStart = Date.now(); g.dur = Math.max(3200, 6500 - g.streak * 350);
-    g.timer = setTimeout(() => { if (G !== g || g.over) return; hit(false, `Missed: it was “${g.cols[g.items[g.i].col]}”`); g.i++; if (g.i >= g.n) finish(true); else nextFall(); render(); }, g.dur); }
+    g.timer = setTimeout(() => { if (G !== g || g.over) return; hit(false, "Too slow"); sortMiss(g, g.items[g.i]); render(); }, g.dur); }
+  // Speed Sort: a miss pauses the game and shows the right column until Next
+  function sortMiss(g, it) { g.wait = { a: g.cols[it.col], why: (it.why ? it.why + ". " : "") + it.t.replace(/^\S+ /, ""), go: () => sortNext(g) }; }
+  function sortNext(g) { g.i++; if (g.i >= g.n) finish(true); else nextFall(); }
 
   // ---------- views ----------
   const hud = () => `<div class="ghud"><span class="gsc" aria-label="Score">⭐ ${G.score}</span><span class="gstk${G.streak >= 3 ? " hot" : ""}" aria-label="Streak">🔥 ${G.streak}</span>${G.game === "boss" ? "" : `<span class="gpr">${Math.min(G.i + (/^(table|match|crossword)$/.test(G.game) ? 0 : 1), G.n)} / ${G.n}</span>`}
     <button type="button" class="gsnd" data-act="binsound" aria-label="Sound ${B.sound ? "on" : "off"}">${B.sound ? "🔊" : "🔇"}</button></div>`;
   const fbBar = () => G.fb ? `<p class="gfb ${G.fb.ok ? "ok" : "no"}" role="status" data-n="${G.fb.n}">${G.fb.ok ? "✓ " + (G.fb.msg || pick(["Nice!", "Yes!", "Got it!", "Sharp!"])) : "✗ " + esc(G.fb.msg || "Not quite")}</p>` : `<p class="gfb"></p>`;
-  const mc = (o, act, extra) => `<div class="gopts">${o.map((x) => `<button type="button" class="gopt" data-act="${act}" data-v="${esc(x)}" ${extra || ""}>${esc(x)}</button>`).join("")}</div>`;
+  // shared answer buttons: a picture and color from the card when it has one; after an answer they lock, the right one turns green
+  // (Apgar questions that name the score skip the color so it doesn't give the answer away)
+  const mc = (o, act, opt) => { opt = opt || {}; const w = G.wait, dm = G.D.deco || {};
+    return `<div class="${opt.pad ? "gpad" : "gopts"}">${o.map((x) => { const d = opt.pad ? null : dm[x], tone = d && d.tone != null && !opt.noTone ? " tone" + d.tone : "";
+      return `<button type="button" class="gopt${tone}${w ? (x === w.a ? " right" : x === w.v ? " wrong" : "") : ""}" data-act="${act}" data-v="${esc(x)}" ${w ? "disabled" : ""}>${d && d.icon ? `<i>${d.icon}</i> ` : ""}${esc(x)}</button>`; }).join("")}</div>`; };
+  // after any answer the right answer (and how to get it) stays up until Next
+  const waitBox = () => { const w = G.wait; if (!w) return "";
+    return `<div class="gwait">${w.a != null ? `<p class="gwhy"><b>${w.ok ? "✓ Right:" : "Answer:"}</b> ${esc(w.a)}${w.why ? `<br>${esc(w.why)}` : ""}</p>` : w.msg ? `<p class="ghelp">${esc(w.msg)}</p>` : ""}<button type="button" class="gbig" data-act="bgnext">Next ▶</button></div>`; };
+  // on-screen calculator for number questions; open by default in Calculate it
+  const CK = ["7", "8", "9", "÷", "4", "5", "6", "×", "1", "2", "3", "−", "0", ".", "(", ")", "C", "⌫", "+", "="];
+  const calcBox = () => { const g = G; if (!(g.D.k === "abg" && /^(blanks|baby|escape|boss|crossword)$/.test(g.game))) return "";
+    const open = g.calcOpen != null ? g.calcOpen : g.game === "baby";
+    return `<details class="gcalc"${open ? " open" : ""}><summary>🧮 Calculator</summary><div class="gcalcd" aria-live="polite">${esc(g.calc || "0")}</div><div class="gkeys">${CK.map((k) => `<button type="button" data-act="bgcalc" data-v="${k}" class="${/[÷×−+=]/.test(k) ? "op" : ""}">${k}</button>`).join("")}</div></details>`; };
+  function calcKey(k) {
+    const g = G; let c = g.calc || "";
+    if (k === "C") c = ""; else if (k === "⌫") c = c.slice(0, -1);
+    else if (k === "=") { const e = c.replace(/÷/g, "/").replace(/×/g, "*").replace(/−/g, "-");
+      try { if (!/^[\d.+\-*/() ]+$/.test(e)) throw 0; const v = Function("return (" + e + ")")(); c = Number.isFinite(v) ? String(Math.round(v * 1e4) / 1e4) : "Error"; } catch (x) { c = "Error"; } }
+    else c = (c === "Error" ? "" : c) + k;
+    g.calc = c; const el = document.querySelector(".gcalcd"); if (el) el.textContent = c || "0";
+  }
   function gameView() {
     const g = G, D = g.D;
     let h = "";
@@ -297,13 +334,13 @@
         <div class="gcard${g.fb && g.fb.n ? (g.fb.ok ? " pop" : " shake") : ""}"><p class="gq">${esc(q.p)}</p></div>`;
       if (g.cr) h += g.reveal ? `<p class="gans">${esc(q.a)}</p><p class="ghelp">Did you say it?</p><div class="gopts two"><button type="button" class="gopt" data-act="bgself" data-v="1">✓ Got it</button><button type="button" class="gopt" data-act="bgself" data-v="0">✗ Not yet</button></div>`
         : `<p class="ghelp">Say the answer out loud, then check.</p><button type="button" class="gbig" data-act="bgreveal">Show the answer</button>`;
-      else h += mc(q.o, "bgpick");
-      h += fbBar();
+      else h += mc(q.o, "bgpick", { noTone: /scores \d/.test(q.p) });
+      h += fbBar() + waitBox() + calcBox();
     } else if (g.game === "baby") {
       const q = g.qs[g.i];
       h += `<div class="gcase"><p class="gq">${esc(q.q)}</p><ul>${q.lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>`;
-      h += q.kind === "baby" ? `<div class="gpad">${q.o.map((x) => `<button type="button" class="gopt" data-act="bgpick" data-v="${x}">${x}</button>`).join("")}</div>` : mc(q.o, "bgpick");
-      h += fbBar() + (g.fb && g.why ? `<p class="gwhy">${esc(g.why)}</p>` : "");
+      h += calcBox() + mc(q.o, "bgpick", { pad: q.kind === "baby" });
+      h += fbBar() + waitBox();
     } else if (g.game === "crossword") {
       const C = g.cw, cell = {};
       C.words.forEach((w, wi) => { for (let i = 0; i < w.w.length; i++) { const x = w.x + (w.dir === "a" ? i : 0), y = w.y + (w.dir === "a" ? 0 : i), k = x + "," + y; cell[k] = cell[k] || { ch: w.w[i], n: i === 0 ? w.n : cell[k] && cell[k].n, ws: [] }; if (i === 0) cell[k].n = w.n; cell[k].ws.push([wi, i]); } });
@@ -315,28 +352,28 @@
         const st = g.checked ? (ch === c.ch ? " ok" : " no") : "";
         h += `<b class="gcc${st}" data-cell="${x},${y}" style="font-size:${sz * 0.5}px">${c.n ? `<sup>${c.n}</sup>` : ""}<span>${esc(ch)}</span></b>`; }
       h += `</div><ol class="gclues">${C.words.map((w, wi) => { const ok = g.checked && g.typed[wi].toUpperCase() === w.w;
-        return `<li class="${g.checked ? (ok ? "ok" : "no") : ""}"><span><b>${w.n} ${w.dir === "a" ? "Across" : "Down"}</b> ${esc(w.clue)} <small>(${w.w.length})</small></span>
+        return `<li class="${g.checked ? (ok ? "ok" : "no") : ""}"><span><b>${w.n} ${w.dir === "a" ? "Across" : "Down"}</b> ${esc(w.clue)} <small>(${w.w.length})</small>${g.checked && !ok ? `<em class="gcwans">Answer: ${w.w}</em>` : ""}</span>
           <input type="text" data-cw="${wi}" maxlength="${w.w.length}" value="${esc(g.typed[wi])}" autocapitalize="characters" autocomplete="off" spellcheck="false" aria-label="${w.n} ${w.dir === "a" ? "across" : "down"}"></li>`; }).join("")}</ol>
-        ${fbBar()}<button type="button" class="gbig" data-act="bgcwcheck">Check my answers</button>${g.checked ? `<button type="button" class="glink" data-act="bgcwdone">Done: see my score</button>` : ""}`;
+        ${fbBar()}${calcBox()}<button type="button" class="gbig" data-act="bgcwcheck">Check my answers</button>${g.checked ? `<button type="button" class="glink" data-act="bgcwdone">Done: see my score</button>` : ""}`;
     } else if (g.game === "odd") {
       const r = g.rounds[g.i];
-      h += `<p class="gq">${esc(r.q)}</p><div class="godd">${r.tiles.map((t, i) => `<button type="button" class="gopt big${g.fb && g.fb.i === i ? (g.fb.ok ? " pop" : " shake") : ""}" data-act="bgodd" data-i="${i}">${esc(t.t)}</button>`).join("")}</div>${fbBar()}${g.fb && g.why ? `<p class="gwhy">${esc(g.why)}</p>` : ""}`;
+      h += `<p class="gq">${esc(r.q)}</p><div class="godd">${r.tiles.map((t, i) => `<button type="button" class="gopt big${g.wait ? (t.odd ? " right" : g.fb && g.fb.i === i ? " wrong" : "") : ""}" data-act="bgodd" data-i="${i}" ${g.wait ? "disabled" : ""}>${esc(t.t)}</button>`).join("")}</div>${fbBar()}${waitBox()}`;
     } else if (g.game === "sort") {
       const it = g.items[g.i], el = Date.now() - g.fallStart;
       h += `<p class="ghelp">Tap the right column before the block lands. It speeds up as your streak grows.</p>
-        <div class="gfall"><div class="gdrop" style="animation-duration:${g.dur}ms;animation-delay:-${el}ms" data-i="${g.i}">${esc(it.t)}</div><div class="gground"></div></div>
-        ${fbBar()}<div class="gcols" style="grid-template-columns: repeat(${g.cols.length}, 1fr)">${g.cols.map((c, j) => `<button type="button" class="gcol" data-act="bgsort" data-v="${j}">${esc(c)}</button>`).join("")}</div>`;
+        <div class="gfall"><div class="gdrop" style="${g.wait ? "top:180px;animation:none" : `animation-duration:${g.dur}ms;animation-delay:-${el}ms`}" data-i="${g.i}">${esc(it.t)}</div><div class="gground"></div></div>
+        ${fbBar()}<div class="gcols" style="grid-template-columns: repeat(${g.cols.length}, 1fr)">${g.cols.map((c, j) => { const d = (D.deco || {})[c]; return `<button type="button" class="gcol${d && d.tone != null ? " tone" + d.tone : ""}${g.wait && j === it.col ? " right" : ""}" data-act="bgsort" data-v="${j}" ${g.wait ? "disabled" : ""}>${d && d.icon ? `<i>${d.icon}</i> ` : ""}${esc(c)}</button>`; }).join("")}</div>${waitBox()}`;
     } else if (g.game === "bingo") {
       const call = g.board[g.calls[g.i]];
-      h += `<div class="gcall"><small>The call</small><b>${call.icon ? call.icon + " " : ""}${esc(call.a)}</b></div><div class="gbingo">${g.board.map((p, i) => `<button type="button" class="gbc${p.tone != null ? " tone" + p.tone : ""}${g.stamped.includes(i) ? " st" : ""}${g.fb && g.fb.i === i && !g.fb.ok ? " shake" : ""}" data-act="bgbingo" data-i="${i}" ${g.stamped.includes(i) ? "disabled" : ""}>${p.bicon ? `<i>${p.bicon}</i>` : ""}<span>${esc(p.b)}</span>${g.stamped.includes(i) ? '<em aria-hidden="true">★</em>' : ""}</button>`).join("")}</div>${fbBar()}`;
+      h += `<div class="gcall"><small>The call</small><b>${call.icon ? call.icon + " " : ""}${esc(call.a)}</b></div><div class="gbingo">${g.board.map((p, i) => `<button type="button" class="gbc${p.tone != null ? " tone" + p.tone : ""}${g.stamped.includes(i) ? " st" : ""}${g.fb && g.fb.i === i && !g.fb.ok ? " shake" : ""}${g.wait && g.calls[g.i] === i ? " right" : ""}" data-act="bgbingo" data-i="${i}" ${g.stamped.includes(i) ? "disabled" : ""}>${p.bicon ? `<i>${p.bicon}</i>` : ""}<span>${esc(p.b)}</span>${g.stamped.includes(i) ? '<em aria-hidden="true">★</em>' : ""}</button>`).join("")}</div>${fbBar()}${waitBox()}`;
     } else if (g.game === "escape") {
       const q = g.qs[g.open];
       h += `<div class="gdoor"><div class="glocks">${g.qs.map((_, i) => `<span class="${i < g.open ? "open" : i === g.open ? "cur" : ""}${g.fb && !g.fb.ok && i === g.open ? " shake" : ""}">${i < g.open ? "🔓" : "🔒"}</span>`).join("")}</div><p>🗝️ Keys left: <b>${"🗝️".repeat(g.keys) || "none"}</b></p></div>
-        <div class="gcard"><p class="gq">${esc(q.p)}</p></div>${mc(q.o, "bgpick")}${fbBar()}`;
+        <div class="gcard"><p class="gq">${esc(q.p)}</p></div>${mc(q.o, "bgpick", { noTone: /scores \d/.test(q.p) })}${fbBar()}${waitBox()}${calcBox()}`;
     } else if (g.game === "boss") {
       const q = g.qs[g.i % g.qs.length], [ic, nm] = D.E.boss;
       h += `<div class="gboss"><div class="gbossme${g.fb && g.fb.ok ? " hurt" : ""}" data-n="${g.fb ? g.fb.n : 0}">${ic}</div><b>${nm}</b><div class="ghp"><i style="width:${g.hp}%"></i></div><small>${g.hp} HP</small>
-        <p class="ghearts">You: ${"❤️".repeat(g.hearts)}${"🤍".repeat(3 - g.hearts)}</p></div><div class="gcard${g.fb && !g.fb.ok ? " shake" : ""}"><p class="gq">${esc(q.p)}</p></div>${mc(q.o, "bgpick")}${fbBar()}`;
+        <p class="ghearts">You: ${"❤️".repeat(g.hearts)}${"🤍".repeat(3 - g.hearts)}</p></div><div class="gcard${g.fb && !g.fb.ok ? " shake" : ""}"><p class="gq">${esc(q.p)}</p></div>${mc(q.o, "bgpick", { noTone: /scores \d/.test(q.p) })}${fbBar()}${waitBox()}${calcBox()}`;
     }
     return h;
   }
@@ -447,35 +484,38 @@
       g.open.push(i); if (g.open.length < 2) return;
       g.moves++; const [x, y] = g.open.map((j) => g.tiles[j]);
       if (x.p === y.p && x.side !== y.side) { g.got.push(x.p); g.open = []; g.i++; hit(true, "A pair!"); if (g.got.length === g.n) finish(true); }
-      else { hit(false, "Not a pair"); g.lock = true; after(() => { g.open = []; g.lock = false; G.fb = null; }, 900); } },
+      else { hit(false, "Not a pair"); g.lock = true; g.wait = { msg: "Look at both, then tap Next to flip them back.", go: () => { g.open = []; g.lock = false; } }; } },
     // shared multiple choice (Fill the Blanks, Score the Baby, Escape Room, Boss Battle)
-    bgpick: (b) => { const g = G; if (g.lock) return false; const v = b.dataset.v;
-      if (g.game === "escape") { const q = g.qs[g.open]; if (v === q.a) { hit(true, "Unlocked!"); g.open++; g.i = g.open; if (g.open >= g.n) finish(true); } else { g.keys--; hit(false, `It's “${q.a}”`); if (g.keys <= 0) finish(false); } return; }
-      if (g.game === "boss") { const q = g.qs[g.i % g.qs.length]; if (v === q.a) { const d = 20 + (g.streak >= 2 ? 10 : 0); g.hp = Math.max(0, g.hp - d); hit(true, d > 20 ? `Combo hit! −${d}` : `Hit! −${d}`); g.i++; if (g.hp <= 0) finish(true); }
-        else { g.hearts--; hit(false, `Ouch! It's “${q.a}”`); g.i++; if (g.hearts <= 0) finish(false); } return; }
-      const q = g.qs[g.i], ok = v === q.a;
-      hit(ok, ok ? "" : `It's “${q.a}”`); g.why = q.why || "";
-      g.lock = true; after(() => { G.lock = false; G.fb = null; nextQ(); }, ok ? (q.why ? 1800 : 700) : 2200); },
+    bgpick: (b) => { const g = G; if (g.wait) return false; const v = b.dataset.v;
+      const q = g.game === "escape" ? g.qs[g.open] : g.game === "boss" ? g.qs[g.i % g.qs.length] : g.qs[g.i], ok = v === q.a; let go = nextQ;
+      if (g.game === "escape") { if (ok) { hit(true, "Unlocked!"); go = () => { g.open++; g.i = g.open; if (g.open >= g.n) finish(true); }; } else { g.keys--; hit(false, "Wrong key"); go = () => { if (g.keys <= 0) finish(false); }; } }
+      else if (g.game === "boss") { if (ok) { const d = 20 + (g.streak >= 2 ? 10 : 0); g.hp = Math.max(0, g.hp - d); hit(true, d > 20 ? `Combo hit! −${d}` : `Hit! −${d}`); go = () => { g.i++; if (g.hp <= 0) finish(true); }; }
+        else { g.hearts--; hit(false, "Ouch!"); go = () => { g.i++; if (g.hearts <= 0) finish(false); }; } }
+      else hit(ok);
+      g.wait = { a: q.a, v, ok, why: q.why || "", go }; },
+    bgnext: () => { const w = G.wait; if (!w) return false; G.wait = null; G.fb = null; G.calc = ""; w.go(); },
+    bgcalc: (b) => { calcKey(b.dataset.v); return false; },
     bgcr: (b) => { G.cr = b.dataset.v === "cr"; G.reveal = false; },
     bgreveal: () => { G.reveal = true; },
     bgself: (b) => { hit(b.dataset.v === "1", b.dataset.v === "1" ? "" : "It'll come back soon"); G.reveal = false; nextQ(); },
     // Crossword
     bgcwcheck: () => { const g = G; g.checked = true; const right = g.cw.words.filter((w, i) => g.typed[i].toUpperCase() === w.w).length;
-      g.right = right; g.wrong = g.n - right; g.score = right * 15; g.i = right; g.fb = { ok: right === g.n, msg: right === g.n ? "Every word right!" : `${right} of ${g.n} right. Fix the red ones.`, n: 1 }; beep(right === g.n ? "win" : "no"); if (right === g.n) after(() => finish(true), 900); },
+      g.right = right; g.wrong = g.n - right; g.score = right * 15; g.i = right; g.fb = { ok: right === g.n, msg: right === g.n ? "Every word right!" : `${right} of ${g.n} right. Fix the red ones.`, n: 1 }; beep(right === g.n ? "win" : "no"); },
     bgcwdone: () => { finish(G.right >= G.n * 0.7); },
     // Odd One Out
     bgodd: (b) => { const g = G; if (g.lock) return false; const r = g.rounds[g.i], i = +b.dataset.i, ok = r.tiles[i].odd;
-      hit(ok, ok ? "" : "That one belongs", i); g.why = r.why; g.lock = true; after(() => { G.lock = false; G.fb = null; nextQ(); }, 1700); },
+      if (g.wait) return false; hit(ok, ok ? "" : "That one belongs", i); g.wait = { a: r.tiles.find((t) => t.odd).t, ok, why: r.why, go: nextQ }; },
     // Speed Sort
-    bgsort: (b) => { const g = G, it = g.items[g.i], ok = +b.dataset.v === it.col;
-      hit(ok, ok ? "" : `It's “${g.cols[it.col]}”${it.why ? ". " + it.why : ""}`); g.i++; if (g.i >= g.n) finish(true); else nextFall(); },
+    bgsort: (b) => { const g = G; if (g.wait) return false; const it = g.items[g.i], ok = +b.dataset.v === it.col;
+      if (ok) { hit(true); sortNext(g); } else { clearTimeout(g.timer); hit(false); sortMiss(g, it); } },
     // Bingo
-    bgbingo: (b) => { const g = G, i = +b.dataset.i;
+    bgbingo: (b) => { const g = G, i = +b.dataset.i; if (g.wait) return false;
       if (g.calls[g.i] === i) { g.stamped.push(i); hit(true, "Stamped!", i); g.i++;
         const L = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
         if (L.some((l) => l.every((x) => g.stamped.includes(x))) || g.i >= g.n) finish(true); }
-      else hit(false, "Not that one", i); },
+      else { hit(false, "Not that one", i); g.wait = { a: g.board[g.calls[g.i]].b, why: "Tap Next, then stamp it.", go: () => {} }; } },
   });
+  document.addEventListener("toggle", (e) => { if (G && e.target.classList && e.target.classList.contains("gcalc")) G.calcOpen = e.target.open; }, true);
   // crossword typing: fill the grid without redrawing (keeps the keyboard up)
   document.addEventListener("input", (e) => {
     const t = e.target; if (!G || G.game !== "crossword" || !t.dataset || t.dataset.cw == null) return;
