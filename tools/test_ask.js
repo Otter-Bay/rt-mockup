@@ -192,7 +192,7 @@ study("Ask offers Print study sheet and brings back Your study page", vsrc.inclu
   const exams = ["RRT", "SDS", "RPSGT", "CNA"].map((e) => { const C = loadStudy(e); vm.runInContext(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8"), C, { filename: "js/bin.js" }); return C; });
   const C = exams[0], BN = C.OB_BIN, card = (k) => JSON.stringify(C.SCALES[k]) + JSON.stringify(C.SCALES.oxy || "");
   study("the bin's three example cards load in all four apps", exams.every((X) => ["apgar", "gaslaws", "abg"].every((k) => X.OB_BIN.data(k))), "an example card is missing in one app");
-  study("ten games, each with a name", BN.GAMES.length === 10 && BN.GAMES.every((g) => g[1] && g[2]), BN.GAMES.length);
+  study("eleven games, each with a name", BN.GAMES.length === 11 && BN.GAMES.every((g) => g[1] && g[2]), BN.GAMES.length);
   study("oxygenation indices share the blood gas example; other cards have no games yet", BN.exKey("oxy") === "abg" && BN.exKey("ess") === null && BN.data("ess") === null, "exKey");
   const D = { apgar: BN.data("apgar"), gaslaws: BN.data("gaslaws"), abg: BN.data("abg") };
   const plainOf = (k) => C.OB_STUDY.plain(card(k));
@@ -215,6 +215,12 @@ study("Ask offers Print study sheet and brings back Your study page", vsrc.inclu
     study("Speed Sort: made-up AHI values land in the right severity", ahOk, "AHI sort");
     const bsrc2 = fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8");
     study("Build the Table checks a cell against the label placed in its row, and row order only when the card says so", bsrc2.includes("const ordered = !!g.D.E.order") && bsrc2.includes("T.cells[src]"), "order logic");
+  }
+  {
+    const X = loadStudy("SDS"); vm.runInContext(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8"), X, { filename: "js/bin.js" });
+    const bad = Object.keys(X.OB_BIN.EX).filter((k) => { const d = X.OB_BIN.data(k), E = X.OB_BIN.EX[k]; if (E.games && !E.games.includes("drop")) return true;
+      for (let i = 0; i < 30; i++) { const it = d.sort.gen ? d.sort.gen() : d.sort.items[i % d.sort.items.length]; if (!(it.col >= 0 && it.col < d.sort.cols.length) || !it.t) return true; } return false; });
+    study("Block Drop: every study bin card has columns and falling blocks that each belong to a column", X.OB_BIN.GAMES.some((g) => g[0] === "drop") && !bad.length, bad.join(", "));
   }
   let babyOk = true, babyWhy = "";
   for (let i = 0; i < 200; i++) { const s = BN.scenario("apgar"), parts = s.why.match(/(\d) \+ .* = (\d+)/), nums = s.why.split("=")[0].match(/\d/g).map(Number), tot = +s.a;

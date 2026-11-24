@@ -41,9 +41,9 @@
   // Sleep examples (Ken, t126u to t129u): Build the Table row order is a per-card setting. order: true means the rows must go in
   // sequence (AHI runs normal to severe); otherwise any row label can go in any row and that row's cells must match it.
   // These two use only the table-style games; facts come from the ahi and staging cards (the short hallmarks are cut from the card text).
-  EX.ahi = { cat: "Classification, in order", rec: "table", useGame: "sort", order: true, simple: true, boss: ["🦛", "The Snore Hippo"], games: ["table", "match", "sort", "blanks", "bingo", "escape", "boss"],
+  EX.ahi = { cat: "Classification, in order", rec: "table", useGame: "sort", order: true, simple: true, boss: ["🦛", "The Snore Hippo"], games: ["table", "match", "sort", "drop", "blanks", "bingo", "escape", "boss"],
     icons: ["😴", "🙂", "😐", "😫"], bIcons: ["🟢", "🟡", "🟠", "🔴"], tones: [2, 1, 0, 4], swap: true };
-  EX.staging = { cat: "Classification, any order", rec: "table", useGame: "blanks", simple: true, boss: ["🦉", "The Night Owl"], games: ["table", "match", "sort", "blanks", "bingo", "escape", "boss"],
+  EX.staging = { cat: "Classification, any order", rec: "table", useGame: "blanks", simple: true, boss: ["🦉", "The Night Owl"], games: ["table", "match", "sort", "drop", "blanks", "bingo", "escape", "boss"],
     icons: ["☀️", "🥱", "🧵", "🌊", "👁️"], bIcons: ["👓", "〰️", "🌀", "🐋", "🪚"], tones: [2, 1, 0, 3, 4],
     short: ["Alpha (8–13 Hz) over the occipital region in more than half the epoch", "Alpha replaced by low-amplitude 4–7 Hz activity", "K-complex (not tied to an arousal) or sleep spindle (11–16 Hz, 0.5 s or more)",
       "Slow-wave activity (0.5–2 Hz, 75 µV or more, frontal) in more than 20% of the epoch", "Low-amplitude mixed-frequency EEG, rapid eye movements, lowest chin tone"] };
@@ -117,7 +117,7 @@
     const pairs = R2.map((r, i) => ({ a: r[0], icon: E.icons[i], b: r[1], bicon: E.bIcons[i], tone: E.tones[i], row: i }));
     const cols = R2.map((r) => r[0]);
     const sort = k === "ahi" ? { cols, gen: () => { const i = rnd(0, 3), v = rnd([0, 5, 15, 30][i], [4, 14, 29, 80][i]); return { t: `AHI ${v} events/hour`, col: i, why: `${R2[i][0]}: ${R2[i][1]}` }; } }
-      : { cols, items: pairs.map((p) => ({ t: `${p.bicon} ${p.b}`, col: p.row })) };
+      : { cols, items: pairs.map((p) => ({ t: `${p.bicon} ${p.b}`, col: p.row, tone: p.tone })) };
     return { k, E, title: W.OB_STUDY.plain(card.title), pairs, sort,
       table: { corner: head[0], rowHeads: pairs.map((p) => ({ t: p.a, icon: p.icon })), colHeads: [{ t: head[1] }], cells: pairs.map((p) => [p.b]), cellIcons: pairs.map((p) => [p.bicon]), cellTone: pairs.map((p) => [p.tone]) },
       qs() { const A = pairs.map((p) => p.a), Bs = pairs.map((p) => p.b);
@@ -216,6 +216,7 @@
     ["bingo", "Bingo", "🎱", "Hear the call, stamp the match"],
     ["escape", "Escape Room", "🔐", "Each right answer opens a padlock"],
     ["boss", "Boss Battle", "⚔️", "Right answers knock down its health"],
+    ["drop", "Block Drop", "🧱", "Tetris-style: steer each falling block into its column"],
   ];
   const gameName = (g, k) => g === "baby" ? (exKey(k) === "apgar" ? "Score the Baby" : exKey(k) === "gaslaws" ? "Which law is at work?" : "Calculate it") : (GAMES.find((x) => x[0] === g) || [, g])[1];
 
@@ -288,6 +289,7 @@
     else if (game === "crossword") { g.cw = crossword(D.E.words); g.n = g.cw.words.length; g.typed = g.cw.words.map(() => ""); g.checked = false; }
     else if (game === "odd") { g.rounds = Array.from({ length: 6 }, () => D.oddRound()); g.n = 6; }
     else if (game === "sort") { g.items = Array.from({ length: 10 }, () => D.sort.gen ? D.sort.gen() : pick(D.sort.items)); g.n = 10; g.cols = D.sort.cols; nextFall(); }
+    else if (game === "drop") { g.cols = D.sort.cols; g.rows = 8; g.stack = g.cols.map(() => []); g.n = 30; g.level = 1; dropSpawn(g); }
     else if (game === "bingo") { const ps = shuffle(D.pairs).slice(0, 9); g.board = ps; g.calls = shuffle(ps.map((_, i) => i)); g.stamped = []; g.n = 9; }
     else if (game === "escape") { g.qs = D.qs().slice(0, 5); g.n = 5; g.keys = 3; g.open = 0; }
     else if (game === "boss") { g.qs = D.qs(); g.hp = 100; g.hearts = 3; g.n = g.qs.length; g.hitAnim = 0; }
@@ -310,6 +312,28 @@
   }
   function nextFall() { const g = G; clearTimeout(g.timer); g.fallStart = Date.now(); g.dur = Math.max(3200, 6500 - g.streak * 350);
     g.timer = setTimeout(() => { if (G !== g || g.over) return; hit(false, "Too slow"); sortMiss(g, g.items[g.i]); render(); }, g.dur); }
+  // Block Drop (Ken, t130u): the Speed Sort blocks fall into a Tetris-style well; a row of right blocks clears, a wrong one stays red
+  const dropIcon = (it) => (it.t.match(/^([^\w\s]\S*) /) || [])[1] || "", dropText = (it) => it.t.replace(/^[^\w\s]\S* /, "");
+  function dropSpawn(g) { g.cur = { it: g.D.sort.gen ? g.D.sort.gen() : pick(g.D.sort.items), col: Math.floor(g.cols.length / 2), row: 0 }; dropRun(g); }
+  function dropRun(g) { clearInterval(g.timer); g.timer = setInterval(() => { if (G !== g || g.over || g.wait || !g.cur) return clearInterval(g.timer); dropStep(g); render(); }, Math.max(260, 950 - (g.level - 1) * 130)); }
+  function dropStep(g, hard) { const c = g.cur, floor = g.rows - 1 - g.stack[c.col].length; if (hard) c.row = floor; if (c.row < floor) { c.row++; return; } dropLand(g); }
+  function dropLand(g) {
+    clearInterval(g.timer); const c = g.cur, ok = c.col === c.it.col; g.stack[c.col].push({ it: c.it, ok }); g.cur = null; g.i++;
+    if (ok) { hit(true); if (g.right % 5 === 0) { g.level++; g.fb.msg = `Level ${g.level}! Faster now`; }
+      const r = Math.min(...g.stack.map((x) => x.length));
+      for (let y = 0; y < r; y++) if (g.stack.every((x) => x[y].ok)) { g.stack.forEach((x) => x.splice(y, 1)); g.score += 50; g.fb.msg = "Row cleared! +50 🎉"; g.flash = Date.now(); beep("win"); break; } }
+    else hit(false, "Wrong column");
+    const top = g.stack.some((x) => x.length >= g.rows), next = () => { if (top) finish(false); else if (g.i >= g.n) finish(true); else dropSpawn(g); };
+    if (ok) next(); else g.wait = { a: g.cols[c.it.col], why: dropText(c.it), col: c.it.col, go: next };
+  }
+  function dropMove(v) { const g = G; if (!g || g.game !== "drop" || g.wait || !g.cur || g.over) return false;
+    if (v === 2) dropStep(g, true); else g.cur.col = Math.max(0, Math.min(g.cols.length - 1, g.cur.col + v)); render(); return false; }
+  document.addEventListener("keydown", (e) => { if (!G || G.game !== "drop") return; const v = { ArrowLeft: -1, ArrowRight: 1, ArrowDown: 2 }[e.key]; if (v) { e.preventDefault(); dropMove(v); } });
+  let tx0 = null;
+  document.addEventListener("touchstart", (e) => { tx0 = G && G.game === "drop" && e.target.closest && e.target.closest(".gwell") ? [e.touches[0].clientX, e.touches[0].clientY] : null; }, { passive: true });
+  document.addEventListener("touchend", (e) => { if (!tx0) return; const t = e.changedTouches[0], dx = t.clientX - tx0[0], dy = t.clientY - tx0[1]; tx0 = null;
+    if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) dropMove(dx > 0 ? 1 : -1); else if (dy > 40) dropMove(2); });
+
   // Speed Sort: a miss pauses the game and shows the right column until Next
   function sortMiss(g, it) { g.wait = { a: g.cols[it.col], why: (it.why ? it.why + ". " : "") + it.t.replace(/^[^\w\s]\S* /, ""), go: () => sortNext(g) }; }
   function sortNext(g) { g.i++; if (g.i >= g.n) finish(true); else nextFall(); }
@@ -389,6 +413,16 @@
       h += `<p class="ghelp">Tap the right column before the block lands. It speeds up as your streak grows.</p>
         <div class="gfall"><div class="gdrop" style="${g.wait ? "top:180px;animation:none" : `animation-duration:${g.dur}ms;animation-delay:-${el}ms`}" data-i="${g.i}">${esc(it.t)}</div><div class="gground"></div></div>
         ${fbBar()}<div class="gcols" style="grid-template-columns: repeat(${g.cols.length}, 1fr)">${g.cols.map((c, j) => { const d = (D.deco || {})[c]; return `<button type="button" class="gcol${d && d.tone != null ? " tone" + d.tone : ""}${g.wait && j === it.col ? " right" : ""}" data-act="bgsort" data-v="${j}" ${g.wait ? "disabled" : ""}>${d && d.icon ? `<i>${d.icon}</i> ` : ""}${esc(c)}</button>`; }).join("")}</div>${waitBox()}`;
+    } else if (g.game === "drop") {
+      const n = g.cols.length, c = g.cur, dm = D.deco || {}, tn = (it) => it.tone != null ? " tone" + it.tone : "";
+      h += `<p class="ghelp">Level ${g.level} · Steer each block into its column with ◀ ▶, a swipe, or arrow keys. ▼ drops it.</p>`;
+      h += c ? `<div class="gnow${tn(c.it)}">${dropIcon(c.it) ? `<i>${dropIcon(c.it)}</i> ` : ""}${esc(dropText(c.it))}</div>` : `<div class="gnow"></div>`;
+      h += `<div class="gwell${g.flash && Date.now() - g.flash < 900 ? " flash" : ""}" style="grid-template-columns: repeat(${n}, 1fr)">`;
+      h += g.cols.map((t, j) => { const d = dm[t]; return `<button type="button" class="gwh${d && d.tone != null ? " tone" + d.tone : ""}${g.wait && g.wait.col === j ? " right" : ""}" data-act="bgdcol" data-v="${j}">${d && d.icon ? `<i>${d.icon}</i>` : ""}${esc(t)}</button>`; }).join("");
+      for (let y = 0; y < g.rows; y++) for (let x = 0; x < n; x++) {
+        const st = g.stack[x][g.rows - 1 - y], it = c && c.col === x && c.row === y ? c.it : st ? st.it : null;
+        h += it ? `<b class="gdc${tn(it)}${st ? (st.ok ? "" : " bad") : " cur"}"><i>${dropIcon(it) || "■"}</i><small>${esc(dropText(it))}</small></b>` : `<b class="gdc empty"></b>`; }
+      h += `</div>${fbBar()}<div class="gdpad"><button type="button" data-act="bgdmove" data-v="-1" aria-label="Left">◀</button><button type="button" data-act="bgdmove" data-v="2" aria-label="Drop">▼</button><button type="button" data-act="bgdmove" data-v="1" aria-label="Right">▶</button></div>${waitBox()}`;
     } else if (g.game === "bingo") {
       const call = g.board[g.calls[g.i]];
       h += `<div class="gcall"><small>The call</small><b>${call.icon ? call.icon + " " : ""}${esc(call.a)}</b></div><div class="gbingo">${g.board.map((p, i) => `<button type="button" class="gbc${p.tone != null ? " tone" + p.tone : ""}${g.stamped.includes(i) ? " st" : ""}${g.fb && g.fb.i === i && !g.fb.ok ? " shake" : ""}${g.wait && g.calls[g.i] === i ? " right" : ""}" data-act="bgbingo" data-i="${i}" ${g.stamped.includes(i) ? "disabled" : ""}>${p.bicon ? `<i>${p.bicon}</i>` : ""}<span>${esc(p.b)}</span>${g.stamped.includes(i) ? '<em aria-hidden="true">★</em>' : ""}</button>`).join("")}</div>${fbBar()}${waitBox()}`;
@@ -405,7 +439,7 @@
   }
   function resultView() {
     const g = G, stars = g.pct >= 90 ? 3 : g.pct >= 70 ? 2 : g.pct >= 40 ? 1 : 0;
-    const msg = g.game === "boss" ? (g.win ? `You beat ${g.D.E.boss[1]}!` : `${g.D.E.boss[1]} wins this round.`) : g.game === "escape" ? (g.win ? `You escaped in ${Math.max(1, Math.round((Date.now() - g.t0) / 1000))} second${Math.round((Date.now() - g.t0) / 1000) > 1 ? "s" : ""}!` : "Out of keys. The door stays locked.") : g.game === "bingo" ? "BINGO!" : g.win ? "Round complete!" : "Round over";
+    const msg = g.game === "boss" ? (g.win ? `You beat ${g.D.E.boss[1]}!` : `${g.D.E.boss[1]} wins this round.`) : g.game === "escape" ? (g.win ? `You escaped in ${Math.max(1, Math.round((Date.now() - g.t0) / 1000))} second${Math.round((Date.now() - g.t0) / 1000) > 1 ? "s" : ""}!` : "Out of keys. The door stays locked.") : g.game === "bingo" ? "BINGO!" : g.game === "drop" ? (g.win ? "All 30 blocks dropped!" : "The stack hit the top!") : g.win ? "Round complete!" : "Round over";
     const more = SESSION && SESSION.queue.length;
     return `<div class="gres${g.win ? " win" : ""}"><p class="gstars" aria-label="${stars} of 3 stars">${"★".repeat(stars)}<span>${"★".repeat(3 - stars)}</span></p><h2>${esc(msg)}</h2>
       <p class="gnums"><span><b>${g.score}</b>points</span><span><b>${g.pct}%</b>right</span><span><b>${g.best}</b>best streak</span></p>
@@ -522,6 +556,8 @@
       else hit(ok);
       g.wait = { a: q.a, v, ok, why: q.why || "", go }; },
     bgnext: () => { const w = G.wait; if (!w) return false; G.wait = null; G.fb = null; G.calc = ""; w.go(); },
+    bgdmove: (b) => dropMove(+b.dataset.v),
+    bgdcol: (b) => { if (!G.cur || G.wait) return false; G.cur.col = +b.dataset.v; },
     bgcalc: (b) => { calcKey(b.dataset.v); return false; },
     bgcr: (b) => { G.cr = b.dataset.v === "cr"; G.reveal = false; },
     bgreveal: () => { G.reveal = true; },
