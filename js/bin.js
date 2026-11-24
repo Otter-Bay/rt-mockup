@@ -258,7 +258,7 @@
   };
   // home: the Memory Arcade button
   const way = () => { const n = Object.values(B.cards).filter((c) => !c.mastered).length;
-    return `<button type="button" class="way binway arcadeway" data-act="binopen" aria-label="Memory Arcade, Play to Learn${n ? `, ${n} saved` : ""}"><img class="arcotter" src="${IMG}otter-arcade-256.jpg" alt="" width="56" height="56"><span class="arctext"><b>Memory Arcade</b><span>Play to Learn${n ? "" : " · tap 🕹 Add to Arcade on any answer"}</span></span>${n ? `<span class="arcbadge">${n}</span>` : ""}</button>`; };
+    return `<button type="button" class="way binway arcadeway" data-act="binopen" aria-label="Play to Learn, Memory Arcade${n ? `, ${n} saved` : ""}"><span class="arctext"><b>Play to Learn</b><span><span>Memory Arcade</span>${n ? "" : " · tap 🕹 Add to Arcade on any answer"}</span></span>${n ? `<span class="arcbadge">${n}</span>` : ""}<img class="arcotter" src="${IMG}otter-arcade-256.jpg" alt="" width="30" height="30"></button>`; };
 
   // ---------- sound (optional) ----------
   let AC = null;
