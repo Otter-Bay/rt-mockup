@@ -389,15 +389,19 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .gcan { position: relative; min-height: 70px; border-radius: 14px 14px 8px 8px; background: #fff; font: inherit; font-size: 12px; font-weight: 700; color: var(--bay, #0A4A63); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; line-height: 1.1; box-shadow: 0 3px 0 rgba(0,0,0,.2); }
 .gcan b { position: absolute; top: 3px; left: 6px; font-size: 10px; opacity: .6; } .gcan i { font-style: normal; font-size: 20px; } .gcan:active { transform: translateY(3px); }
 /* Memory Arcade button: neon-edged gradient, joystick, saved count, gentle shimmer (off with reduced motion) */
+.way.arcadeway { position: relative; overflow: hidden; flex-direction: row; align-items: center; gap: 12px; min-height: 72px; border: 0; border-left: 0;
   background: linear-gradient(120deg, #2B1055, #0A4A63 55%, #0E7C86); color: #fff; box-shadow: 0 0 0 2px rgba(124,240,255,.55), 0 4px 14px rgba(43,16,85,.35); transition: transform .12s, box-shadow .12s; }
+.way.arcadeway::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.22) 45%, transparent 60%); transform: translateX(-120%); animation: arcshine 4.5s ease-in-out infinite; pointer-events: none; }
+@keyframes arcshine { 0%, 60% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
+.way.arcadeway .arcicon { font-size: 32px; line-height: 1; filter: drop-shadow(0 0 6px rgba(124,240,255,.8)); }
+.arctext { display: flex; flex-direction: column; gap: 2px; } .way.arcadeway b { color: #fff; font-family: "Fredoka", var(--font); font-size: 18px; letter-spacing: .02em; text-shadow: 0 0 8px rgba(124,240,255,.6); }
+.way.arcadeway .arctext > span { color: #CFF8FF; font-size: 13px; }
+.way.arcadeway .arcbadge { margin-left: auto; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 14px; background: var(--buoy, #F5B83D); color: #3A2800; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(245,184,61,.8); }
+.way.arcadeway:active { transform: scale(.97); box-shadow: 0 0 0 3px rgba(124,240,255,.9), 0 1px 4px rgba(43,16,85,.4); }
+@media (prefers-reduced-motion: reduce) { .way.arcadeway::after { animation: none; display: none; } .way.arcadeway { transition: none; } }
 /* arcade otter */
-.archero { display: block; width: min(100%, 320px); height: auto; margin: 0 auto; border-radius: 22px; box-shadow: 0 0 0 2px rgba(124,240,255,.5), 0 8px 24px rgba(43,16,85,.35); }
-.arch1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-
-/* calm Play to Learn button (Ken, t144u): fits the other home buttons, small otter on the right */
-.way.arcadeway { flex-direction: row; align-items: center; gap: 10px; min-height: 64px; border-left-color: #6B4FA0; background: linear-gradient(90deg, #fff 70%, #F3EEFB); }
-.arctext { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.way.arcadeway .arcbadge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: #EDE6F7; color: #4A3478; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex: none; }
-.way.arcadeway .arcotter { width: 30px; height: 30px; border-radius: 8px; flex: none; }
-.way.arcadeway:active { transform: scale(.98); }
-.way.arcadeway .arctext > b { color: var(--ink2); }
+.way.arcadeway .arcotter { width: 56px; height: 56px; border-radius: 12px; flex: none; box-shadow: 0 0 0 2px rgba(124,240,255,.6), 0 0 12px rgba(124,240,255,.5); }
+.archead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 10px; }
+.archead .arch1 { margin: 0; font-family: "Fredoka", var(--font); font-size: 24px; color: var(--ink, #12202E); }
+.archead p { margin: 2px 0 0; font-size: 14px; color: #5B4A86; font-weight: 600; }
+.archead-otter { width: 52px; height: 52px; border-radius: 12px; flex: none; }

@@ -226,9 +226,8 @@
 
   // ======================= Screen =======================
   const KEY = `obBin:${EXAM}`, DAY = 864e5;
-  // the arcade otter (Ken, t141u to t143u): full size as the Memory Arcade hero, 256 px on the home button
+  // the arcade otter (Ken, t141u to t143u): 256 px copy on the home button and in the calm Memory Arcade screen header (t145u)
   const IMG = ((document.querySelector('link[href*="voice.css"]') || {}).href || "").replace(/css\/voice\.css.*$/, "") + "images/brand/";
-  const OTTER_ALT = "A sea otter playing an arcade joystick under a glowing sign: Memory Arcade, Play to Learn";
   const load = () => { try { return Object.assign({ cards: {}, streak: 0, lastDay: "", sound: true, badges: [], offset: 0 }, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { return { cards: {}, streak: 0, lastDay: "", sound: true, badges: [], offset: 0 }; } };
   let B = load();
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(B)); } catch (e) {} };
@@ -258,7 +257,7 @@
   };
   // home: the Memory Arcade button
   const way = () => { const n = Object.values(B.cards).filter((c) => !c.mastered).length;
-    return `<button type="button" class="way binway arcadeway" data-act="binopen" aria-label="Play to Learn, Memory Arcade${n ? `, ${n} saved` : ""}"><span class="arctext"><b>Play to Learn</b><span><span>Memory Arcade</span>${n ? "" : " · tap 🕹 Add to Arcade on any answer"}</span></span>${n ? `<span class="arcbadge">${n}</span>` : ""}<img class="arcotter" src="${IMG}otter-arcade-256.jpg" alt="" width="30" height="30"></button>`; };
+    return `<button type="button" class="way binway arcadeway" data-act="binopen" aria-label="Memory Arcade, Play to Learn${n ? `, ${n} saved` : ""}"><img class="arcotter" src="${IMG}otter-arcade-256.jpg" alt="" width="56" height="56"><span class="arctext"><b>Memory Arcade</b><span>Play to Learn${n ? "" : " · tap 🕹 Add to Arcade on any answer"}</span></span>${n ? `<span class="arcbadge">${n}</span>` : ""}</button>`; };
 
   // ---------- sound (optional) ----------
   let AC = null;
@@ -472,7 +471,7 @@
   }
   function binView() {
     const cards = Object.entries(B.cards).filter(([, c]) => !c.mastered), done = Object.entries(B.cards).filter(([, c]) => c.mastered);
-    let h = `<h1 class="arch1">Memory Arcade: Play to Learn</h1><img class="archero" src="${IMG}otter-arcade.jpg" alt="${OTTER_ALT}" width="1024" height="1024"><div class="bintop"><p>🔥 <b>${B.streak}</b>-day streak</p><button type="button" class="gsnd" data-act="binsound" aria-label="Sound ${B.sound ? "on" : "off"}">${B.sound ? "🔊" : "🔇"}</button></div>`;
+    let h = `<div class="archead"><div><h1 class="arch1">Play to Learn</h1><p>Memory Arcade</p></div><img class="archead-otter" src="${IMG}otter-arcade-256.jpg" alt="" width="52" height="52"></div><div class="bintop"><p>🔥 <b>${B.streak}</b>-day streak</p><button type="button" class="gsnd" data-act="binsound" aria-label="Sound ${B.sound ? "on" : "off"}">${B.sound ? "🔊" : "🔇"}</button></div>`;
     if (!cards.length) h += `<div class="binempty"><p><b>Your Memory Arcade is empty.</b> Tap <b>🕹 Add to Arcade</b> after you answer a question (or on an Ask answer) to put that topic here.</p>
       <button type="button" class="gbig" data-act="binseed">Try the examples</button><p class="ghelp">Apgar (scoring grid), Gas laws (laws), Blood gas normals (numbers), and two sleep tables: AHI severity (order matters) and sleep stages (any order).</p></div>`;
     else {
