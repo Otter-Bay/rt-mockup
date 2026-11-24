@@ -314,7 +314,7 @@
     save(); beep(win ? "win" : "no");
     if (win && G.right > 0 && G.wrong === 0) celebrate();
   }
-  // perfect score party (Ken, t148u to t153u): "Yes, perfect score!!!" bubble, fist pump, side-view moonwalk, confetti and balloons; tap to skip
+  // perfect score party (Ken, t148u to t153u): "Yes, perfect score!!!" bubble, fist pump, side-view moonwalk, confetti raining and balloons bobbing (t154u), 4.5 s at most; tap to skip
   const YES = "Yes, perfect score!!!";
   function celebrate() {
     const old = document.querySelector(".party"); if (old) old.remove();
@@ -323,13 +323,13 @@
     const el = document.createElement("div");
     el.className = "party" + (still ? " still" : ""); el.setAttribute("role", "status"); el.setAttribute("aria-label", YES);
     el.innerHTML = `<div class="pstage"><p class="pbubble">${YES}</p><img class="pyes" src="${IMG}otter-yes.webp" alt="" width="242" height="300">${still ? "" : `<img class="pmw" src="${IMG}otter-moonwalk.webp" alt="" width="202" height="300">`}</div>` +
-      (still ? "" : `<div class="pconf" aria-hidden="true">${Array.from({ length: 44 }, (_, i) => `<i style="--x:${(i * 23) % 100}%;--d:${(i % 9) * 0.07}s;--r:${(i * 47) % 360}deg;--c:${cols[i % 6]}"></i>`).join("")}</div><div class="pball" aria-hidden="true">${Array.from({ length: 7 }, (_, i) => `<b style="--x:${6 + i * 14}%;--d:${(i % 4) * 0.25}s;--c:${cols[(i + 2) % 6]}"></b>`).join("")}</div>`) +
+      (still ? "" : `<div class="pconf" aria-hidden="true">${Array.from({ length: 72 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--d:${((i * 53) % 120) / 100}s;--t:${1.6 + (i % 5) * 0.25}s;--dx:${(i % 7) * 9 - 27}px;--w:${5 + (i % 4) * 2}px;--h:${8 + (i % 3) * 4}px;--f:${0.5 + (i % 4) * 0.15}s;--c:${cols[i % 6]}"></i>`).join("")}</div><div class="pball" aria-hidden="true">${Array.from({ length: 7 }, (_, i) => `<b style="--x:${4 + i * 14}%;--y:${48 + (i * 29) % 26}vh;--d:${(i % 4) * 0.15}s;--p:${1.1 + (i % 3) * 0.3}s;--c:${cols[(i + 2) % 6]}"></b>`).join("")}</div>`) +
       `<small class="pskip">Tap to continue</small>`;
     const done = () => { el.classList.add("out"); setTimeout(() => el.remove(), 250); };
     el.addEventListener("click", done);
     document.body.appendChild(el);
-    if (!still) setTimeout(() => el.classList.add("mw"), 1700);
-    setTimeout(done, still ? 2600 : 3800);
+    if (!still) setTimeout(() => el.classList.add("mw"), 1800);
+    setTimeout(done, still ? 2600 : 4250);   // gone by 4.5 s, under Ken's 5 s cap (t154u)
   }
   function nextFall() { const g = G; clearTimeout(g.timer); g.fallStart = Date.now(); g.dur = Math.max(3200, 6500 - g.streak * 350);
     g.timer = setTimeout(() => { if (G !== g || g.over) return; hit(false, "Too slow"); sortMiss(g, g.items[g.i]); render(); }, g.dur); }
