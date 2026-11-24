@@ -430,6 +430,7 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .pstream { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
 .pstream-front { z-index: 3; clip-path: inset(calc(82% - 114px) 0 0 0); } /* front streamers only over the body, lower half and sides; head and face stay clear (t184u) */
 .pstr { position: absolute; top: -24px; left: var(--x); animation: pstrfall var(--t) linear var(--d) infinite backwards, pstrflut var(--f) ease-in-out infinite alternate; transform-origin: 50% 0; }
+.pstream-front .pstr { top: calc(82% - 114px); } /* start at the chest line so they drape the body instead of falling from the top */
 .pstr svg { display: block; overflow: visible; }
 @keyframes pstrfall { from { translate: 0 -8%; } to { translate: var(--dx) 110vh; } }
 @keyframes pstrflut { from { transform: rotate(-14deg) translateX(-10px); } to { transform: rotate(16deg) translateX(12px); } }

@@ -319,16 +319,16 @@
   // streamers (Ken, t183u, t184u): curly wavy ribbons in random bright colors, fall from the top and flutter; the front set is clipped to the body, lower half and sides so the head stays clear
   function streamers(front) {
     const R = (a, b) => a + Math.random() * (b - a), pal = shuffle(["#E53935", "#FB8C00", "#FDD835", "#43A047", "#1E88E5", "#8E24AA", "#EC407A", "#00ACC1", "#7CB342"]);
-    const n = front ? 6 : 12;
+    const n = front ? 8 : 12;
     return Array.from({ length: n }, (_, i) => {
-      const amp = R(7, 14), period = R(22, 40), len = front ? R(110, 170) : R(140, 220), w = R(6, 11), steps = 24;
+      const amp = R(7, 14), period = R(22, 40), len = front ? R(90, 150) : R(140, 220), w = R(6, 11), steps = 24;
       let d = "";
       for (let s = 0; s <= steps; s++) {
         const y = (s / steps) * len, x = 16 + Math.sin((y / period) * Math.PI * 2) * amp;
         d += (s ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
       }
-      const x = front ? 8 + i * (84 / n) + R(0, 6) : (i * 41) % 100;
-      return `<i class="pstr" style="--x:${x.toFixed(1)}%;--d:${R(0, 0.9).toFixed(2)}s;--t:${((front ? 1.8 : 2.2) + R(0, 1.1)).toFixed(2)}s;--dx:${R(-28, 28).toFixed(0)}px;--f:${R(0.5, 0.9).toFixed(2)}s;--c:${pal[i % pal.length]}"><svg viewBox="0 0 32 ${len.toFixed(0)}" width="${(w + 10).toFixed(0)}" height="${len.toFixed(0)}" aria-hidden="true"><path d="${d}" fill="none" stroke="var(--c)" stroke-width="${w.toFixed(1)}" stroke-linecap="round" stroke-linejoin="round"/></svg></i>`;
+      const x = front ? 12 + i * (58 / n) + R(0, 5) : (i * 41) % 100;
+      return `<i class="pstr" style="--x:${x.toFixed(1)}%;--d:${R(0, front ? 0.4 : 0.9).toFixed(2)}s;--t:${((front ? 2.4 : 2.2) + R(0, 0.8)).toFixed(2)}s;--dx:${R(-22, 22).toFixed(0)}px;--f:${R(0.5, 0.9).toFixed(2)}s;--c:${pal[i % pal.length]}"><svg viewBox="0 0 32 ${len.toFixed(0)}" width="${(w + 10).toFixed(0)}" height="${len.toFixed(0)}" aria-hidden="true"><path d="${d}" fill="none" stroke="var(--c)" stroke-width="${w.toFixed(1)}" stroke-linecap="round" stroke-linejoin="round"/></svg></i>`;
     }).join("");
   }
   function celebrate() {
