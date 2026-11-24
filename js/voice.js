@@ -17,7 +17,7 @@
   const THEME = { RRT: ["#0A4A63", "#3FB8B3", "#E7F4F3", "#F5B83D", "#3A2600"], SDS: ["#14193F", "#7E8FD6", "#ECEEF8", "#C9B8FF", "#1C1240"],
     RPSGT: ["#123B2E", "#7CC4A0", "#EAF4EE", "#F2A65A", "#3A1E00"], CNA: ["#5A2340", "#F2A3A0", "#FBEFF0", "#FFD37A", "#3A2400"] }[EXAM] || [];
   const themeVars = () => THEME.length ? `--bay:${THEME[0]};--tide:${THEME[1]};--glass:${THEME[2]};--buoy:${THEME[3]};--accentInk:${THEME[4]}` : "";
-  window.OB_THEME = themeVars;   // the study bin page (js/bin.js) uses the same colors
+  window.OB_THEME = themeVars;   // the Memory Arcade page (js/bin.js) uses the same colors
   const EXAMPLES = { RRT: ["What is static compliance?", "Glasgow Coma Scale", "Nasal cannula FIO2"],
     SDS: ["How is a hypopnea scored?", "What does AHI mean?", "Medicare CPAP compliance"],
     RPSGT: ["Arousal rule", "How do I score sleep stages?", "Periodic limb movements"],

@@ -187,7 +187,7 @@ study("all four apps load the study sheet", !missingRecall.length, missingRecall
 const vsrc = fs.readFileSync(path.join(ROOT, "js/voice.js"), "utf8");
 study("Ask offers Print study sheet and brings back Your study page", vsrc.includes("Print study sheet") && vsrc.includes("Your study page") && vsrc.includes("My study pages"), "button text missing");
 
-// ---------- Study bin and games (js/bin.js) ----------
+// ---------- Memory Arcade (study bin) and games (js/bin.js) ----------
 {
   const exams = ["RRT", "SDS", "RPSGT", "CNA"].map((e) => { const C = loadStudy(e); vm.runInContext(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8"), C, { filename: "js/bin.js" }); return C; });
   const C = exams[0], BN = C.OB_BIN, card = (k) => JSON.stringify(C.SCALES[k]) + JSON.stringify(C.SCALES.oxy || "");
@@ -261,8 +261,9 @@ study("Ask offers Print study sheet and brings back Your study page", vsrc.inclu
   const missingBin = PAGES_HTML.filter((f) => { const h = fs.readFileSync(path.join(ROOT, f), "utf8"); return !(h.indexOf("js/bin.js") > h.indexOf("js/voice.js")); });
   study("all four apps load the study bin after Ask", !missingBin.length, missingBin.join(", "));
   const hsrc = fs.readFileSync(path.join(ROOT, "js/home.js"), "utf8");
-  study("Study this flag on Ask answers, Study bin on home", vsrc.includes("OB_BIN.flag(k)") && hsrc.includes("OB_BIN.way()") && vsrc.includes("window.OB_THEME = themeVars"), "hook missing");
+  study("Add to Arcade flag on Ask answers, Memory Arcade on home", vsrc.includes("OB_BIN.flag(k)") && hsrc.includes("OB_BIN.way()") && vsrc.includes("window.OB_THEME = themeVars"), "hook missing");
   const bsrc = fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8");
+  study("renamed Memory Arcade: no \"study bin\" or \"Study this\" left in what the learner sees", !/study bin|Study this/i.test(bsrc.split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n")) && bsrc.includes(">Memory Arcade<") && bsrc.includes("Play to Learn") && bsrc.includes("Add to Arcade") && bsrc.includes("obBin:"), "old name in the UI");
   study("practice questions get the flag through scaleButtons, after the answer", /W\.scaleButtons = function \(q, c\)/.test(bsrc) && bsrc.includes("if (!c || !c.done) return h"), "wrap missing");
 }
 

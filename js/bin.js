@@ -1,7 +1,8 @@
-/* Study bin and games (mockup).
-   - One tap "Study this" flag on a practice question's reference card (after the answer) and on Ask answers. The flag holds the
+/* Memory Arcade ("Play to Learn"; first named the bin, until Ken renamed it, t136u to t140u) and its games (mockup).
+   Code names (bin*, obBin storage keys) stay as they were so saved cards keep working.
+   - One tap "Add to Arcade" flag on a practice question's reference card (after the answer) and on Ask answers. The flag holds the
      concept (the Ask card), so every question about Apgar lands on the same card.
-   - Study bin: each card shows its step (1 Make it, 2 Recall it, 3 Use it, then quick checks) and ONE Continue button. A short
+   - Memory Arcade: each card shows its step (1 Make it, 2 Recall it, 3 Use it, then quick checks) and ONE Continue button. A short
      session runs 2 or 3 cards and ends with a small win. "Pick a different game" opens the games gallery.
    - Ten games, all with the same controls (tap a choice; Check / Next), score, streak, quick rounds, optional sound.
    - Mockup scope: games are built for three example cards, one per content type: Apgar (scoring grid), Gas laws (laws and
@@ -243,7 +244,7 @@
   function flag(k) {
     if (!W.SCALES[k]) return "";
     const on = inBin(k);
-    return `<button type="button" class="binflag${on ? " on" : ""}" data-act="binflag" data-k="${k}" aria-pressed="${on}"><span aria-hidden="true">${on ? "★" : "☆"}</span><span><b>${on ? "In your study bin" : "Study this"}</b><small>${esc(W.SCALES[k].title)}</small></span></button>`;
+    return `<button type="button" class="binflag${on ? " on" : ""}" data-act="binflag" data-k="${k}" aria-pressed="${on}"><span aria-hidden="true">${on ? "★" : "🕹"}</span><span><b>${on ? "In your Memory Arcade" : "Add to Arcade"}</b><small>${esc(W.SCALES[k].title)}</small></span></button>`;
   }
   // practice questions: a flag under the reference-card buttons (shown after the answer, like the cards)
   const origScale = W.scaleButtons;
@@ -252,9 +253,9 @@
     const ks = (q.scales || []).filter((k) => W.SCALES[k]);
     return h + (ks.length ? `<div class="binflags">${ks.map(flag).join("")}</div>` : "");
   };
-  // home: a "Study bin" way to practice
+  // home: the Memory Arcade button
   const way = () => { const n = Object.values(B.cards).filter((c) => !c.mastered).length;
-    return `<button type="button" class="way binway" data-act="binopen"><b>Study bin</b><span>${n ? `${n} card${n === 1 ? "" : "s"} to learn well · games` : "Flag a topic to learn it with games"}</span></button>`; };
+    return `<button type="button" class="way binway arcadeway" data-act="binopen" aria-label="Memory Arcade, Play to Learn${n ? `, ${n} saved` : ""}"><span class="arcicon" aria-hidden="true">🕹️</span><span class="arctext"><b>Memory Arcade</b><span>Play to Learn${n ? "" : " · tap 🕹 Add to Arcade on any answer"}</span></span>${n ? `<span class="arcbadge">${n}</span>` : ""}</button>`; };
 
   // ---------- sound (optional) ----------
   let AC = null;
@@ -304,7 +305,7 @@
       const useG = EX[exKey(G.k)].useGame || "baby";
       if (c.step === 2 && G.game !== useG) { c.step = 3; G.moved = "Next step: Use it"; }
       else if (c.step === 3 && G.game === useG) { c.step = 4; c.due = now() + CHECKS[0] * DAY; G.moved = "Next: a quick check in 1 day"; }
-      else if (c.step === 4 && c.due <= now()) { c.checks++; if (c.checks >= CHECKS.length) { c.mastered = true; G.moved = "Mastered! It leaves your bin."; } else { c.due = now() + CHECKS[c.checks] * DAY; G.moved = `Next quick check in ${CHECKS[c.checks]} days`; } }
+      else if (c.step === 4 && c.due <= now()) { c.checks++; if (c.checks >= CHECKS.length) { c.mastered = true; G.moved = "Mastered! It leaves your Arcade."; } else { c.due = now() + CHECKS[c.checks] * DAY; G.moved = `Next quick check in ${CHECKS[c.checks]} days`; } }
       void ex;
     }
     if (c) c.best[G.game] = Math.max(c.best[G.game] || 0, G.score);
@@ -463,13 +464,13 @@
       <p class="gnums"><span><b>${g.score}</b>points</span><span><b>${g.pct}%</b>right</span><span><b>${g.best}</b>best streak</span></p>
       ${g.moved ? `<p class="gmoved">🎯 ${esc(g.moved)}</p>` : ""}${g.game === "table" && g.D.E.tip ? `<p class="gwhy">💡 ${esc(g.D.E.tip)}</p>` : ""}
       ${g.win ? `<div class="stconfetti" aria-hidden="true">${Array.from({ length: 24 }, (_, i) => `<i style="--x:${(i * 41) % 100}%;--d:${(i % 6) * 0.08}s;--c:${["#C62828", "#E65100", "#B08900", "#2E7D32", "#1565C0", "#6A1B9A"][i % 6]}"></i>`).join("")}</div>` : ""}
-      <button type="button" class="gbig" data-act="${more ? "binnext" : "binend"}">${more ? "Continue: next card ▶" : SESSION ? "Finish session" : "Back to my study bin"}</button>
+      <button type="button" class="gbig" data-act="${more ? "binnext" : "binend"}">${more ? "Continue: next card ▶" : SESSION ? "Finish session" : "Back to my Memory Arcade"}</button>
       <div class="grow"><button type="button" class="glink" data-act="bgagain">Play again</button><button type="button" class="glink" data-act="bingallery" data-k="${g.k}">Pick a different game</button></div></div>`;
   }
   function binView() {
     const cards = Object.entries(B.cards).filter(([, c]) => !c.mastered), done = Object.entries(B.cards).filter(([, c]) => c.mastered);
     let h = `<div class="bintop"><p>🔥 <b>${B.streak}</b>-day streak</p><button type="button" class="gsnd" data-act="binsound" aria-label="Sound ${B.sound ? "on" : "off"}">${B.sound ? "🔊" : "🔇"}</button></div>`;
-    if (!cards.length) h += `<div class="binempty"><p><b>Your study bin is empty.</b> Tap <b>☆ Study this</b> after you answer a question (or on an Ask answer) to put that topic here.</p>
+    if (!cards.length) h += `<div class="binempty"><p><b>Your Memory Arcade is empty.</b> Tap <b>🕹 Add to Arcade</b> after you answer a question (or on an Ask answer) to put that topic here.</p>
       <button type="button" class="gbig" data-act="binseed">Try the examples</button><p class="ghelp">Apgar (scoring grid), Gas laws (laws), Blood gas normals (numbers), and two sleep tables: AHI severity (order matters) and sleep stages (any order).</p></div>`;
     else {
       const sc = sessionCards().length;
@@ -499,12 +500,12 @@
     return `<div class="gres win"><p class="gbadge">${SESSION.badge ? SESSION.badge[1] : "🔥"}</p><h2>Session done!</h2>${SESSION.badge ? `<p class="gmoved">New badge: ${esc(SESSION.badge[2])}</p>` : `<p class="gmoved">Streak kept: ${B.streak} day${B.streak === 1 ? "" : "s"}</p>`}<p class="gnums"><span><b>${s.cards}</b>cards</span><span><b>${s.points}</b>points</span><span><b>🔥 ${B.streak}</b>day streak</span></p>
       <p class="ghelp">Short and done. Come back tomorrow to keep your streak; quick checks come back at 1, 7 and 30 days.</p>
       <div class="stconfetti" aria-hidden="true">${Array.from({ length: 30 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--d:${(i % 7) * 0.08}s;--c:${["#C62828", "#E65100", "#B08900", "#2E7D32", "#1565C0", "#6A1B9A"][i % 6]}"></i>`).join("")}</div>
-      <button type="button" class="gbig" data-act="binhome">Back to my study bin</button></div>`;
+      <button type="button" class="gbig" data-act="binhome">Back to my Memory Arcade</button></div>`;
   }
   function page() {
     const theme = W.OB_THEME ? W.OB_THEME() : "";
-    const title = VIEW === "game" ? gameName(G.game, G.k) : VIEW === "gallery" ? "Pick a game" : VIEW === "win" ? "Nice work" : "Study bin";
-    const sub = VIEW === "game" ? G.D.title : VIEW === "gallery" ? W.SCALES[GAL].title : "Topics you flagged to learn well";
+    const title = VIEW === "game" ? gameName(G.game, G.k) : VIEW === "gallery" ? "Pick a game" : VIEW === "win" ? "Nice work" : "Memory Arcade";
+    const sub = VIEW === "game" ? G.D.title : VIEW === "gallery" ? W.SCALES[GAL].title : "Play to Learn";
     const body = VIEW === "game" ? (G.over ? "" : hud()) + gameView() : VIEW === "gallery" ? galleryView(GAL) : VIEW === "win" ? winView() : binView();
     return `<div class="ob ask bin" style="${theme}"><header class="obtop asktop"><button type="button" class="askback" data-act="binback" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>Back</span></button>
       <span class="wm">${esc(title)}<small>${esc(sub)}</small></span></header><div class="obscroll askscroll binscroll">${body}</div></div>`;
