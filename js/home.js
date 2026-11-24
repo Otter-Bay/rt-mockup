@@ -132,6 +132,7 @@
         <section class="obsec">
           <h2>Ways to practice</h2>
           <div class="ways">
+            ${window.OB_BIN && OB_BIN.way ? OB_BIN.way() : ""}
             <button type="button" class="way" data-act="go" data-v="review"><b>Review list</b><span>${rl ? `${rl} question${rl === 1 ? "" : "s"} to revisit` : "Missed and unsure questions land here"}</span></button>
             <button type="button" class="way" data-act="go" data-v="exam"><b>Exam mode</b><span>Timed, with answers at the end</span></button>
             <button type="button" class="way" data-act="go" data-v="build"><b>Build a set</b><span>Choose sections, question types and mode</span></button>

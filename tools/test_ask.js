@@ -187,6 +187,63 @@ study("all four apps load the study sheet", !missingRecall.length, missingRecall
 const vsrc = fs.readFileSync(path.join(ROOT, "js/voice.js"), "utf8");
 study("Ask offers Print study sheet and brings back Your study page", vsrc.includes("Print study sheet") && vsrc.includes("Your study page") && vsrc.includes("My study pages"), "button text missing");
 
+// ---------- Study bin and games (js/bin.js) ----------
+{
+  const exams = ["RRT", "SDS", "RPSGT", "CNA"].map((e) => { const C = loadStudy(e); vm.runInContext(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8"), C, { filename: "js/bin.js" }); return C; });
+  const C = exams[0], BN = C.OB_BIN, card = (k) => JSON.stringify(C.SCALES[k]) + JSON.stringify(C.SCALES.oxy || "");
+  study("the bin's three example cards load in all four apps", exams.every((X) => ["apgar", "gaslaws", "abg"].every((k) => X.OB_BIN.data(k))), "an example card is missing in one app");
+  study("ten games, each with a name", BN.GAMES.length === 10 && BN.GAMES.every((g) => g[1] && g[2]), BN.GAMES.length);
+  study("oxygenation indices share the blood gas example; other cards have no games yet", BN.exKey("oxy") === "abg" && BN.exKey("ahi") === null && BN.data("ahi") === null, "exKey");
+  const D = { apgar: BN.data("apgar"), gaslaws: BN.data("gaslaws"), abg: BN.data("abg") };
+  const plainOf = (k) => C.OB_STUDY.plain(card(k));
+  const offCard = []; for (const k in D) for (const p of D[k].pairs) if (!plainOf(k).includes(p.b)) offCard.push(k + ": " + p.b);
+  study("every game answer is copied from its card", !offCard.length, offCard.slice(0, 3).join(" | "));
+  const ap = D.apgar.table;
+  study("Build the Table: Apgar is a 5 × 3 grid with its row and column names", ap.rowHeads.length === 5 && ap.colHeads.map((c) => c.t).join() === "0,1,2" && ap.cells.every((r) => r.length === 3), JSON.stringify(ap.colHeads));
+  let babyOk = true, babyWhy = "";
+  for (let i = 0; i < 200; i++) { const s = BN.scenario("apgar"), parts = s.why.match(/(\d) \+ .* = (\d+)/), nums = s.why.split("=")[0].match(/\d/g).map(Number), tot = +s.a;
+    const band = tot >= 7 ? "reassuring" : tot >= 4 ? "moderately abnormal" : "low";
+    if (!parts || nums.length !== 5 || nums.reduce((a, b) => a + b, 0) !== tot || !s.why.includes(band) || !s.o.includes(s.a)) { babyOk = false; babyWhy = s.why; break; }
+    const hr = s.lines[1].match(/(\d+)\/min/); if (hr && ((nums[1] === 1) !== (+hr[1] < 100))) { babyOk = false; babyWhy = s.lines[1] + " scored " + nums[1]; break; } }
+  study("Score the Baby: the total is the sum of the 5 signs, the heart rate matches its score, and the band follows the card", babyOk, babyWhy);
+  let calcOk = true, calcWhy = "";
+  for (let i = 0; i < 300; i++) { const s = BN.scenario("abg"), L = s.lines[0], o = new Set(s.o);
+    if (o.size !== s.o.length || !s.o.includes(s.a)) { calcOk = false; calcWhy = "options " + s.o; break; }
+    let m;
+    if ((m = L.match(/PaCO2 (\d+) mm Hg · PaO2 (\d+)/))) { const want = Math.round(0.21 * (760 - 47) - m[1] / 0.8) - m[2]; if (s.a !== want + " mm Hg") { calcOk = false; calcWhy = L + " → " + s.a; break; } }
+    else if ((m = L.match(/PaO2 (\d+) mm Hg on FIO2 ([\d.]+)/))) { if (s.a !== String(Math.round(m[1] / m[2]))) { calcOk = false; calcWhy = L + " → " + s.a; break; } }
+    else if ((m = L.match(/HCO3- (\d+)/))) { const e = 1.5 * m[1] + 8; if (s.a !== `${e - 2} to ${e + 2} mm Hg`) { calcOk = false; calcWhy = L + " → " + s.a; break; } }
+    else { calcOk = false; calcWhy = "unknown case " + L; break; } }
+  study("Calculate it: A–a gradient, P/F ratio and Winter's formula answers are right, with no repeated choices", calcOk, calcWhy);
+  let sortOk = true, sortWhy = "";
+  for (let i = 0; i < 300; i++) { const v = D.abg.value(i % 3), R = D.abg.ranges.find((r) => r.name === v.name); if (!R) continue;
+    const got = v.v < R.lo ? 0 : v.v > R.hi ? 2 : 1; if (got !== v.col) { sortOk = false; sortWhy = v.t + " in column " + v.col; break; } }
+  study("Speed Sort: made-up blood gas values land in the right column (too low, normal, too high)", sortOk, sortWhy);
+  let oddOk = true;
+  for (const k in D) for (let i = 0; i < 50; i++) { const r = D[k].oddRound(); if (r.tiles.length !== 4 || r.tiles.filter((t) => t.odd).length !== 1 || new Set(r.tiles.map((t) => t.t)).size !== 4) oddOk = false; }
+  study("Odd One Out: four different tiles with exactly one odd one", oddOk, "bad round");
+  let mcOk = true, mcWhy = "";
+  for (const k in D) for (let i = 0; i < 20; i++) for (const q of D[k].qs()) if (!q.o.includes(q.a) || new Set(q.o).size !== q.o.length || q.o.length < 2) { mcOk = false; mcWhy = k + ": " + q.p; }
+  for (const k of ["apgar", "gaslaws"]) for (let i = 0; i < 50; i++) { const s = BN.scenario(k); if (!s.o.includes(s.a) || new Set(s.o).size !== s.o.length) { mcOk = false; mcWhy = k + " scenario"; } }
+  study("every multiple-choice question has its answer among different choices", mcOk, mcWhy);
+  let cwOk = true, cwWhy = "";
+  for (const k in D) for (let i = 0; i < 20; i++) { const cw = BN.crossword(D[k].E.words), grid = {};
+    if (!cw || cw.words.length < 7) { cwOk = false; cwWhy = k + " placed " + (cw && cw.words.length); break; }
+    for (const w of cw.words) for (let j = 0; j < w.w.length; j++) { const x = w.x + (w.dir === "a" ? j : 0), y = w.y + (w.dir === "a" ? 0 : j), key = x + "," + y;
+      if (x < 0 || y < 0 || x >= cw.w || y >= cw.h || (grid[key] && grid[key] !== w.w[j])) { cwOk = false; cwWhy = k + ": " + w.w; } grid[key] = w.w[j]; } }
+  study("Crossword: at least 7 words placed, crossing letters agree, all inside the grid", cwOk, cwWhy);
+  const clueOff = [];
+  for (const k in D) for (const [w] of D[k].E.words) { const t = plainOf(k).toUpperCase().replace(/[^A-Z]/g, ""), alt = { TEN: "10", FIVE: "5MINUTE", SIXTEEN: "16", SEVEN: "735", HUNDRED: "100MM", FORTYSEVEN: "47", ANIONGAP: "ANIONGAP" }[w];
+    if (!t.includes(w) && !(alt && plainOf(k).toUpperCase().replace(/[^A-Z0-9]/g, "").includes(alt))) clueOff.push(w); }
+  study("every crossword answer is on its card", !clueOff.length, clueOff.join(", "));
+  const missingBin = PAGES_HTML.filter((f) => { const h = fs.readFileSync(path.join(ROOT, f), "utf8"); return !(h.indexOf("js/bin.js") > h.indexOf("js/voice.js")); });
+  study("all four apps load the study bin after Ask", !missingBin.length, missingBin.join(", "));
+  const hsrc = fs.readFileSync(path.join(ROOT, "js/home.js"), "utf8");
+  study("Study this flag on Ask answers, Study bin on home", vsrc.includes("OB_BIN.flag(k)") && hsrc.includes("OB_BIN.way()") && vsrc.includes("window.OB_THEME = themeVars"), "hook missing");
+  const bsrc = fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8");
+  study("practice questions get the flag through scaleButtons, after the answer", /W\.scaleButtons = function \(q, c\)/.test(bsrc) && bsrc.includes("if (!c || !c.done) return h"), "wrap missing");
+}
+
 const total = CHECKS.length + ROW_CHECKS.length + UI_FILES.length + st;
 console.log(bad ? `\n${bad} of ${total} checks failed` : `\nAll ${total} checks passed`);
 process.exit(bad ? 1 : 0);

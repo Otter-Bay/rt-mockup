@@ -17,6 +17,7 @@
   const THEME = { RRT: ["#0A4A63", "#3FB8B3", "#E7F4F3", "#F5B83D", "#3A2600"], SDS: ["#14193F", "#7E8FD6", "#ECEEF8", "#C9B8FF", "#1C1240"],
     RPSGT: ["#123B2E", "#7CC4A0", "#EAF4EE", "#F2A65A", "#3A1E00"], CNA: ["#5A2340", "#F2A3A0", "#FBEFF0", "#FFD37A", "#3A2400"] }[EXAM] || [];
   const themeVars = () => THEME.length ? `--bay:${THEME[0]};--tide:${THEME[1]};--glass:${THEME[2]};--buoy:${THEME[3]};--accentInk:${THEME[4]}` : "";
+  window.OB_THEME = themeVars;   // the study bin page (js/bin.js) uses the same colors
   const EXAMPLES = { RRT: ["What is static compliance?", "Glasgow Coma Scale", "Nasal cannula FIO2"],
     SDS: ["How is a hypopnea scored?", "What does AHI mean?", "Medicare CPAP compliance"],
     RPSGT: ["Arousal rule", "How do I score sleep stages?", "Periodic limb movements"],
@@ -489,7 +490,7 @@
   function studyButtons(k) {
     const SB = window.OB_STUDY; if (!SB || !SB.open) return "";
     const mine = SB.hasPage(k);
-    return `<div class="askstudy">${mine ? `<button type="button" class="askmypage" data-act="askstudy" data-k="${k}" data-build="1"><span class="thumbwrap">${SB.thumb(k)}</span><span><b>Your study page</b><small>View it, keep building, or print it again</small></span></button>` : ""}
+    return `<div class="askstudy">${window.OB_BIN && OB_BIN.flag ? OB_BIN.flag(k) : ""}${mine ? `<button type="button" class="askmypage" data-act="askstudy" data-k="${k}" data-build="1"><span class="thumbwrap">${SB.thumb(k)}</span><span><b>Your study page</b><small>View it, keep building, or print it again</small></span></button>` : ""}
       <button type="button" class="askprint" data-act="askstudy" data-k="${k}">${PRINT_ICON}<span>Print study sheet</span></button></div>`;
   }
   const PRINT_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>';
