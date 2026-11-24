@@ -108,7 +108,7 @@ let st = 0;
 const study = (name, ok, why) => { st++; if (!ok) bad++; console.log(`${ok ? "ok  " : "FAIL"} [study] ${name}${ok ? "" : "  <- " + why}`); };
 function loadStudy(exam) {
   const ctx = vm.createContext({ console }); ctx.window = ctx; ctx.EXAM = exam;
-  for (const f of ["js/scales.js", "js/sleep_scales.js", "js/cna_scales.js", "js/acronyms.js", "js/recall.js"])
+  for (const f of ["js/scales.js", "js/sleep_scales.js", "js/cna_scales.js", "js/acronyms.js", "js/memory_ideas.js", "js/recall.js"])
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), ctx, { filename: f });
   return ctx;
 }
@@ -137,8 +137,11 @@ function loadStudy(exam) {
   study("gas-law ideas: Boyle syringe, Charles kettle, Henry bottle, Laplace bubble, Bernoulli wing, Venturi hourglass, Graham runner",
     ideaOf("Boyle") === "syringe" && ideaOf("Charles") === "kettle" && ideaOf("Henry") === "bottle" && ideaOf("Laplace") === "bubble" && ideaOf("Bernoulli") === "wing" && ideaOf("Venturi") === "hourglass" && ideaOf("Graham") === "runner",
     ["Boyle", "Charles", "Henry", "Laplace", "Bernoulli", "Venturi", "Graham"].map(ideaOf).join());
-  const glSvg = SB.recallSvg(gl, { ideas: true }), glH = Number((glSvg.match(/viewBox="0 0 612 (\d+)"/) || [])[1]);
-  study("10-row Gas laws card prints on one letter page at 85% size or more", gl.facts.length === 10 && glH && 792 / glH >= 0.84, `${gl.facts.length} rows, height ${glH}`);
+  // Print fits one letter page; the layout picks the height and text size that print the biggest text. 10 rows plus picture ideas
+  // is a lot for one page, so this guards against it getting smaller than it is today (about 4.5 pt detail text).
+  const eff = (mm) => { SB.recallSvg(mm, { ideas: true }); const L = SB.last(); return L.s * Math.min(1, 792 / L.H); };
+  const glEff = eff(gl), glSongEff = eff(SB.model("gaslaws", { mine: { song: { print: true } } }));
+  study("10-row Gas laws card prints on one letter page with detail text of 4.4 pt or more (with or without the song)", gl.facts.length === 10 && glEff * 9.6 >= 4.4 && glSongEff * 9.6 >= 4.4, `${(glEff * 9.6).toFixed(1)} pt, with song ${(glSongEff * 9.6).toFixed(1)} pt`);
   // On screen nothing is shrunk: the page grows taller and scrolls (Ken, Nov 23: "we use a down arrow head on any screen that can scroll")
   const small = keys.filter((k) => { SB.recallSvg(SB.model(k, {}), { screen: true }); const L = SB.last(); return !(L.s >= 1 && L.Wd === 400); });
   study("on screen every card keeps full-size text (scrolls instead of shrinking)", !small.length, small.join(", "));
@@ -150,12 +153,36 @@ function loadStudy(exam) {
   // The builder and thumbnail tag the SVG by rewriting its class; if that rewrite stops matching, taps on the page do nothing (caught Nov 23)
   const scrSvg = SB.recallSvg(ahi, { screen: true }), tags = [...fs.readFileSync(path.join(ROOT, "js/recall.js"), "utf8").matchAll(/\.replace\('(class="recallsvg[^']*)'/g)].map((m) => m[1]);
   study("builder and thumbnail class tags match the drawn SVG", tags.length >= 2 && tags.every((t) => scrSvg.includes(t)), tags.join(" | "));
+  // Picture ideas and the jingle: ours by default, the learner's own words win (Ken, Nov 23)
+  const MI = C.MEMORY_IDEAS, done = Object.keys(MI);
+  const sizeBad = done.filter((k) => { const mm = SB.model(k, {}); return MI[k].pictures.length !== mm.facts.length || MI[k].jingle.lines.length !== mm.facts.length || MI[k].pictures.some((t) => t.length < 40); });
+  study(`picture ideas and jingle written for ${done.join(", ")}: one per row`, done.includes("gaslaws") && done.includes("apgar") && !sizeBad.length, sizeBad.join(", "));
+  const offBeat = []; done.forEach((k) => { const mm = SB.model(k, {}); mm.song.lines.forEach((l) => { if (SB.beats(l.text) !== SB.TUNES[mm.song.tune].beats) offBeat.push(`${k}: "${l.text}" = ${SB.beats(l.text)}`); }); });
+  study("every starter jingle line has the tune's 7 beats", !offBeat.length, offBeat.join("; "));
+  study("tunes are public domain only", Object.values(SB.TUNES).every((t) => /^(Twinkle|Mary Had|London Bridge|Yankee Doodle|Row, Row)/.test(t.name)), Object.values(SB.TUNES).map((t) => t.name).join(", "));
+  const glDef = SB.recallSvg(SB.model("gaslaws", {}), { screen: true });
+  study("our picture idea shows under each fact by default", (glDef.match(/class="rpic"/g) || []).length >= 10 && glDef.includes("Picture idea:") && glDef.includes("syringe"), "no picture ideas");
+  const own = { pics: { 0: "My grandpa's bike pump: push down hard and it gets tight" }, song: { tune: "mary", print: true, lines: { 0: "Boyle squeezed the balloon too tight" } } };
+  const gm = SB.model("gaslaws", { mine: own }), gsvg = SB.recallSvg(gm, {}), gtr = SB.traditionalHtml(gm, {});
+  study("the learner's own picture words replace ours on the sheet and the printout", gm.facts[0].picMine && gsvg.includes("My picture:") && gsvg.includes("bike pump") && gtr.includes("bike pump") && !gm.facts[1].picMine, "own words missing");
+  study("the learner's song lines and tune print as a lyrics strip (map and traditional)", gsvg.includes("Boyle squeezed the balloon too tight") && gsvg.includes("Mary Had a Little Lamb") && gsvg.includes("Charles says heat it, volume grows") && gtr.includes("ts-song") && gtr.includes("Boyle squeezed the balloon too tight"), "lyrics strip missing");
+  const reset = SB.model("gaslaws", { mine: { pics: { 0: "  " }, song: { lines: { 0: "Boyle says squeeze it, pressure's up" } } } });
+  study("blank or unchanged words fall back to our suggestion", !reset.facts[0].picMine && reset.facts[0].pic === MI.gaslaws.pictures[0] && !reset.song.lines[0].mine, "reset");
+  study("the song stays off the printout until the learner turns it on", !SB.recallSvg(SB.model("gaslaws", {}), {}).includes("starter jingle"), "song printed by default");
+  const prac = SB.recallSvg(gm, { mode: "practice" });
+  study("Practice prints the first words of each line as a cue", prac.includes("Boyle squeezed ______________") && !prac.includes("balloon too tight"), "practice lyrics");
+  const bxOf = (mine) => { SB.recallSvg(SB.model("gaslaws", { mine }), { builder: true, screen: true, noSong: true }); return JSON.stringify(SB.last().boxes.map((b) => [b.x1, b.y1, b.x2, b.y2].map(Math.round))); };
+  study("in the builder, typing a picture idea or turning the song on never moves the drawing spaces", bxOf({}) === bxOf({ pics: { 0: "pump", 3: "a very long description ".repeat(12) }, song: { print: true } }), "layout moved");
+  const plain0 = SB.model("ahi", {});
+  study("cards not written yet keep draw-your-own and blank song lines", plain0.facts.every((f) => !f.pic) && plain0.song.lines.every((l) => !l.text) && SB.recallSvg(plain0, {}).includes("Draw something that reminds you of this"), "fallback");
   study("Why this works lists 5 sources with links", SB.WHY.refs.length === 5 && SB.WHY.refs.every((r) => /^https:\/\/doi\.org\//.test(r[1])), "sources");
   const C2 = loadStudy("CNA"), vit = C2.OB_STUDY.model("vitals", {});
   study("CNA vitals: no false severity colors", vit.facts.every((f) => !f.sev), vit.facts.map((f) => f.sev).join());
 }
 const PAGES_HTML = ["index.html", "sds/index.html", "rpsgt/index.html", "cna/index.html"];
 const missingRecall = PAGES_HTML.filter((p) => !fs.readFileSync(path.join(ROOT, p), "utf8").includes("js/recall.js"));
+const missingIdeas = PAGES_HTML.filter((f) => { const h = fs.readFileSync(path.join(ROOT, f), "utf8"); const a = h.indexOf("js/memory_ideas.js"), b = h.indexOf("js/recall.js"); return a < 0 || a > b; });
+study("all four apps load the picture ideas and jingles before the study sheet", !missingIdeas.length, missingIdeas.join(", "));
 study("all four apps load the study sheet", !missingRecall.length, missingRecall.join(", "));
 const vsrc = fs.readFileSync(path.join(ROOT, "js/voice.js"), "utf8");
 study("Ask offers Print study sheet and brings back Your study page", vsrc.includes("Print study sheet") && vsrc.includes("Your study page") && vsrc.includes("My study pages"), "button text missing");

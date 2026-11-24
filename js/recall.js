@@ -36,6 +36,29 @@
     ],
   };
 
+  // Optional jingle: public-domain tunes only. "beats" is the line length the tune wants; notes play the opening (note:beats).
+  const TUNES = {
+    twinkle: { name: "Twinkle, Twinkle, Little Star", beats: 7, meter: "TWIN-kle TWIN-kle LIT-tle STAR", notes: "C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2" },
+    mary: { name: "Mary Had a Little Lamb", beats: 7, meter: "MA-ry HAD a LIT-tle LAMB", notes: "E4 D4 C4 D4 E4 E4 E4:2 D4 D4 D4:2 E4 G4 G4:2" },
+    london: { name: "London Bridge Is Falling Down", beats: 7, meter: "LON-don BRIDGE is FALL-ing DOWN", notes: "G4:1.5 A4:.5 G4 F4 E4 F4 G4:2 D4 E4 F4:2 E4 F4 G4:2" },
+    yankee: { name: "Yankee Doodle", beats: 7, meter: "YAN-kee DOO-dle WENT to TOWN", notes: "C4:.5 C4:.5 D4:.5 E4:.5 C4:.5 E4:.5 D4 C4:.5 C4:.5 D4:.5 E4:.5 C4 B3" },
+    row: { name: "Row, Row, Row Your Boat", beats: 5, meter: "ROW, row, ROW your BOAT", notes: "C4:1.5 C4:1.5 C4 D4:.5 E4:1.5 E4 D4:.5 E4 F4:.5 G4:3" },
+  };
+  // About how many beats (syllables) a line has; a guide for the learner, not a grade.
+  function beats(line) {
+    const SAY = { hundred: 2, charles: 1, poiseuille: 2, fio2: 4, o2: 2, co2: 3 };
+    return String(line || "").toLowerCase().replace(/(\d+)/g, (n) => " " + "x ".repeat(n.length === 1 ? 1 : n.length === 2 ? 2 : 3)).split(/[^a-z0-9']+/).filter(Boolean).reduce((a, w) => {
+      if (SAY[w] != null) return a + SAY[w];
+      let n = 0; const pos = /'s$/.test(w); w = w.replace(/'s$/, "");
+      n = (w.match(/[aeiouy]+/g) || []).length;
+      if (/[^aeiouy]le$/.test(w) || /[^aeiouy]les$/.test(w)) { /* bubble, bubbles: the -le is a beat */ }
+      else if (/e$/.test(w) && n > 1) n--;
+      else if (/[^aeiouy](es|ed)$/.test(w) && !/(ses|zes|xes|ches|shes|ces|ges|ted|ded)$/.test(w) && n > 1) n--;
+      if (pos && /(s|z|x|ch|sh|ce|ge)$/.test(w)) n++;
+      return a + Math.max(1, n);
+    }, 0);
+  }
+
   // ---------- The card as rows ----------
   function tables(body) {
     const out = [];
@@ -124,8 +147,17 @@
     }));
     if (!facts.length) plain([card.body, card.intro].join(" ")).split(/(?<=\.)\s+/).filter(Boolean).slice(0, 8).forEach((s, i) =>
       facts.push({ table: 0, row: i, label: s.split(/[,:;]/)[0].slice(0, 40), details: [{ head: "", text: s }], sev: "", idea: idea(s, card), hit: false }));
+    // Ready-made picture ideas and jingle (js/memory_ideas.js); the learner's own words (opts.mine = their study page) win.
+    const MI = (W.MEMORY_IDEAS || {})[k] || {}, mine = opts.mine || {}, mp = mine.pics || {}, ms = mine.song || {}, ml = ms.lines || {};
+    facts.forEach((f, i) => { f.picDefault = (MI.pictures || [])[i] || ""; const own = mp[i];
+      f.picMine = !!(own && own.trim()); f.pic = f.picMine ? own.trim() : f.picDefault; });
+    const J = MI.jingle || {}, tune = TUNES[ms.tune] ? ms.tune : TUNES[J.tune] ? J.tune : "twinkle";
+    const songLines = facts.map((f, i) => ({ key: String(i), label: f.label, def: (J.lines || [])[i] || "", own: ml[i] }))
+      .concat((J.refrain || []).map((t, i) => ({ key: "r" + i, label: "Refrain", def: t, own: ml["r" + i] })))
+      .map((l) => Object.assign(l, { mine: !!(l.own != null && l.own.trim() && l.own.trim() !== l.def), text: (l.own != null && l.own.trim()) ? l.own.trim() : l.def }));
+    const song = { tune, tuneName: TUNES[tune].name, beats: TUNES[tune].beats, suggested: J.tune || "", lines: songLines, print: !!ms.print, hasDefault: !!(J.lines || []).length };
     const related = (opts.related || []).filter((r) => r !== k && W.SCALES[r]).slice(0, 2).map((r) => W.SCALES[r].title);
-    return { k, title: plain(card.title), intro: plain(card.intro), note: plain(card.note), src: plain(card.src), field: card.field || "rt",
+    return { k, song, title: plain(card.title), intro: plain(card.intro), note: plain(card.note), src: plain(card.src), field: card.field || "rt",
       heads: tbs.map((t) => t.heads), facts, abbrs: abbrsOn(card), related, q: opts.q || "", answer: opts.answer || "" };
   }
 
@@ -219,13 +251,28 @@
     const steps = "How to use: 1) Draw your own picture around each fact (odd or funny sticks best). 2) Later, print Practice and fill it in from memory. 3) Check it against Filled and add what you missed in another color.";
     const why = "Why it works: drawing and making your own notes, then recalling them, help memory (Wammes et al. 2016; Slamecka & Graf 1978; Roediger & Karpicke 2006).";
     const src = "Source: " + (m.src || "Otter Bay") + ". Written by Otter Bay in our own words. For learning only; follow your facility's protocols.";
+    const song = m.song && m.song.print && !opts.noSong ? songItems(m, practice) : null;
+    if (song) { const cols = Wd >= 600 ? (Math.max(...song.map((t) => textW(t, 8.4))) < (FW - 28) / 3 ? 3 : 2) : 1, cw = (FW - (cols - 1) * 14) / cols, per = Math.ceil(song.length / cols);
+      const colsL = Array.from({ length: cols }, (_, c) => song.slice(c * per, (c + 1) * per).map((t) => wrap(t, cw - 4, 8.4)));
+      rows.push({ h: 15 + Math.max(...colsL.map((c) => c.reduce((a, l) => a + l.length * 10.6 + 1.5, 0))) + 6, song: colsL, cw }); }
     [[steps, 8.2, "#24313E"], [why, 7.2, "#5A6670"], [src, 7.2, "#5A6670"]].forEach(([t, fs, fill]) => rows.push({ h: lines(0, 0, t, fs, FW, "", fs * 1.3).h + 3, text: t, fs, fill }));
     const foot = rows.reduce((a, r) => a + r.h, 0) + 16;
     // the drawing area: screen keeps the text full size and grows taller; print shrinks first, then grows (and print fits the page)
     let H = scr ? 640 : 792, out = null;
     const SCALES = scr ? [1.15, 1.08, 1] : [1.45, 1.3, 1.18, 1.08, 1, 0.93, 0.86, 0.8, 0.74, 0.68, 0.62, 0.58];
-    for (let grow = 0; grow < (scr ? 24 : 8) && !out; grow++, H = Math.round(H * (scr ? 1.12 : 1.18)))
-      for (const s of SCALES) { out = layout(m, opts, s, Wd, H, M, head, foot); if (out) { out.H = H; break; } }
+    if (scr) {
+      for (let grow = 0; grow < 24 && !out; grow++, H = Math.round(H * 1.12))
+        for (const s of SCALES) { out = layout(m, opts, s, Wd, H, M, head, foot); if (out) { out.H = H; break; } }
+    } else {
+      // print: find the page height and text size that print the biggest text once fitted to the letter page, then take the
+      // shortest page within 7% of that, so the sheet still fills the paper's width
+      const cand = []; let best = 0;
+      for (let grow = 0; grow < 12; grow++, H = Math.round(H * 1.08)) {
+        if (best && SCALES[0] * 792 / H <= best) break;
+        for (const s of SCALES) { if (s * 792 / H <= best * 0.93) break; const o = layout(m, opts, s, Wd, H, M, head, foot); if (o) { o.H = H; o.eff = s * Math.min(1, 792 / H); cand.push(o); best = Math.max(best, o.eff); break; } }
+      }
+      out = cand.find((o) => o.eff >= best * 0.93) || null;
+    }
     if (!out) return "";
     const { boxes, x0, y0, x1, y1, s, title } = out;
     H = out.H;
@@ -265,7 +312,9 @@
         else g += `<text x="${b.cx1 + b.pad}" y="${ty}" font-size="${b.dfs}" fill="#24313E">${ln.head ? `<tspan font-weight="700" fill="#5A6670" font-size="${b.dfs * 0.86}">${esc(ln.head)} </tspan>` : ""}${esc(ln.text)}</text>`;
         ty += b.dfs * 1.28;
       });
-      const tip = st || opts.custom ? "" : opts.ideas ? `Idea: ${f.idea.tip}. Or draw your own.` : "✎ Draw something that reminds you of this";
+      if (b.pic) { let py = b.cy2 + 7 * s + b.pfs * 0.85; const n = f.picMine ? "My picture:" : "Picture idea:";
+        b.pic.forEach((ln, j) => { g += `<text class="rpic" x="${b.x1 + b.pad + 4 * s}" y="${py}" font-size="${b.pfs}" font-style="italic" fill="#4E5B66">${j === 0 ? `<tspan font-weight="700" font-style="normal" fill="${f.picMine ? BAY : "#5A6670"}">${esc(n)}</tspan>${esc(ln.slice(n.length))}` : esc(ln)}</text>`; py += b.pfs * 1.22; }); }
+      const tip = b.pic || st || opts.custom ? "" : opts.ideas ? `Idea: ${f.idea.tip}. Or draw your own.` : "✎ Draw something that reminds you of this";
       if (tip) g += `<text x="${b.x2 - 8}" y="${b.y2 - 6}" text-anchor="end" font-size="${7.2 * Math.min(Math.max(s, .8), 1.2)}" font-style="italic" fill="#8A959E">${esc(tip)}</text>`;
       g += `</g>`;
     });
@@ -284,6 +333,9 @@
           ft += `<rect x="${lx}" y="${ly - 6}" width="${tw}" height="14" rx="7" fill="#fff" stroke="#7A8791" stroke-dasharray="1.5 2.5"/><text x="${lx + 7}" y="${ly + 4}" font-size="8" fill="#24313E">${esc(clip(t, tw - 12, 8))}</text>`;
           lx += tw + 6;
         });
+      } else if (r.song) {
+        ft += `<text x="${M}" y="${fy + 4}" font-size="9" font-weight="700" fill="${BAY}">♪ ${m.song.lines.some((l) => l.mine) ? "My jingle" : "Our starter jingle"}<tspan font-weight="400" fill="#5A6670">  ·  tune: ${esc(m.song.tuneName)}${practice ? "  ·  sing it and fill in the rest" : ""}</tspan></text>`;
+        r.song.forEach((col, c) => { let yy = fy + 18; col.forEach((ls) => { ls.forEach((l) => { ft += `<text x="${M + c * (r.cw + 14)}" y="${yy}" font-size="8.4" fill="#24313E">${esc(l)}</text>`; yy += 10.6; }); yy += 1.5; }); });
       } else if (r.key) {
         let lx = M + 30;
         ft += `<text x="${M}" y="${fy + 4}" font-size="8" font-weight="700" fill="#5A6670">Key</text>`;
@@ -302,6 +354,16 @@
       `<rect width="${Wd}" height="${H}" fill="#fff"/>${hd}${g}${ft}</svg>`;
   }
   let SVGN = 0, LAST = null;
+  // The jingle as printed lines: "1. Boyle says squeeze it, pressure's up". Practice keeps the first two words as a cue.
+  const short = (lab) => String(lab).replace(/\s*\(.*$/, "").replace(/'s\b/g, "").replace(/\b(law|principle|score)\b/gi, "").replace(/\s+/g, " ").trim();
+  function songItems(m, practice) {
+    let n = 0;
+    return m.song.lines.filter((l) => l.text).map((l) => {
+      const s = short(l.label), cue = l.key[0] === "r" || !s || l.text.toLowerCase().includes(s.toLowerCase().split(/[\s-]/)[0]) ? "" : `  (${s})`;
+      const t = practice ? l.text.split(/\s+/).slice(0, 2).join(" ") + " ______________" : l.text;
+      return (l.key[0] === "r" ? "♪ " : `${++n}. `) + t + cue;
+    });
+  }
   const inkPath = (k) => k.pts && k.pts.length > 1 ? `<path class="rink" d="M${k.pts.map((p) => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L")}" fill="none" stroke="${k.c}" stroke-width="${k.w || 2.6}" stroke-linecap="round" stroke-linejoin="round"/>` : "";
   const clip = (t, maxW, fs) => { t = String(t); if (textW(t, fs) <= maxW) return t; while (t.length > 4 && textW(t + "…", fs) > maxW) t = t.slice(0, -1); return t.trimEnd() + "…"; };
 
@@ -310,7 +372,7 @@
     const top = head + 6, bot = H - foot - 10;
     const x0 = M + 14, y0 = bot, x1 = Wd - M - 8, y1 = top + 4;
     const slashX = (y) => x0 + (x1 - x0) * (y0 - y) / (y0 - y1);
-    const lfs = 11.5 * s, dfs = 9.6 * s, pad = 6 * s, spX = 22 * s, spT = 24 * s, spB = 20 * Math.max(s, .8);   // roomy spaces to draw in
+    const lfs = 11.5 * s, dfs = 9.6 * s, pfs = 8.2 * s, pad = 6 * s, spX = 22 * s, spT = 24 * s, spB = 20 * Math.max(s, .8);   // roomy spaces to draw in
     const practice = opts.mode === "practice";
     const title = { text: m.title, fs: 14 * Math.min(Math.max(s, .8), 1.15) };
     const titleLen = textW(m.title, title.fs, true);
@@ -336,7 +398,12 @@
           void wl;
         });
         const ch = pad * 2 + label.length * lfs * 1.2 + lines.length * dfs * 1.28 + (practice ? 2 : 0);
-        return { bw, label, lines, ch, h: ch + spT + spB };
+        // the picture idea (ours or the learner's) sits under the fact, inside the drawing space
+        let pic = f.pic && !opts.noPics ? wrap((f.picMine ? "My picture: " : "Picture idea: ") + f.pic, bw - 2 * pad - 8 * s, pfs) : null;
+        // the builder keeps a fixed 3-line strip, so typing a new picture idea never moves the learner's drawing
+        if (opts.builder) { if (pic && pic.length > 3) { pic = pic.slice(0, 3); pic[2] = clip(pic[2] + " …", bw - 2 * pad - 8 * s, pfs); } }
+        const sb = opts.builder ? 7 * s + 3 * pfs * 1.22 + 5 * s : pic ? 7 * s + pic.length * pfs * 1.22 + 5 * s : spB;
+        return { bw, label, lines, ch, pic, sb, h: ch + spT + sb };
       });
       for (let tt = t; tt <= 1.0001 && !done; tt += 0.006) {
         const ax = x0 + (x1 - x0) * tt, ay = y0 + (y1 - y0) * tt;
@@ -357,7 +424,7 @@
       const { r, z, side, ax, ay } = done;
       placed.push(r);
       const cx1 = r[0] + spX, cx2 = r[2] - spX, cy1 = r[1] + spT, cy2 = cy1 + z.ch;
-      boxes.push({ f, side, ax, ay: Math.min(Math.max(ay, cy1 + 4), cy2 - 4), x1: r[0], y1: r[1], x2: r[2], y2: r[3], cx1, cx2, cy1, cy2, label: z.label, lines: z.lines, lfs, dfs, pad });
+      boxes.push({ f, side, ax, ay: Math.min(Math.max(ay, cy1 + 4), cy2 - 4), x1: r[0], y1: r[1], x2: r[2], y2: r[3], cx1, cx2, cy1, cy2, label: z.label, lines: z.lines, pic: z.pic, pfs, lfs, dfs, pad });
       // keep the branch level: the branch leaves the slash at the fact's height
       const b = boxes[boxes.length - 1]; b.ax = slashX(b.ay);
       t = done.tt; pref = side === "up" ? "down" : "up";
@@ -388,12 +455,14 @@
       <div class="tbody">${body}</div>
       ${m.note ? `<p class="ts-note"><b>Remember:</b> ${practice ? '<span class="ts-blankline"></span>' : esc(m.note)}</p>` : ""}
       ${m.abbrs.length ? `<p class="ts-abbrs"><b>Abbreviations:</b> ${m.abbrs.map((a) => `${esc(a.abbr)} = ${esc(a.meaning)}`).join("; ")}</p>` : ""}
-      <div class="ts-mynotes"><b>My notes</b>${"<span></span>".repeat(long ? 2 : 5)}</div>
+      ${m.facts.some((f) => f.picMine) ? `<div class="ts-pics"><b>My pictures</b><ul>${m.facts.filter((f) => f.pic).map((f) => `<li><b>${esc(f.label)}:</b> ${esc(f.pic)}</li>`).join("")}</ul></div>` : ""}
+      ${m.song && m.song.print ? `<div class="ts-song"><b>♪ ${m.song.lines.some((l) => l.mine) ? "My jingle" : "Our starter jingle"}</b> <span>(tune: ${esc(m.song.tuneName)})</span><ol>${songItems(m, practice).map((t) => `<li>${esc(t)}</li>`).join("")}</ol></div>` : ""}
+      <div class="ts-mynotes"><b>My notes</b>${"<span></span>".repeat(long || (m.song && m.song.print) ? 2 : 5)}</div>
       <footer>Source: ${esc(m.src || "Otter Bay")}. Written by Otter Bay in our own words. For learning only; follow your facility's protocols.</footer>
     </article>`;
   }
 
-  function API() { return { model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST }; }
+  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }
@@ -402,13 +471,16 @@
   const sv = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} };
   const pref = ld(STYLE_KEY, {});
   const ST = { k: null, q: "", answer: "", related: [], hit: null, style: pref.style || "map", map: pref.map || "hand", mode: "filled", ideas: false,
-    tool: "draw", color: "#C62828", sel: null, zoom: false, celebrate: false, msg: "" };
+    tool: "draw", color: "#C62828", sel: null, zoom: false, celebrate: false, msg: "", panel: "", songPop: false };
   const savePref = () => sv(STYLE_KEY, { style: ST.style, map: ST.map });
   const getPage = (k) => ld(PAGE_KEY(k), null);
-  const blankPage = () => ({ ink: [], stickers: {}, moves: {}, hist: [], done: false, at: Date.now() });
+  const blankPage = () => ({ ink: [], stickers: {}, moves: {}, hist: [], done: false, at: Date.now(), pics: {}, song: { tune: "", lines: {}, print: false, asked: false } });
+  // older saved pages (before picture ideas and songs) get the new parts
+  const fixPage = (p) => { if (!p) return p; p.pics = p.pics || {}; p.song = Object.assign({ tune: "", lines: {}, print: false, asked: false }, p.song || {}); return p; };
   let PG = null;
   const savePage = () => { if (!ST.k || !PG) return; PG.at = Date.now(); PG.title = (W.SCALES[ST.k] || {}).title; sv(PAGE_KEY(ST.k), PG); };
-  const hasPage = (k) => { const p = getPage(k); return !!(p && ((p.ink || []).length || Object.keys(p.stickers || {}).length || Object.keys(p.moves || {}).length)); };
+  const hasPage = (k) => { const p = getPage(k); return !!(p && ((p.ink || []).length || Object.keys(p.stickers || {}).length || Object.keys(p.moves || {}).length ||
+    Object.values(p.pics || {}).some((t) => t && t.trim()) || Object.values((p.song || {}).lines || {}).some((t) => t && t.trim()))); };
   function listPages() {
     const out = [];
     try { for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key && key.startsWith(`obStudyPage:${EXAM}:`)) { const k = key.split(":")[2]; if (W.SCALES[k] && hasPage(k)) out.push({ k, title: W.SCALES[k].title, at: (getPage(k) || {}).at || 0, done: !!(getPage(k) || {}).done }); } } } catch (e) {}
@@ -419,17 +491,17 @@
     ["wing", "Wing"], ["hourglass", "Venturi tube"], ["runner", "Runner"], ["lungs", "Lungs"], ["heart", "Heart"], ["drop", "Drop"], ["brain", "Cloud"], ["moon", "Moon"], ["clock", "Clock"], ["thermo", "Thermometer"], ["shield", "Shield"]];
   const PROMPTS = ["What does “{f}” remind you of? Draw it around the box.", "Picture “{f}” at the bedside. What would you see?",
     "Odd and funny sticks best. What silly picture fits “{f}”?", "If “{f}” were an object, what would it be?"];
-  const mdl = (k) => model(k || ST.k, { hit: ST.hit, q: ST.q, answer: ST.answer, related: ST.related });
+  const mdl = (k) => model(k || ST.k, { hit: ST.hit, q: ST.q, answer: ST.answer, related: ST.related, mine: PG });
   function open(k, o) {
     o = o || {};
     ST.k = k; ST.q = o.q || ""; ST.answer = o.answer || ""; ST.related = o.related || []; ST.hit = o.hit || null;
-    ST.sel = null; ST.mode = "filled"; ST.ideas = false; ST.celebrate = false; ST.msg = ""; ST.zoom = false;
+    ST.sel = null; ST.mode = "filled"; ST.ideas = false; ST.celebrate = false; ST.msg = ""; ST.zoom = false; ST.panel = o.panel || ""; ST.songPop = false;
     if (o.build) { ST.style = "map"; ST.map = "build"; }
-    PG = getPage(k) || blankPage();
+    PG = fixPage(getPage(k)) || blankPage();
   }
   // Which facts have a picture yet (a sticker, or a line drawn in or across their space)
   function decorated(m) {
-    recallSvg(m, { custom: PG, builder: true, screen: true });
+    recallSvg(m, { custom: PG, builder: true, screen: true, noSong: true });
     const bx = (LAST && LAST.boxes) || [];
     return bx.map((b, i) => !!(PG.stickers[i]) || PG.ink.some((k) => k.pts.some((p) => p[0] >= b.x1 - 6 && p[0] <= b.x2 + 6 && p[1] >= b.y1 - 6 && p[1] <= b.y2 + 6)));
   }
@@ -449,10 +521,47 @@
         ${ST.style === "map" ? `<label class="stchk"><input type="checkbox" data-act="stideas" ${ST.ideas ? "checked" : ""}> Show ideas (a starter picture)</label>` : ""}
         <p class="sthelp">${ST.mode === "practice" ? "Fill it in from memory, then switch to Filled and check. Add what you missed in another color." : ST.style === "map" ? "Each fact has an empty space. Draw your own picture around it after you print." : "A plain page with the full table, ready to print."}</p></div>`;
       h += `<button type="button" class="stprint" data-act="stprint">${PRINTICON}<span>Print this sheet</span></button>`;
-      h += `<div class="stpaper ${ST.zoom ? "zoom" : ""}">${ST.style === "map" ? recallSvg(m, { mode: ST.mode, ideas: ST.ideas, screen: true }) : traditionalHtml(m, { mode: ST.mode })}</div>
+      h += memPanels(m);
+      h += `<div class="stpaper ${ST.zoom ? "zoom" : ""}">${paperHtml(m)}</div>
         <button type="button" class="stzoom" data-act="stzoom">${ST.zoom ? "Fit to screen" : "Zoom in"}</button>`;
     } else h += builder(m);
     return h + `</section>`;
+  }
+  // What the paper on screen shows (also redrawn in place while the learner types, so the keyboard stays up)
+  function paperHtml(m) {
+    if (ST.style === "map" && ST.map === "build") return recallSvg(m, { custom: PG, builder: true, screen: true, noSong: true, sel: ST.tool === "sticker" ? ST.sel : null }).replace('class="recallsvg', 'class="recallsvg builder');
+    return ST.style === "map" ? recallSvg(m, { mode: ST.mode, ideas: ST.ideas, screen: true }) : traditionalHtml(m, { mode: ST.mode });
+  }
+  function refreshPaper() { const el = document.querySelector(".stsheet .stpaper"); if (el && ST.k) el.innerHTML = paperHtml(mdl()); }
+  // Picture ideas (ours, or the learner's own words) and the optional song. (Ken, Nov 23: "Do it for them, but let them type in a
+  // different image description. Same with the jingle. Make one for them, but allow them to put in their own words.")
+  function memPanels(m) {
+    const anyDef = m.facts.some((f) => f.picDefault), mineN = m.facts.filter((f) => f.picMine).length;
+    let h = `<div class="stmem"><button type="button" class="stmembtn${ST.panel === "pics" ? " on" : ""}" data-act="stpanel" data-v="pics" aria-expanded="${ST.panel === "pics"}">
+      <span class="stmemic" aria-hidden="true">✎</span><span><b>Picture ideas</b><small>${anyDef ? (mineN ? `${mineN} in your own words` : "We wrote one for each fact. Change any to your own.") : "Describe your own picture for each fact."}</small></span><i aria-hidden="true">${ST.panel === "pics" ? "▴" : "▾"}</i></button>`;
+    if (ST.panel === "pics") {
+      h += `<div class="stpanel"><p class="sthelp">${anyDef ? "Here's a picture for each fact to get you started. Type your own words to make it yours: yours goes on the sheet. Your own picture sticks best." : "Write what you'll draw for each fact. It goes on the sheet under the fact."}</p>`;
+      m.facts.forEach((f, i) => { h += `<div class="stpicrow"><label for="stpic${i}"><b>${esc(f.label)}</b><span class="sttag ${f.picMine ? "mine" : ""}" data-tag="${i}">${f.picMine ? "Yours" : f.picDefault ? "Suggested" : "Empty"}</span></label>
+        <textarea id="stpic${i}" data-stpic="${i}" rows="${Math.max(3, Math.ceil((f.pic || f.picDefault || "").length / 40) + 1)}" placeholder="${esc(f.picDefault ? f.picDefault : "What will you draw for “" + f.label + "”?")}">${esc(f.pic)}</textarea>
+        <button type="button" class="streset" data-act="stpicreset" data-i="${i}" ${f.picMine ? "" : "hidden"}>↺ ${f.picDefault ? "Back to our suggestion" : "Clear"}</button></div>`; });
+      h += `</div>`;
+    }
+    const sg = m.song, mineL = sg.lines.filter((l) => l.mine).length;
+    h += `<button type="button" class="stmembtn song${ST.panel === "song" ? " on" : ""}" data-act="stpanel" data-v="song" aria-expanded="${ST.panel === "song"}">
+      <span class="stmemic" aria-hidden="true">♪</span><span><b>Make it a song</b><small>Optional${sg.hasDefault ? ` · ${mineL ? mineL + " lines in your words" : "starter jingle to " + esc(TUNES[sg.suggested] ? TUNES[sg.suggested].name : sg.tuneName)}` : ""}${sg.print ? " · on your printout" : ""}</small></span><i aria-hidden="true">${ST.panel === "song" ? "▴" : "▾"}</i></button>`;
+    if (ST.panel === "song") {
+      const T = TUNES[sg.tune];
+      h += `<div class="stpanel stsong"><p class="sthelp">${sg.hasDefault ? "We wrote a starter jingle: one line for each fact. Sing it as is, or change any line to your own words." : "Pick a tune you know and write one short line for each fact."} Use a tune you already know well; a new tune makes it harder.</p>
+        <p class="asklabel">Tune</p><div class="sttunes">${Object.entries(TUNES).map(([v, t]) => `<button type="button" data-act="sttune" data-v="${v}" aria-pressed="${sg.tune === v}" class="${sg.tune === v ? "on" : ""}">${esc(t.name)}${v === sg.suggested ? "<small>our pick</small>" : ""}</button>`).join("")}</div>
+        <p class="stmeter"><span>Each line: about <b>${T.beats} beats</b>, like “${esc(T.meter)}”.</span> <button type="button" class="stplay" data-act="stplay">▶ Hear the tune</button></p>`;
+      sg.lines.forEach((l) => { const n = beats(l.text); h += `<div class="stlyric"><label for="stly${l.key}"><b>${esc(l.label)}</b><span class="sttag ${l.mine ? "mine" : ""}" data-tag="l${l.key}">${l.mine ? "Yours" : l.def ? "Suggested" : "Empty"}</span><span class="stbeats ${n === T.beats ? "ok" : ""}" data-beats="${l.key}">${l.text ? n + " beats" : ""}</span></label>
+        <input id="stly${l.key}" type="text" data-stlyric="${l.key}" value="${esc(l.text)}" placeholder="${esc(l.def || "Your line for “" + l.label + "”")}" autocomplete="off">
+        <button type="button" class="streset" data-act="stlyreset" data-k="${l.key}" ${l.mine ? "" : "hidden"}>↺ ${l.def ? "Back to our line" : "Clear"}</button></div>`; });
+      h += `<label class="stchk"><input type="checkbox" data-act="stsongprint" ${sg.print ? "checked" : ""}> Put my song on the printout</label>
+        ${mineL ? `<button type="button" class="streset" data-act="stlyresetall">↺ Use our whole jingle again</button>` : ""}
+        <p class="sthelp">Sing it out loud three times. Later, look only at your pictures and sing the line that goes with each one.</p></div>`;
+    }
+    return h + `</div>`;
   }
   function builder(m) {
     const dec = decorated(m), n = dec.length, got = dec.filter(Boolean).length;
@@ -468,11 +577,16 @@
       <button type="button" data-act="ststicker" data-s="" aria-label="No shape"><span class="none">✕</span><span>None</span></button></div>`;
     if (ST.tool === "move") h += `<p class="sthelp">Drag a fact to where it makes sense to you. Its branch follows.</p>`;
     if (ST.tool === "draw") h += `<p class="sthelp">Draw with your finger or mouse right on the page.</p>`;
-    h += `<div class="stpaper builder tool-${ST.tool} ${ST.zoom ? "zoom" : ""}">${recallSvg(m, { custom: PG, builder: true, screen: true, sel: ST.tool === "sticker" ? ST.sel : null }).replace('class="recallsvg', 'class="recallsvg builder')}</div>
+    h += `<div class="stpaper builder tool-${ST.tool} ${ST.zoom ? "zoom" : ""}">${paperHtml(m)}</div>
       <div class="strow"><button type="button" data-act="stzoom">${ST.zoom ? "Fit to screen" : "Zoom in"}</button><button type="button" data-act="stundo" ${PG.hist.length ? "" : "disabled"}>↶ Undo</button><button type="button" data-act="stclear">Clear</button></div>
       <p class="stprog"><span class="stbar"><i style="width:${n ? Math.round(100 * got / n) : 0}%"></i></span>${got} of ${n} facts have a picture${PG.done ? ' · <b>🏅 Page built!</b>' : ""}</p>
       <button type="button" class="stprint" data-act="stprint">${PRINTICON}<span>Print my page</span></button>
       <p class="sthelp">Saved on this device as you go. Ask about this topic again and your page comes back.</p></div>`;
+    h += memPanels(m);
+    if (ST.celebrate && !PG.song.asked) ST.songPop = true;
+    if (ST.songPop) h += `<div class="stsongpop" role="dialog" aria-labelledby="stsongq"><p class="stsongq" id="stsongq">♪ Want to make it a song?</p>
+      <p>${m.song.hasDefault ? `We wrote a starter jingle to <b>${esc(m.song.tuneName)}</b>, one line for each fact. Sing it, or change any words to make it yours.` : "Pick a tune you know and write one short line for each fact."} It's optional: your page is already done.</p>
+      <div class="strow"><button type="button" class="stsongyes" data-act="stsongyes">Try it</button><button type="button" data-act="stsongno">Not now</button></div></div>`;
     if (ST.celebrate) { ST.celebrate = false; h += `<div class="stconfetti" aria-hidden="true">${Array.from({ length: 28 }, (_, i) => `<i style="--x:${(i * 37) % 100}vw;--d:${(i % 7) * 0.09}s;--c:${COLORS[i % COLORS.length][0]}"></i>`).join("")}</div>
       <div class="stbadge" role="status">🏅 Page built! Every fact has your own picture.</div>`; }
     return h;
@@ -482,8 +596,25 @@
   function printHtml() {
     const m = mdl();
     if (ST.style === "trad") return traditionalHtml(m, { mode: ST.mode });
-    if (ST.map === "build") return recallSvg(m, { custom: PG, screen: true });   // same layout as the builder, so the drawing lines up
+    if (ST.map === "build") return builtForPrint(m, PG);   // same layout as the builder, so the drawing lines up
     return recallSvg(m, { mode: ST.mode, ideas: ST.ideas });
+  }
+  // A built page on letter paper: lay the facts out for print, then carry each drawing over to its fact's new spot (each stroke
+  // goes with the fact space it sits in, scaled evenly). Long cards built on the phone are tall; this keeps the print full width.
+  function builtForPrint(m, pg) {
+    recallSvg(m, { custom: pg, screen: true, builder: true, noSong: true });   // exactly the builder's layout
+    const S = LAST.boxes.map((b) => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 }));
+    recallSvg(m, { custom: { stickers: pg.stickers }, ideas: false });
+    const P0 = LAST.boxes.map((b) => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 }));
+    const near = (p) => { let bi = -1, bd = 1e9; S.forEach((b, i) => { const dx = Math.max(b.x1 - p[0], 0, p[0] - b.x2), dy = Math.max(b.y1 - p[1], 0, p[1] - b.y2), d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } }); return bi; };
+    const ink = (pg.ink || []).map((k) => {
+      const c = k.pts.reduce((a, p) => [a[0] + p[0] / k.pts.length, a[1] + p[1] / k.pts.length], [0, 0]), i = near(c);
+      if (i < 0 || !P0[i]) return null;
+      const s = S[i], q = P0[i], f = Math.min((q.x2 - q.x1) / (s.x2 - s.x1), (q.y2 - q.y1) / (s.y2 - s.y1));
+      const ox = (q.x1 + q.x2) / 2 - (s.x1 + s.x2) / 2 * f, oy = (q.y1 + q.y2) / 2 - (s.y1 + s.y2) / 2 * f;
+      return { c: k.c, w: Math.max(1.2, (k.w || 2.6) * f), pts: k.pts.map((p) => [p[0] * f + ox, p[1] * f + oy]) };
+    }).filter(Boolean);
+    return recallSvg(m, { custom: { ink, stickers: pg.stickers } });
   }
   function preparePrint() {
     let el = document.getElementById("obPrint");
@@ -496,7 +627,7 @@
   function thumb(k) {
     const p = getPage(k); if (!p) return "";
     const keep = PG, kk = ST.k; PG = p; ST.k = k;
-    const svg = recallSvg(model(k, {}), { custom: p, screen: true });
+    const svg = recallSvg(model(k, { mine: fixPage(p) }), { custom: p, screen: true, builder: true, noSong: true });
     PG = keep; ST.k = kk;
     return svg.replace('class="recallsvg', 'class="recallsvg thumb');
   }
@@ -528,6 +659,45 @@
   };
   document.addEventListener("pointerup", endPtr); document.addEventListener("pointercancel", endPtr);
 
+  // Typing a picture idea or a lyric: save as they type, update the tag and beat count, and redraw just the paper.
+  let typeT = 0;
+  document.addEventListener("input", (e) => {
+    const t = e.target; if (!PG || !t.dataset) return;
+    const m0 = mdl();
+    if (t.dataset.stpic != null) {
+      const i = t.dataset.stpic, f = m0.facts[i], v = t.value;
+      if (!v.trim() || v.trim() === f.picDefault) delete PG.pics[i]; else PG.pics[i] = v;
+      const mine = !!PG.pics[i], tag = document.querySelector(`[data-tag="${i}"]`), rb = t.parentNode.querySelector(".streset");
+      if (tag) { tag.textContent = mine ? "Yours" : f.picDefault ? "Suggested" : "Empty"; tag.classList.toggle("mine", mine); }
+      if (rb) rb.hidden = !mine;
+    } else if (t.dataset.stlyric != null) {
+      const k = t.dataset.stlyric, l = m0.song.lines.find((x) => x.key === k), v = t.value;
+      if (!v.trim() || v.trim() === l.def) delete PG.song.lines[k]; else { PG.song.lines[k] = v; PG.song.print = true; }
+      const mine = !!PG.song.lines[k], tag = document.querySelector(`[data-tag="l${k}"]`), bt = document.querySelector(`[data-beats="${k}"]`), rb = t.parentNode.querySelector(".streset");
+      const n = beats(v || l.def), want = TUNES[m0.song.tune].beats;
+      if (tag) { tag.textContent = mine ? "Yours" : l.def ? "Suggested" : "Empty"; tag.classList.toggle("mine", mine); }
+      if (bt) { bt.textContent = (v || l.def) ? n + " beats" : ""; bt.classList.toggle("ok", n === want); }
+      if (rb) rb.hidden = !mine;
+      const pc = document.querySelector('[data-act="stsongprint"]'); if (pc && mine) pc.checked = true;
+    } else return;
+    savePage(); clearTimeout(typeT); typeT = setTimeout(refreshPaper, 250);
+  });
+  // "Hear the tune": the opening of a public-domain melody, played with the Web Audio API (no files, no network).
+  const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  let AC = null;
+  function playTune(k) {
+    const T = TUNES[k]; if (!T) return;
+    try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    let t = AC.currentTime + 0.05; const beat = k === "yankee" ? 0.36 : 0.42;
+    T.notes.split(/\s+/).forEach((n) => {
+      const [p, d] = n.split(":"), midi = 12 * (Number(p.slice(-1)) + 1) + NOTE[p[0]], dur = (Number(d) || 1) * beat;
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type = "triangle"; o.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.92);
+      o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + dur); t += dur;
+    });
+  }
+
   W.PAGE_ACTIONS = Object.assign(W.PAGE_ACTIONS || {}, {
     ststyle: (b) => { ST.style = b.dataset.v; savePref(); },
     stmap: (b) => { ST.map = b.dataset.v; savePref(); },
@@ -548,6 +718,16 @@
       savePage(); },
     stclear: () => { if (!confirm("Clear your drawings, shapes and moves on this page?")) return false; PG = blankPage(); savePage(); },
     stprint: () => { preparePrint(); setTimeout(() => window.print(), 50); return false; },
+    stpanel: (b) => { ST.panel = ST.panel === b.dataset.v ? "" : b.dataset.v; },
+    stpicreset: (b) => { delete PG.pics[b.dataset.i]; savePage(); },
+    sttune: (b) => { PG.song.tune = b.dataset.v; savePage(); },
+    stlyreset: (b) => { delete PG.song.lines[b.dataset.k]; savePage(); },
+    stlyresetall: () => { if (!confirm("Use our whole jingle again? Your own lines will be replaced.")) return false; PG.song.lines = {}; savePage(); },
+    stsongprint: (b) => { PG.song.print = !!b.checked; savePage(); },
+    stsongyes: () => { ST.songPop = false; ST.panel = "song"; PG.song.asked = true; PG.song.print = true; savePage();
+      setTimeout(() => { const el = document.querySelector(".stsong"); if (el) el.scrollIntoView({ block: "start", behavior: "smooth" }); }, 60); },
+    stsongno: () => { ST.songPop = false; PG.song.asked = true; savePage(); },
+    stplay: () => { playTune(mdl().song.tune); return false; },
   });
 
   W.OB_STUDY = Object.assign(API(), { open, screen, hasPage, listPages, thumb, preparePrint, state: ST });

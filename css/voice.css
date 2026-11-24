@@ -170,6 +170,35 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 @keyframes stfall { to { transform: translateY(105vh) rotate(540deg); opacity: .2; } }
 @media (prefers-reduced-motion: reduce) { .stconfetti { display: none; } .stbadge { animation: none; } }
 .stlistbtn { border: 0; background: none; padding: 0; font: inherit; color: var(--bay, #0A4A63); text-decoration: underline; cursor: pointer; text-align: left; }
+/* Picture ideas and the optional song (Ken, Nov 23: "Do it for them, but let them type in a different image description. Same with the jingle.") */
+.stmem { display: flex; flex-direction: column; gap: 8px; }
+.stmembtn { display: flex; align-items: center; gap: 12px; min-height: 60px; width: 100%; text-align: left; border: 2px solid var(--bay); border-radius: 14px; background: #fff; color: var(--bay); font: inherit; padding: 8px 14px; cursor: pointer; }
+.stmembtn > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; gap: 2px; } .stmembtn b { font-size: 16px; } .stmembtn small { font-size: 13px; color: #3B4A55; font-weight: 400; }
+.stmembtn i { font-style: normal; font-size: 18px; } .stmembtn.on { background: var(--glass, #E7F4F3); }
+.stmemic { width: 36px; height: 36px; border-radius: 10px; background: var(--buoy, #F5B83D); color: var(--accentInk, #3A2600); display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 700; flex-shrink: 0; }
+.stpanel { background: #fff; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 8px rgba(4,34,48,.08); }
+.stpicrow, .stlyric { display: flex; flex-direction: column; gap: 4px; }
+.stpicrow label, .stlyric label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px; color: #14222C; }
+.stpicrow textarea, .stlyric input { width: 100%; box-sizing: border-box; border: 2px solid #C9D6DB; border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 15px; line-height: 1.4; color: #14222C; background: #fff; }
+.stlyric input { min-height: 46px; } .stpicrow textarea { resize: vertical; }
+.stpicrow textarea:focus, .stlyric input:focus { outline: none; border-color: var(--bay); box-shadow: 0 0 0 3px rgba(10,74,99,.15); }
+.sttag { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #E3E8EE; color: #3B4A55; } .sttag.mine { background: var(--buoy, #F5B83D); color: var(--accentInk, #3A2600); }
+.stbeats { margin-left: auto; font-size: 12.5px; color: #8A2E08; } .stbeats.ok { color: #2E7D32; } .stbeats.ok::after { content: " ✓"; }
+.streset { align-self: flex-start; min-height: 40px; border: 0; background: none; padding: 0; color: var(--bay); font: inherit; font-size: 14px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.streset[hidden] { display: none; }
+.sttunes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sttunes button { min-height: 52px; border: 2px solid #C9D6DB; border-radius: 12px; background: #fff; color: var(--bay); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 6px; }
+.sttunes button small { font-size: 11.5px; font-weight: 400; color: #3B4A55; } .sttunes button.on { border-color: var(--bay); background: var(--bay); color: #fff; } .sttunes button.on small { color: #DCEBF0; }
+.stsong .asklabel { margin: 0; }
+.stmeter { margin: 0; font-size: 14px; color: #3B4A55; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.stplay { min-height: 40px; border: 2px solid var(--bay); border-radius: 999px; background: #fff; color: var(--bay); font: inherit; font-size: 14px; font-weight: 700; padding: 0 14px; cursor: pointer; }
+.stsongpop { position: fixed; left: 12px; right: 12px; bottom: 150px; z-index: 61; max-width: 440px; margin: 0 auto; background: #fff; border-radius: 18px; padding: 16px; box-shadow: 0 10px 30px rgba(4,34,48,.35); border: 3px solid var(--buoy, #F5B83D); display: flex; flex-direction: column; gap: 8px; animation: stpop .35s ease-out; }
+.stsongpop p { margin: 0; font-size: 15px; line-height: 1.4; color: #24313E; } .stsongpop .stsongq { font-family: "Fredoka", var(--font); font-size: 21px; font-weight: 600; color: var(--bay); }
+.stsongpop .strow button { min-height: 50px; font-size: 16px; } .stsongpop .stsongyes { background: var(--bay); color: #fff; border-color: var(--bay); }
+@keyframes stpop { from { opacity: 0; transform: translateY(20px) scale(.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .stsongpop { animation: none; } }
+.tsheet .ts-pics, .tsheet .ts-song { margin: 8px 0; } .tsheet .ts-pics ul { margin: 2px 0 0; padding-left: 18px; } .tsheet .ts-song span { color: #5A6670; }
+.tsheet .ts-song ol { margin: 2px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 18px; } .tsheet .ts-song li { break-inside: avoid; }
 /* Traditional sheet */
 .tsheet { font-family: Helvetica, Arial, sans-serif; color: #14222C; padding: 18px 20px; box-sizing: border-box; font-size: 12px; line-height: 1.4; }
 .tsheet header { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #D5DDE2; padding-bottom: 8px; }
