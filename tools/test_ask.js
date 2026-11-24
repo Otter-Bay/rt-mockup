@@ -263,6 +263,7 @@ study("Ask offers Print study sheet and brings back Your study page", vsrc.inclu
   const hsrc = fs.readFileSync(path.join(ROOT, "js/home.js"), "utf8");
   study("Add to Arcade flag on Ask answers, Memory Arcade on home", vsrc.includes("OB_BIN.flag(k)") && hsrc.includes("OB_BIN.way()") && vsrc.includes("window.OB_THEME = themeVars"), "hook missing");
   const bsrc = fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8");
+  study("arcade otter: hero with alt text and an h1 on the Memory Arcade screen, small otter on the button, both image files present and the small one under 60 KB", bsrc.includes('class="archero"') && bsrc.includes("OTTER_ALT") && bsrc.includes('class="arch1"') && bsrc.includes("otter-arcade-256.jpg") && fs.existsSync(path.join(ROOT, "images/brand/otter-arcade.jpg")) && fs.statSync(path.join(ROOT, "images/brand/otter-arcade-256.jpg")).size < 60000, "otter images");
   study("renamed Memory Arcade: no \"study bin\" or \"Study this\" left in what the learner sees", !/study bin|Study this/i.test(bsrc.split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n")) && bsrc.includes(">Memory Arcade<") && bsrc.includes("Play to Learn") && bsrc.includes("Add to Arcade") && bsrc.includes("obBin:"), "old name in the UI");
   study("practice questions get the flag through scaleButtons, after the answer", /W\.scaleButtons = function \(q, c\)/.test(bsrc) && bsrc.includes("if (!c || !c.done) return h"), "wrap missing");
 }

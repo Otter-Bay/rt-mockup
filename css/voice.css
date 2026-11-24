@@ -399,3 +399,7 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .way.arcadeway .arcbadge { margin-left: auto; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 14px; background: var(--buoy, #F5B83D); color: #3A2800; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(245,184,61,.8); }
 .way.arcadeway:active { transform: scale(.97); box-shadow: 0 0 0 3px rgba(124,240,255,.9), 0 1px 4px rgba(43,16,85,.4); }
 @media (prefers-reduced-motion: reduce) { .way.arcadeway::after { animation: none; display: none; } .way.arcadeway { transition: none; } }
+/* arcade otter */
+.way.arcadeway .arcotter { width: 56px; height: 56px; border-radius: 12px; flex: none; box-shadow: 0 0 0 2px rgba(124,240,255,.6), 0 0 12px rgba(124,240,255,.5); }
+.archero { display: block; width: min(100%, 320px); height: auto; margin: 0 auto; border-radius: 22px; box-shadow: 0 0 0 2px rgba(124,240,255,.5), 0 8px 24px rgba(43,16,85,.35); }
+.arch1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
