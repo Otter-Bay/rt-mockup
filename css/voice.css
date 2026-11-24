@@ -394,13 +394,13 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .way.arcadeway::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.22) 45%, transparent 60%); transform: translateX(-120%); animation: arcshine 4.5s ease-in-out infinite; pointer-events: none; }
 @keyframes arcshine { 0%, 60% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
 .way.arcadeway .arcicon { font-size: 32px; line-height: 1; filter: drop-shadow(0 0 6px rgba(124,240,255,.8)); }
-.arctext { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; } .way.arcadeway b { color: #fff; font-family: "Fredoka", var(--font); font-size: 18px; letter-spacing: .02em; text-shadow: 0 0 8px rgba(124,240,255,.6); }
+.arctext { display: flex; flex-direction: column; gap: 2px; } .way.arcadeway b { color: #fff; font-family: "Fredoka", var(--font); font-size: 18px; letter-spacing: .02em; text-shadow: 0 0 8px rgba(124,240,255,.6); }
 .way.arcadeway .arctext > span { color: #CFF8FF; font-size: 13px; }
-.way.arcadeway .arcbadge { margin-left: auto; flex: none; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 14px; background: var(--buoy, #F5B83D); color: #3A2800; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(245,184,61,.8); }
+.way.arcadeway .arcbadge { margin-left: auto; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 14px; background: var(--buoy, #F5B83D); color: #3A2800; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(245,184,61,.8); }
 .way.arcadeway:active { transform: scale(.97); box-shadow: 0 0 0 3px rgba(124,240,255,.9), 0 1px 4px rgba(43,16,85,.4); }
 @media (prefers-reduced-motion: reduce) { .way.arcadeway::after { animation: none; display: none; } .way.arcadeway { transition: none; } }
 /* arcade otter */
-.way.arcadeway .arcotter { margin-left: auto; width: 52px; height: 52px; border-radius: 12px; flex: none; box-shadow: 0 0 0 2px rgba(124,240,255,.6), 0 0 12px rgba(124,240,255,.5); }
+.way.arcadeway .arcotter { width: 56px; height: 56px; border-radius: 12px; flex: none; box-shadow: 0 0 0 2px rgba(124,240,255,.6), 0 0 12px rgba(124,240,255,.5); }
 .archead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 10px; }
 .archead .arch1 { margin: 0; font-family: "Fredoka", var(--font); font-size: 24px; color: var(--ink, #12202E); }
 .archead p { margin: 2px 0 0; font-size: 14px; color: #5B4A86; font-weight: 600; }

@@ -226,7 +226,7 @@
 
   // ======================= Screen =======================
   const KEY = `obBin:${EXAM}`, DAY = 864e5;
-  // the arcade otter (Ken, t141u to t143u): the same 52 px otter, without the sign tagline, on the right of the home button and of the Memory Arcade screen header (t145u, t146u)
+  // the arcade otter (Ken, t141u to t143u): tagline-free icon (sign reads only Memory Arcade) on the home button and in the calm Memory Arcade screen header (t145u to t147u)
   const IMG = ((document.querySelector('link[href*="voice.css"]') || {}).href || "").replace(/css\/voice\.css.*$/, "") + "images/brand/";
   const load = () => { try { return Object.assign({ cards: {}, streak: 0, lastDay: "", sound: true, badges: [], offset: 0 }, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { return { cards: {}, streak: 0, lastDay: "", sound: true, badges: [], offset: 0 }; } };
   let B = load();
@@ -257,7 +257,7 @@
   };
   // home: the Memory Arcade button
   const way = () => { const n = Object.values(B.cards).filter((c) => !c.mastered).length;
-    return `<button type="button" class="way binway arcadeway" data-act="binopen" aria-label="Memory Arcade${n ? `, ${n} saved` : ""}"><span class="arctext"><b>Memory Arcade</b>${n ? "" : `<span>Tap 🕹 Add to Arcade on any answer</span>`}</span>${n ? `<span class="arcbadge">${n}</span>` : ""}<img class="arcotter" src="${IMG}otter-arcade-icon.jpg" alt="" width="52" height="52"></button>`; };
+    return `<button type="button" class="way binway arcadeway" data-act="binopen" aria-label="Memory Arcade, Play to Learn${n ? `, ${n} saved` : ""}"><img class="arcotter" src="${IMG}otter-arcade-icon.jpg" alt="" width="56" height="56"><span class="arctext"><b>Memory Arcade</b><span>Play to Learn${n ? "" : " · tap 🕹 Add to Arcade on any answer"}</span></span>${n ? `<span class="arcbadge">${n}</span>` : ""}</button>`; };
 
   // ---------- sound (optional) ----------
   let AC = null;
