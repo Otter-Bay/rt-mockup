@@ -428,7 +428,7 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .pconf i { position: absolute; top: -20px; left: var(--x); width: var(--w); height: var(--h); background: var(--c); border-radius: 2px; animation: pfall var(--t) linear var(--d) infinite backwards, pflut var(--f) ease-in-out infinite alternate; }
 @keyframes pfall { from { translate: 0 0; } to { translate: var(--dx) 110vh; } }
 @keyframes pflut { from { transform: rotateZ(0) rotateX(0); } to { transform: rotateZ(200deg) rotateX(160deg); } }
-.pball b { position: absolute; bottom: -90px; left: var(--x); width: 38px; height: 48px; border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.7), transparent 30%), var(--c); transform-origin: 50% 120%; animation: prise 1.3s cubic-bezier(.2,.8,.3,1) var(--d) both, pbob var(--p) ease-in-out calc(var(--d) + 1.3s) infinite alternate; }
+.pball b { position: absolute; bottom: -90px; left: var(--x); width: calc(38px * var(--s, 1)); height: calc(48px * var(--s, 1)); border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.7), transparent 30%), var(--c); transform-origin: 50% 120%; animation: prise 1.3s cubic-bezier(.2,.8,.3,1) var(--d) both, pbob var(--p) ease-in-out calc(var(--d) + 1.3s + var(--ph, 0s)) infinite alternate; }
 @keyframes prise { from { translate: 0 0; } to { translate: 0 calc(-1 * var(--y)); } }
 @keyframes pbob { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-14px) rotate(4deg); } }
 .pskip { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: #4F6B75; font-size: 13px; }

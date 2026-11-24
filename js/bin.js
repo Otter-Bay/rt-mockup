@@ -316,6 +316,13 @@
   }
   // perfect score party (Ken, t148u to t153u): "Yes, perfect score!!!" bubble, fist pump, side-view moonwalk, confetti raining and balloons bobbing (t154u), 4.5 s at most; tap to skip
   const YES = "Yes, perfect score!!!";
+  // balloons are random every time (Ken, t155u): 5 to 9, bright colors, spread across the width in jittered slots, random size, rise delay, bob speed and phase
+  function balloons() {
+    const R = (a, b) => a + Math.random() * (b - a), n = 5 + Math.floor(Math.random() * 5);
+    const pal = shuffle(["#E53935", "#FB8C00", "#FDD835", "#43A047", "#1E88E5", "#8E24AA", "#EC407A", "#00ACC1", "#7CB342"]);
+    return Array.from({ length: n }, (_, i) => { const slot = 96 / n;
+      return `<b style="--x:${(2 + i * slot + R(0, slot - 9)).toFixed(1)}%;--y:${R(40, 74).toFixed(0)}vh;--s:${R(0.8, 1.3).toFixed(2)};--d:${R(0, 0.6).toFixed(2)}s;--ph:${R(0, 0.6).toFixed(2)}s;--p:${R(0.9, 1.7).toFixed(2)}s;--c:${pal[i % pal.length]}"></b>`; }).join("");
+  }
   function celebrate() {
     const old = document.querySelector(".party"); if (old) old.remove();
     const still = W.matchMedia && W.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -323,7 +330,7 @@
     const el = document.createElement("div");
     el.className = "party" + (still ? " still" : ""); el.setAttribute("role", "status"); el.setAttribute("aria-label", YES);
     el.innerHTML = `<div class="pstage"><p class="pbubble">${YES}</p><img class="pyes" src="${IMG}otter-yes.webp" alt="" width="242" height="300">${still ? "" : `<img class="pmw" src="${IMG}otter-moonwalk.webp" alt="" width="202" height="300">`}</div>` +
-      (still ? "" : `<div class="pconf" aria-hidden="true">${Array.from({ length: 72 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--d:${((i * 53) % 120) / 100}s;--t:${1.6 + (i % 5) * 0.25}s;--dx:${(i % 7) * 9 - 27}px;--w:${5 + (i % 4) * 2}px;--h:${8 + (i % 3) * 4}px;--f:${0.5 + (i % 4) * 0.15}s;--c:${cols[i % 6]}"></i>`).join("")}</div><div class="pball" aria-hidden="true">${Array.from({ length: 7 }, (_, i) => `<b style="--x:${4 + i * 14}%;--y:${48 + (i * 29) % 26}vh;--d:${(i % 4) * 0.15}s;--p:${1.1 + (i % 3) * 0.3}s;--c:${cols[(i + 2) % 6]}"></b>`).join("")}</div>`) +
+      (still ? "" : `<div class="pconf" aria-hidden="true">${Array.from({ length: 72 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--d:${((i * 53) % 120) / 100}s;--t:${1.6 + (i % 5) * 0.25}s;--dx:${(i % 7) * 9 - 27}px;--w:${5 + (i % 4) * 2}px;--h:${8 + (i % 3) * 4}px;--f:${0.5 + (i % 4) * 0.15}s;--c:${cols[i % 6]}"></i>`).join("")}</div><div class="pball" aria-hidden="true">${balloons()}</div>`) +
       `<small class="pskip">Tap to continue</small>`;
     const done = () => { el.classList.add("out"); setTimeout(() => el.remove(), 250); };
     el.addEventListener("click", done);
