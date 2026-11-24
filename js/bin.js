@@ -312,6 +312,24 @@
     }
     if (c) c.best[G.game] = Math.max(c.best[G.game] || 0, G.score);
     save(); beep(win ? "win" : "no");
+    if (win && G.right > 0 && G.wrong === 0) celebrate();
+  }
+  // perfect score party (Ken, t148u to t153u): "Yes, perfect score!!!" bubble, fist pump, side-view moonwalk, confetti and balloons; tap to skip
+  const YES = "Yes, perfect score!!!";
+  function celebrate() {
+    const old = document.querySelector(".party"); if (old) old.remove();
+    const still = W.matchMedia && W.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const cols = ["#E53935", "#FB8C00", "#FDD835", "#43A047", "#1E88E5", "#8E24AA"];
+    const el = document.createElement("div");
+    el.className = "party" + (still ? " still" : ""); el.setAttribute("role", "status"); el.setAttribute("aria-label", YES);
+    el.innerHTML = `<div class="pstage"><p class="pbubble">${YES}</p><img class="pyes" src="${IMG}otter-yes.webp" alt="" width="242" height="300">${still ? "" : `<img class="pmw" src="${IMG}otter-moonwalk.webp" alt="" width="202" height="300">`}</div>` +
+      (still ? "" : `<div class="pconf" aria-hidden="true">${Array.from({ length: 44 }, (_, i) => `<i style="--x:${(i * 23) % 100}%;--d:${(i % 9) * 0.07}s;--r:${(i * 47) % 360}deg;--c:${cols[i % 6]}"></i>`).join("")}</div><div class="pball" aria-hidden="true">${Array.from({ length: 7 }, (_, i) => `<b style="--x:${6 + i * 14}%;--d:${(i % 4) * 0.25}s;--c:${cols[(i + 2) % 6]}"></b>`).join("")}</div>`) +
+      `<small class="pskip">Tap to continue</small>`;
+    const done = () => { el.classList.add("out"); setTimeout(() => el.remove(), 250); };
+    el.addEventListener("click", done);
+    document.body.appendChild(el);
+    if (!still) setTimeout(() => el.classList.add("mw"), 1700);
+    setTimeout(done, still ? 2600 : 3800);
   }
   function nextFall() { const g = G; clearTimeout(g.timer); g.fallStart = Date.now(); g.dur = Math.max(3200, 6500 - g.streak * 350);
     g.timer = setTimeout(() => { if (G !== g || g.over) return; hit(false, "Too slow"); sortMiss(g, g.items[g.i]); render(); }, g.dur); }
@@ -608,5 +626,5 @@
     for (let i = 0; i < w.w.length; i++) { const x = w.x + (w.dir === "a" ? i : 0), y = w.y + (w.dir === "a" ? 0 : i), el = document.querySelector(`[data-cell="${x},${y}"] span`); if (el) el.textContent = G.typed[wi][i] || ""; }
   });
 
-  W.OB_BIN = Object.assign(API(), { flag, way, inBin, state: () => ({ B, G, VIEW }) });
+  W.OB_BIN = Object.assign(API(), { flag, way, inBin, celebrate, state: () => ({ B, G, VIEW }) });
 })();
