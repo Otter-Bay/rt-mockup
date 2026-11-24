@@ -200,6 +200,7 @@ study("Ask offers Print study sheet and brings back Your study page", vsrc.inclu
   study("every game answer is copied from its card", !offCard.length, offCard.slice(0, 3).join(" | "));
   const ap = D.apgar.table;
   study("Build the Table: Apgar is a 5 × 3 grid with its row and column names", ap.rowHeads.length === 5 && ap.colHeads.map((c) => c.t).join() === "0,1,2" && ap.cells.every((r) => r.length === 3), JSON.stringify(ap.colHeads));
+  study("Apgar answer blocks each have a picture and a score color", ap.cellIcons.length === 5 && ap.cellIcons.every((r) => r.length === 3 && r.every(Boolean)) && new Set(ap.cellIcons.flat()).size === 15 && ap.cellTone.every((r) => r.join() === "0,1,2"), "cell pictures");
   let babyOk = true, babyWhy = "";
   for (let i = 0; i < 200; i++) { const s = BN.scenario("apgar"), parts = s.why.match(/(\d) \+ .* = (\d+)/), nums = s.why.split("=")[0].match(/\d/g).map(Number), tot = +s.a;
     const band = tot >= 7 ? "reassuring" : tot >= 4 ? "moderately abnormal" : "low";

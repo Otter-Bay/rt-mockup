@@ -23,10 +23,12 @@
   // ---------- The three example cards ----------
   const EX = {
     apgar: { cat: "Scoring grid", rec: "table", use: "baby", boss: ["👾", "The Fussy Monster"], icons: ["👶", "💓", "😖", "🤸", "🎺"],
+      // a picture for each 0 / 1 / 2 description (rows follow the card): blue baby, pink with blue hands, all pink; no beat, slow, fast; ...
+      cellIcons: [["🥶", "🧤", "🌸"], ["💔", "🐢", "🐇"], ["😐", "😬", "😭"], ["🧸", "🦐", "🥊"], ["😶", "😢", "📣"]],
       words: [["PINK", "Appearance scores 2: ___ all over"], ["BLUE", "Appearance scores 0: ___ or pale all over"], ["ABSENT", "Pulse or respiration that scores 0"],
         ["GRIMACE", "Reflex irritability that scores 1"], ["LIMP", "Muscle tone that scores 0"], ["FLEXION", "Activity scores 1: some ___"], ["CRY", "Respiration scores 2: good effort; strong ___"],
         ["SNEEZE", "Grimace scores 2: cry, cough, or ___"], ["TEN", "The highest total score"], ["FIVE", "Apgar is scored at 1 and ___ minutes after birth"]] },
-    gaslaws: { cat: "Laws and relationships", rec: "match", use: "case", boss: ["🐙", "The Pressure Kraken"], icons: ["💉", "🫖", "🌡️", "🎂", "🥤", "🚰", "🫧", "✈️", "⏳", "🏃"],
+    gaslaws: { cat: "Laws and relationships", rec: "match", use: "case", boss: ["🐙", "The Pressure Kraken"], icons: ["💉", "🫖", "🌡️", "🎂", "🥤", "🚰", "🫧", "✈️", "⏳", "🏃"], heldIcons: { Temperature: "🔥", Pressure: "🎈", Volume: "📦", "Not applicable": "➖" },
       words: [["BOYLE", "P1V1 = P2V2"], ["CHARLES", "V1/T1 = V2/T2"], ["DALTON", "Total pressure = the sum of each gas's partial pressure"], ["HENRY", "Dissolved gas rises with that gas's partial pressure"],
         ["LAPLACE", "Pressure in a bubble = 2 × surface tension ÷ radius"], ["GRAHAM", "Diffusion rate is inversely proportional to the square root of gram molecular weight"],
         ["VENTURI", "A gradual widening after a narrowing restores pressure so a jet can entrain a second gas"], ["BERNOULLI", "As gas speeds up through a narrowing, its lateral pressure falls"],
@@ -47,9 +49,9 @@
     const E = EX[k], card = W.SCALES[k], title = W.OB_STUDY.plain(card.title);
     if (k === "apgar") {
       const t = rows("apgar"), signs = t.rows.map((r) => short(r[0])), cols = t.heads.slice(1);
-      const pairs = []; t.rows.forEach((r, i) => cols.forEach((c, j) => pairs.push({ a: `${signs[i]} · scores ${c}`, icon: E.icons[i], b: r[j + 1], row: i, col: j })));
-      return { k, E, title, pairs, table: { corner: "Sign", rowHeads: signs.map((s, i) => ({ t: s, icon: E.icons[i] })), colHeads: cols.map((c) => ({ t: c })), cells: t.rows.map((r) => r.slice(1)) },
-        sort: { cols: cols.map((c) => "Scores " + c), items: pairs.map((p) => ({ t: `${p.icon} ${signs[p.row]}: ${p.b}`, col: p.col })) },
+      const pairs = []; t.rows.forEach((r, i) => cols.forEach((c, j) => pairs.push({ a: `${signs[i]} · scores ${c}`, icon: E.icons[i], b: r[j + 1], bicon: E.cellIcons[i][j], tone: j, row: i, col: j })));
+      return { k, E, title, pairs, table: { corner: "Sign", rowHeads: signs.map((s, i) => ({ t: s, icon: E.icons[i] })), colHeads: cols.map((c, j) => ({ t: c, tone: j })), cells: t.rows.map((r) => r.slice(1)), cellIcons: E.cellIcons, cellTone: t.rows.map(() => [0, 1, 2]) },
+        sort: { cols: cols.map((c) => "Scores " + c), items: pairs.map((p) => ({ t: `${p.bicon} ${signs[p.row]}: ${p.b}`, col: p.col, tone: p.tone })) },
         oddRound() { const c = rnd(0, 2), same = shuffle(pairs.filter((p) => p.col === c)).slice(0, 3), odd = pick(pairs.filter((p) => p.col !== c && !same.some((s) => s.row === p.row && s.b === p.b)));
           return { q: "Three of these score the same. Which one doesn't?", tiles: shuffle([...same.map((p) => ({ t: `${p.icon} ${signs[p.row]}: ${p.b}`, odd: false })), { t: `${odd.icon} ${signs[odd.row]}: ${odd.b}`, odd: true }]), why: `The other three score ${cols[c]}; “${odd.b}” scores ${cols[odd.col]} for ${signs[odd.row]}.` }; },
         qs() { return shuffle(pairs).map((p) => Math.random() < 0.6
@@ -61,8 +63,8 @@
       const t = rows("gaslaws"), laws = t.rows.map((r) => r[0]);
       const pairs = t.rows.map((r, i) => ({ a: short(r[0]), icon: E.icons[i], b: r[1], ex: r[3], held: r[2], row: i }));
       const held = [...new Set(t.rows.map((r) => r[2]))];
-      return { k, E, title, pairs, table: { corner: "Law", rowHeads: pairs.map((p) => ({ t: p.a, icon: p.icon })), colHeads: [{ t: "Held constant" }], cells: pairs.map((p) => [p.held]) },
-        sort: { cols: held, items: pairs.map((p) => ({ t: `${p.icon} ${laws[p.row]}`, col: held.indexOf(p.held) })) },
+      return { k, E, title, pairs, table: { corner: "Law", rowHeads: pairs.map((p) => ({ t: p.a, icon: p.icon })), colHeads: [{ t: "Held constant" }], cells: pairs.map((p) => [p.held]), cellIcons: pairs.map((p) => [E.heldIcons[p.held]]), cellTone: pairs.map((p) => [held.indexOf(p.held)]) },
+        sort: { cols: held, items: pairs.map((p) => ({ t: `${p.icon} ${laws[p.row]}`, col: held.indexOf(p.held), tone: held.indexOf(p.held) })) },
         oddRound() { const na = shuffle(pairs.filter((p) => p.held === "Not applicable")).slice(0, 3), odd = pick(pairs.filter((p) => p.held !== "Not applicable"));
           return { q: "Three of these laws don't hold anything constant. Which one does?", tiles: shuffle([...na.map((p) => ({ t: `${p.icon} ${laws[p.row]}`, odd: false })), { t: `${odd.icon} ${laws[odd.row]}`, odd: true }]), why: `${laws[odd.row]} holds ${odd.held.toLowerCase()} constant.` }; },
         qs() { const L = laws.map(short); return shuffle(pairs).flatMap((p) => [
@@ -236,12 +238,12 @@
     if (game === "table") {
       const T = D.table, blocks = [];
       T.rowHeads.forEach((r, i) => blocks.push({ id: "r" + i, kind: "rh", v: r.t, icon: r.icon }));
-      T.colHeads.forEach((c, j) => blocks.push({ id: "c" + j, kind: "ch", v: c.t }));
-      T.cells.forEach((row, i) => row.forEach((v, j) => blocks.push({ id: `x${i}_${j}`, kind: "cell", v })));
+      T.colHeads.forEach((c, j) => blocks.push({ id: "c" + j, kind: "ch", v: c.t, tone: c.tone }));
+      T.cells.forEach((row, i) => row.forEach((v, j) => blocks.push({ id: `x${i}_${j}`, kind: "cell", v, icon: (T.cellIcons || [])[i] && T.cellIcons[i][j], tone: (T.cellTone || [])[i] ? T.cellTone[i][j] : null })));
       g.blocks = shuffle(blocks); g.slots = {}; g.sel = null; g.n = blocks.length;
     } else if (game === "match") {
       const ps = shuffle(D.pairs).slice(0, 6);
-      g.tiles = shuffle(ps.flatMap((p, i) => [{ p: i, side: "a", t: p.a, icon: p.icon }, { p: i, side: "b", t: p.b, icon: "" }])); g.open = []; g.got = []; g.moves = 0; g.n = 6;
+      g.tiles = shuffle(ps.flatMap((p, i) => [{ p: i, side: "a", t: p.a, icon: p.icon }, { p: i, side: "b", t: p.b, icon: p.bicon || "", tone: p.tone }])); g.open = []; g.got = []; g.moves = 0; g.n = 6;
     } else if (game === "blanks") { g.qs = D.qs().slice(0, 8); g.n = g.qs.length; g.cr = !!(G && G.cr); g.reveal = false; }
     else if (game === "baby") { g.qs = [scenario(k), scenario(k), scenario(k)]; g.n = 3; }
     else if (game === "crossword") { g.cw = crossword(D.E.words); g.n = g.cw.words.length; g.typed = g.cw.words.map(() => ""); g.checked = false; }
@@ -280,15 +282,15 @@
     if (g.over) return resultView();
     if (g.game === "table") {
       const T = D.table, lv = level(g.k), fade = lv >= 3;
-      const slot = (id, kind, label) => { const b = g.slots[id]; return `<button type="button" class="gslot ${kind}${b ? " full" : ""}${g.fb && !g.fb.ok && g.fb.i === id ? " shake" : ""}${g.fb && g.fb.ok && g.fb.i === id ? " pop" : ""}" data-act="bgslot" data-id="${id}" aria-label="${label}">${b ? `${b.icon ? `<i>${b.icon}</i>` : ""}<span${fade && b.kind === "rh" ? ' class="faded"' : ""}>${esc(b.v)}</span>` : ""}</button>`; };
-      h += `<p class="ghelp">Tap a block, then tap where it goes: the row names, the column names, then every cell.${fade ? " You know this card well, so row blocks show only their picture." : ""}</p>`;
+      const slot = (id, kind, label) => { const b = g.slots[id]; return `<button type="button" class="gslot ${kind}${b ? " full" : ""}${b && b.tone != null ? " tone" + b.tone : ""}${g.fb && !g.fb.ok && g.fb.i === id ? " shake" : ""}${g.fb && g.fb.ok && g.fb.i === id ? " pop" : ""}" data-act="bgslot" data-id="${id}" aria-label="${label}">${b ? `${b.icon ? `<i>${b.icon}</i>` : ""}<span${fade && b.icon ? ' class="faded"' : ""}>${esc(b.v)}</span>` : ""}</button>`; };
+      h += `<p class="ghelp">Tap a block, then tap where it goes: the row names, the column names, then every cell.${fade ? " You know this card well, so blocks show only their picture." : ""}</p>`;
       h += `<div class="gtable" style="grid-template-columns: minmax(84px, 1.1fr) repeat(${T.colHeads.length}, minmax(0, 1fr))"><div class="gcorner">${esc(T.corner)}</div>`;
       T.colHeads.forEach((c, j) => { h += slot("c" + j, "ch", "Column " + (j + 1)); });
       T.rowHeads.forEach((r, i) => { h += slot("r" + i, "rh", "Row " + (i + 1)); T.colHeads.forEach((c, j) => { h += slot(`x${i}_${j}`, "cell", `Row ${i + 1}, column ${j + 1}`); }); });
-      h += `</div>${fbBar()}<div class="gtray">${g.blocks.filter((b) => !b.used).map((b) => `<button type="button" class="gblock ${b.kind}${g.sel === b.id ? " sel" : ""}" data-act="bgblock" data-id="${b.id}">${b.icon ? `<i>${b.icon}</i>` : ""}<span${fade && b.kind === "rh" ? ' class="faded"' : ""}>${esc(b.v)}</span></button>`).join("")}</div>`;
+      h += `</div>${fbBar()}<div class="gtray">${g.blocks.filter((b) => !b.used).map((b) => `<button type="button" class="gblock ${b.kind}${b.tone != null ? " tone" + b.tone : ""}${g.sel === b.id ? " sel" : ""}" data-act="bgblock" data-id="${b.id}">${b.icon ? `<i>${b.icon}</i>` : ""}<span${fade && b.icon ? ' class="faded"' : ""}>${esc(b.v)}</span></button>`).join("")}</div>`;
     } else if (g.game === "match") {
       h += `<p class="ghelp">Flip two tiles. Match each fact with its answer. Moves: <b>${g.moves}</b></p><div class="gmatch">${g.tiles.map((t, i) => { const up = g.open.includes(i) || g.got.includes(t.p);
-        return `<button type="button" class="gtile ${up ? "up" : ""} ${g.got.includes(t.p) ? "got" : ""} ${t.side}" data-act="bgflip" data-i="${i}" ${g.got.includes(t.p) ? "disabled" : ""}><span class="gfront">${up ? `${t.icon ? `<i>${t.icon}</i>` : ""}<span>${esc(t.t)}</span>` : "?"}</span></button>`; }).join("")}</div>${fbBar()}`;
+        return `<button type="button" class="gtile ${up ? "up" : ""}${up && t.tone != null ? " tone" + t.tone : ""} ${g.got.includes(t.p) ? "got" : ""} ${t.side}" data-act="bgflip" data-i="${i}" ${g.got.includes(t.p) ? "disabled" : ""}><span class="gfront">${up ? `${t.icon ? `<i>${t.icon}</i>` : ""}<span>${esc(t.t)}</span>` : "?"}</span></button>`; }).join("")}</div>${fbBar()}`;
     } else if (g.game === "blanks") {
       const q = g.qs[g.i];
       h += `<div class="gseg">${[["mc", "Fill the blank"], ["cr", "Call and response"]].map(([v, t]) => `<button type="button" data-act="bgcr" data-v="${v}" class="${(g.cr ? "cr" : "mc") === v ? "on" : ""}">${t}</button>`).join("")}</div>
@@ -326,7 +328,7 @@
         ${fbBar()}<div class="gcols" style="grid-template-columns: repeat(${g.cols.length}, 1fr)">${g.cols.map((c, j) => `<button type="button" class="gcol" data-act="bgsort" data-v="${j}">${esc(c)}</button>`).join("")}</div>`;
     } else if (g.game === "bingo") {
       const call = g.board[g.calls[g.i]];
-      h += `<div class="gcall"><small>The call</small><b>${call.icon ? call.icon + " " : ""}${esc(call.a)}</b></div><div class="gbingo">${g.board.map((p, i) => `<button type="button" class="gbc${g.stamped.includes(i) ? " st" : ""}${g.fb && g.fb.i === i && !g.fb.ok ? " shake" : ""}" data-act="bgbingo" data-i="${i}" ${g.stamped.includes(i) ? "disabled" : ""}><span>${esc(p.b)}</span>${g.stamped.includes(i) ? '<em aria-hidden="true">★</em>' : ""}</button>`).join("")}</div>${fbBar()}`;
+      h += `<div class="gcall"><small>The call</small><b>${call.icon ? call.icon + " " : ""}${esc(call.a)}</b></div><div class="gbingo">${g.board.map((p, i) => `<button type="button" class="gbc${p.tone != null ? " tone" + p.tone : ""}${g.stamped.includes(i) ? " st" : ""}${g.fb && g.fb.i === i && !g.fb.ok ? " shake" : ""}" data-act="bgbingo" data-i="${i}" ${g.stamped.includes(i) ? "disabled" : ""}>${p.bicon ? `<i>${p.bicon}</i>` : ""}<span>${esc(p.b)}</span>${g.stamped.includes(i) ? '<em aria-hidden="true">★</em>' : ""}</button>`).join("")}</div>${fbBar()}`;
     } else if (g.game === "escape") {
       const q = g.qs[g.open];
       h += `<div class="gdoor"><div class="glocks">${g.qs.map((_, i) => `<span class="${i < g.open ? "open" : i === g.open ? "cur" : ""}${g.fb && !g.fb.ok && i === g.open ? " shake" : ""}">${i < g.open ? "🔓" : "🔒"}</span>`).join("")}</div><p>🗝️ Keys left: <b>${"🗝️".repeat(g.keys) || "none"}</b></p></div>

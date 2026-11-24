@@ -347,3 +347,10 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .gmini { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .gmini button { min-height: 66px; border: 0; border-radius: 12px; background: #fff; font: inherit; font-size: 10px; font-weight: 700; color: var(--bay, #0A4A63); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; line-height: 1.1; box-shadow: 0 1px 4px rgba(4,34,48,.1); }
 .gmini i { font-style: normal; font-size: 22px; }
+/* score colors on answer blocks, with a pattern so they still read in black and white: 0 red stripes, 1 amber dots, 2 green solid; 3 blue */
+.bin .tone0 { background: repeating-linear-gradient(135deg, #FFEBEE 0 6px, #FFCDD2 6px 9px) !important; border: 2px dashed #C62828 !important; }
+.bin .tone1 { background: radial-gradient(#FFCC80 1.4px, #FFF3E0 1.6px) 0 0 / 8px 8px !important; border: 2px dotted #E65100 !important; }
+.bin .tone2 { background: #E8F5E9 !important; border: 3px solid #2E7D32 !important; }
+.bin .tone3 { background: #E3F2FD !important; border: 2px double #1565C0 !important; }
+.bin .gtile.tone0, .bin .gtile.tone1, .bin .gtile.tone2 { color: #1E3A44; }
+.gbc i { display: block; font-style: normal; font-size: 20px; }
