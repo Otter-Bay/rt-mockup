@@ -221,6 +221,8 @@ study("Ask offers Print study sheet and brings back Your study page", vsrc.inclu
     const bad = Object.keys(X.OB_BIN.EX).filter((k) => { const d = X.OB_BIN.data(k), E = X.OB_BIN.EX[k]; if (E.games && !E.games.includes("attack")) return true;
       for (let i = 0; i < 30; i++) { const it = d.sort.gen ? d.sort.gen() : d.sort.items[i % d.sort.items.length]; if (!(it.col >= 0 && it.col < d.sort.cols.length) || !it.t) return true; } return false; });
     study("Fact Attack (replaced Block Drop): every study bin card has launchers and falling facts that each belong to one, and blocks fall gray", !X.OB_BIN.GAMES.some((g) => g[0] === "drop") && X.OB_BIN.GAMES.some((g) => g[0] === "attack") && /\.gab \{[^}]*#ECEFF1/.test(fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8")) && !/class="gab\$\{[^"]*tone/.test(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8")) && !bad.length, bad.join(", "));
+    const atksrc = fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8");
+    study("Fact Attack how-to: a card with 4 steps and Start shows before the first round, and a ? button reopens it", atksrc.includes("How to play Fact Attack") && atksrc.includes('data-act="bgatkstart"') && atksrc.includes(">Start<") && atksrc.includes('data-act="bgatkhelp"') && atksrc.includes("help: !B.atkHow") && /\.atkhow /.test(fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8")), "how-to missing");
   }
   let babyOk = true, babyWhy = "";
   for (let i = 0; i < 200; i++) { const s = BN.scenario("apgar"), parts = s.why.match(/(\d) \+ .* = (\d+)/), nums = s.why.split("=")[0].match(/\d/g).map(Number), tot = +s.a;

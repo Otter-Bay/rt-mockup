@@ -292,7 +292,7 @@
     else if (game === "crossword") { g.cw = crossword(D.E.words); g.n = g.cw.words.length; g.typed = g.cw.words.map(() => ""); g.checked = false; }
     else if (game === "odd") { g.rounds = Array.from({ length: 6 }, () => D.oddRound()); g.n = 6; }
     else if (game === "sort") { g.items = Array.from({ length: 10 }, () => D.sort.gen ? D.sort.gen() : pick(D.sort.items)); g.n = 10; g.cols = D.sort.cols; nextFall(); }
-    else if (game === "attack") { Object.assign(g, { cols: D.sort.cols, blocks: [], fx: [], uid: 0, combo: 0, hearts: 3, wave: 1, spawned: 0, bossOut: false, n: 21, nextSpawn: Date.now() + 600, slow: 0, freeze: 0, shield: false }); atkRun(g); }
+    else if (game === "attack") { Object.assign(g, { cols: D.sort.cols, blocks: [], fx: [], uid: 0, combo: 0, hearts: 3, wave: 1, spawned: 0, bossOut: false, n: 21, nextSpawn: Date.now() + 600, slow: 0, freeze: 0, shield: false, help: !B.atkHow }); if (!g.help) atkRun(g); }
     else if (game === "bingo") { const ps = shuffle(D.pairs).slice(0, 9); g.board = ps; g.calls = shuffle(ps.map((_, i) => i)); g.stamped = []; g.n = 9; }
     else if (game === "escape") { g.qs = D.qs().slice(0, 5); g.n = 5; g.keys = 3; g.open = 0; }
     else if (game === "boss") { g.qs = D.qs(); g.hp = 100; g.hearts = 3; g.n = g.qs.length; g.hitAnim = 0; }
@@ -375,7 +375,7 @@
     g.fb.msg += ` · ${POW[p][0]} ${POW[p][1]}!`;
   }
   function atkFire(j) {
-    const g = G; if (!g || g.game !== "attack" || g.wait || g.over) return false;
+    const g = G; if (!g || g.game !== "attack" || g.wait || g.over || g.help) return false;
     const b = g.blocks.find((x) => x.id === g.sel) || g.blocks.slice().sort((a, c) => c.y - a.y)[0]; if (!b) return false;
     const now = Date.now(), ok = j === b.it.col; g.fx.push({ k: "shot", j, x: b.x, y: b.y, t0: now, ok }); g.sel = null;
     if (ok) { g.combo++; const mult = 1 + Math.floor(g.combo / 3); hit(true, `Hit! ×${mult}`); g.score += 10 * (mult - 1); g.fx.push({ k: "burst", x: b.x, y: b.y, tone: b.it.tone, t0: now });
@@ -470,13 +470,22 @@
     } else if (g.game === "attack") {
       const now = Date.now(), n = g.cols.length, dm = D.deco || {}, TC = ["#E53935", "#FB8C00", "#43A047", "#1E88E5", "#8E24AA"];
       const pw = [g.slow > now ? "⏱" : "", g.freeze > now ? "❄" : "", g.shield ? "🛡" : ""].join(" ");
-      h += `<div class="gatkbar"><span>${"❤️".repeat(Math.max(0, g.hearts))}${"🤍".repeat(Math.max(0, 3 - g.hearts))}</span><span>Wave ${Math.min(g.wave, 3)} of 3</span><span class="gcombo${g.combo >= 3 ? " hot" : ""}">×${1 + Math.floor(g.combo / 3)} combo ${g.combo}</span><span>${pw}</span></div>`;
+      h += `<div class="gatkbar"><span>${"❤️".repeat(Math.max(0, g.hearts))}${"🤍".repeat(Math.max(0, 3 - g.hearts))}</span><span>Wave ${Math.min(g.wave, 3)} of 3</span><span class="gcombo${g.combo >= 3 ? " hot" : ""}">×${1 + Math.floor(g.combo / 3)} combo ${g.combo}</span><span>${pw}</span><button type="button" class="atkq" data-act="bgatkhelp" aria-label="How to play">?</button></div>`;
+      if (g.help) {
+        h += `<div class="atkhow"><h2>How to play Fact Attack</h2><ol>
+          <li>Gray fact blocks fall from the top. Don't let them hit the red line at the bottom.</li>
+          <li>Tap the launcher that matches the fact, or press its number. If two are falling, tap the one you want first.</li>
+          <li>A right shot scores points and builds a combo for bonus points and power-ups. A wrong shot or a landed block costs a heart and shows the answer until you tap Next.</li>
+          <li>You have 3 hearts. Clear 3 waves — each ends with a boss that takes 3 hits — to win.</li>
+        </ol><button type="button" class="gbig" data-act="bgatkstart">Start</button></div>`;
+      } else {
       h += `<div class="gfield${g.shake && now - g.shake < 350 ? " shake" : ""}${g.freeze > now ? " frozen" : ""}${g.slow > now ? " slowmo" : ""}" style="animation-delay:-${now - (g.shake || 0)}ms">`;
       h += g.blocks.map((b) => `<button type="button" class="gab${b.boss ? " boss" : ""}${g.sel === b.id ? " sel" : ""}" data-act="bgasel" data-v="${b.id}" style="left:${b.x}%;top:${b.y * 0.82}%">${b.boss ? `<em>${D.E.boss[0]} ${esc(D.E.boss[1])} ${"♥".repeat(b.hp)}</em>` : ""}${dropIcon(b.it) ? `<i>${dropIcon(b.it)}</i>` : ""}<small>${esc(dropText(b.it))}</small></button>`).join("");
       h += g.fx.map((e) => e.k === "shot" ? `<i class="gshot${e.ok ? "" : " bad"}" style="--fx:${(e.j + 0.5) / n * 100}%;--tx:${e.x + 21}%;--ty:${e.y * 0.82 + 4}%;animation-delay:-${now - e.t0}ms"></i>`
         : Array.from({ length: 10 }, (_, i) => { const a = i / 10 * 6.283; return `<i class="gpart" style="left:${e.x + 21}%;top:${e.y * 0.82 + 4}%;--dx:${Math.round(Math.cos(a) * 46)}px;--dy:${Math.round(Math.sin(a) * 46)}px;background:${e.tone != null ? TC[e.tone] : "#FFD54F"};animation-delay:-${now - e.t0}ms"></i>`; }).join("")).join("");
       h += `<div class="gground"></div></div><div class="gcannons" style="grid-template-columns: repeat(${n}, 1fr)">${g.cols.map((t, j) => { const d = dm[t]; return `<button type="button" class="gcan${d && d.tone != null ? " tone" + d.tone : ""}${g.wait && g.wait.col === j ? " right" : ""}" data-act="bgafire" data-v="${j}" ${g.wait ? "disabled" : ""}><b>${j + 1}</b>${d && d.icon ? `<i>${d.icon}</i>` : ""}<span>${esc(t)}</span></button>`; }).join("")}</div>
         ${fbBar()}${waitBox()}<p class="ghelp">Tap a block to aim (or it aims at the lowest), then tap its launcher or press 1–${n}. Combos of 3, 5, 8 and 12 unlock ⏱ 🛡 💥 ❄.</p>`;
+      }
     } else if (g.game === "bingo") {
       const call = g.board[g.calls[g.i]];
       h += `<div class="gcall"><small>The call</small><b>${call.icon ? call.icon + " " : ""}${esc(call.a)}</b></div><div class="gbingo">${g.board.map((p, i) => `<button type="button" class="gbc${p.tone != null ? " tone" + p.tone : ""}${g.stamped.includes(i) ? " st" : ""}${g.fb && g.fb.i === i && !g.fb.ok ? " shake" : ""}${g.wait && g.calls[g.i] === i ? " right" : ""}" data-act="bgbingo" data-i="${i}" ${g.stamped.includes(i) ? "disabled" : ""}>${p.bicon ? `<i>${p.bicon}</i>` : ""}<span>${esc(p.b)}</span>${g.stamped.includes(i) ? '<em aria-hidden="true">★</em>' : ""}</button>`).join("")}</div>${fbBar()}${waitBox()}`;
@@ -610,8 +619,11 @@
       else hit(ok);
       g.wait = { a: q.a, v, ok, why: q.why || "", go }; },
     bgnext: () => { const w = G.wait; if (!w) return false; G.wait = null; G.fb = null; G.calc = ""; w.go(); },
-    bgasel: (b) => { if (G.wait) return false; G.sel = +b.dataset.v; },
+    bgasel: (b) => { if (G.wait || G.help) return false; G.sel = +b.dataset.v; },
     bgafire: (b) => atkFire(+b.dataset.v),
+    // Fact Attack how-to (Ken t187u): card before the first round, ? reopens it and pauses
+    bgatkstart: () => { if (!G || G.game !== "attack") return; B.atkHow = true; save(); G.help = false; if (!G.blocks.length && G.spawned === 0) G.nextSpawn = Date.now() + 600; atkRun(G); },
+    bgatkhelp: () => { if (!G || G.game !== "attack" || G.over) return; G.help = true; clearInterval(G.timer); },
     bgcalc: (b) => { calcKey(b.dataset.v); return false; },
     bgcr: (b) => { G.cr = b.dataset.v === "cr"; G.reveal = false; },
     bgreveal: () => { G.reveal = true; },

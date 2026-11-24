@@ -386,6 +386,10 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 @keyframes gburst { from { transform: translate(0, 0) scale(1.2); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) scale(.2); opacity: 0; } }
 .gfield .gground { height: 6px; background: #FF5252; box-shadow: 0 0 12px #FF5252; }
 .gcannons { display: grid; gap: 6px; }
+.atkq { margin-left: auto; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--bay, #0A4A63); background: #fff; color: var(--bay, #0A4A63); font: 800 16px/1 "Fredoka", var(--font); cursor: pointer; flex: none; }
+.atkhow { background: #fff; border-radius: 16px; padding: 16px 18px 18px; box-shadow: 0 2px 10px rgba(4,34,48,.08); }
+.atkhow h2 { margin: 0 0 10px; font-family: "Fredoka", var(--font); font-size: 22px; color: var(--bay, #0A4A63); }
+.atkhow ol { margin: 0 0 16px; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.35; color: #12202E; }
 .gcan { position: relative; min-height: 70px; border-radius: 14px 14px 8px 8px; background: #fff; font: inherit; font-size: 12px; font-weight: 700; color: var(--bay, #0A4A63); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; line-height: 1.1; box-shadow: 0 3px 0 rgba(0,0,0,.2); }
 .gcan b { position: absolute; top: 3px; left: 6px; font-size: 10px; opacity: .6; } .gcan i { font-style: normal; font-size: 20px; } .gcan:active { transform: translateY(3px); }
 /* Memory Arcade button: neon-edged gradient, joystick, saved count, gentle shimmer (off with reduced motion) */
