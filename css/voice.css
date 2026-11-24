@@ -355,7 +355,7 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .bin .gtile.tone0, .bin .gtile.tone1, .bin .gtile.tone2 { color: #1E3A44; }
 .gbc i { display: block; font-style: normal; font-size: 20px; }
 /* answer held until Next; calculator */
-.bin .gopt.right, .bin .gcol.right, .bin .gbc.right { background: #C8E6C9 !important; border: 3px solid #1B5E20 !important; box-shadow: 0 0 0 3px rgba(27,94,32,.25); animation: gpop .35s; }
+.bin .gopt.right, .bin .gcol.right, .bin .gbc.right, .bin .gcan.right { background: #C8E6C9 !important; border: 3px solid #1B5E20 !important; box-shadow: 0 0 0 3px rgba(27,94,32,.25); animation: gpop .35s; }
 .bin .gopt.wrong { background: #FFCDD2 !important; border: 3px solid #B71C1C !important; text-decoration: line-through; }
 .gopt:disabled { cursor: default; } .gopt:not(.right):not(.wrong):disabled { opacity: .55; }
 .gopt i, .gcol i { font-style: normal; }
@@ -368,14 +368,23 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .gkeys button { min-height: 46px; border: 0; border-radius: 10px; background: #455A64; color: #fff; font: inherit; font-weight: 700; font-size: 20px; cursor: pointer; }
 .gkeys button.op { background: #F5B83D; color: #3A2800; } .gkeys button:active { transform: translateY(2px); }
 .bin .tone4 { background: repeating-linear-gradient(45deg, #EDE7F6 0 5px, #D1C4E9 5px 7px), repeating-linear-gradient(-45deg, transparent 0 5px, #D1C4E9 5px 7px) !important; border: 3px double #4A148C !important; }
-/* Block Drop */
-.gnow { min-height: 46px; padding: 8px 12px; border-radius: 12px; background: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 6px; border: 2px solid #C9D6DB; }
-.gnow i, .gwh i, .gdc i { font-style: normal; }
-.gwell { display: grid; gap: 3px; background: #102027; padding: 5px; border-radius: 14px; }
-.gwell.flash { animation: gflash .9s; } @keyframes gflash { 30% { background: #FFD54F; box-shadow: 0 0 18px #FFD54F; } }
-.gwh { min-height: 44px; border: 0; border-radius: 8px; background: #fff; font: inherit; font-size: 11px; font-weight: 700; color: var(--bay, #0A4A63); padding: 2px; cursor: pointer; line-height: 1.1; }
-.gdc { height: 38px; border-radius: 6px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 1px; }
-.gdc i { font-size: 16px; line-height: 1; } .gdc small { font-size: 8px; line-height: 1.05; max-height: 17px; overflow: hidden; text-align: center; font-weight: 600; }
-.gdc.empty { background: #1C313A; } .gdc.cur { outline: 3px solid #FFD54F; }
-.bin .gdc.bad { background: #E53935 !important; color: #fff; border: 2px solid #7F0000 !important; }
-.gdpad { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; } .gdpad button { min-height: 56px; border: 0; border-radius: 14px; background: var(--bay, #0A4A63); color: #fff; font-size: 24px; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
+/* Fact Attack */
+.gatkbar { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; color: var(--bay, #0A4A63); }
+.gcombo { padding: 4px 10px; border-radius: 12px; background: #fff; } .gcombo.hot { background: #FF6F00; color: #fff; animation: gpop .3s; }
+.gfield { position: relative; height: 340px; border-radius: 16px; overflow: hidden; background: radial-gradient(circle at 30% 20%, #1A237E, #0D1033 70%); }
+.gfield::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(#fff 1px, transparent 1.5px); background-size: 37px 41px; opacity: .35; }
+.gfield.shake { animation: gshake .35s both; } .gfield.frozen { box-shadow: inset 0 0 0 4px #81D4FA; filter: hue-rotate(-20deg) saturate(.7); } .gfield.slowmo { box-shadow: inset 0 0 0 4px #FFD54F; }
+.gab { position: absolute; width: 42%; min-height: 50px; padding: 4px 6px; border-radius: 12px; border: 2px solid #CFD8DC; background: linear-gradient(#ECEFF1, #B0BEC5); color: #102027;
+  font: inherit; cursor: pointer; display: flex; align-items: center; gap: 6px; text-align: left; box-shadow: 0 4px 0 #78909C; transition: top .11s linear; }
+.gab i { font-style: normal; font-size: 22px; } .gab small { font-size: 11px; font-weight: 700; line-height: 1.15; max-height: 40px; overflow: hidden; }
+.gab.sel { outline: 3px solid #FFD54F; box-shadow: 0 0 16px #FFD54F; } .gab.boss { flex-wrap: wrap; border-color: #FF5252; background: linear-gradient(#FFEBEE, #EF9A9A); animation: gbob 1.2s infinite; }
+.gab.boss em { flex-basis: 100%; font-style: normal; font-size: 11px; font-weight: 800; color: #B71C1C; }
+.gshot { position: absolute; width: 10px; height: 18px; margin-left: -5px; border-radius: 5px; background: #FFEB3B; box-shadow: 0 0 10px #FFEB3B; animation: gshotfly .22s linear forwards; pointer-events: none; }
+.gshot.bad { background: #FF5252; box-shadow: 0 0 10px #FF5252; }
+@keyframes gshotfly { from { left: var(--fx); top: 100%; } to { left: var(--tx); top: var(--ty); opacity: .2; } }
+.gpart { position: absolute; width: 9px; height: 9px; border-radius: 50%; pointer-events: none; animation: gburst .6s ease-out forwards; }
+@keyframes gburst { from { transform: translate(0, 0) scale(1.2); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) scale(.2); opacity: 0; } }
+.gfield .gground { height: 6px; background: #FF5252; box-shadow: 0 0 12px #FF5252; }
+.gcannons { display: grid; gap: 6px; }
+.gcan { position: relative; min-height: 70px; border-radius: 14px 14px 8px 8px; background: #fff; font: inherit; font-size: 12px; font-weight: 700; color: var(--bay, #0A4A63); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; line-height: 1.1; box-shadow: 0 3px 0 rgba(0,0,0,.2); }
+.gcan b { position: absolute; top: 3px; left: 6px; font-size: 10px; opacity: .6; } .gcan i { font-style: normal; font-size: 20px; } .gcan:active { transform: translateY(3px); }

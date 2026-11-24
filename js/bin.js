@@ -41,9 +41,9 @@
   // Sleep examples (Ken, t126u to t129u): Build the Table row order is a per-card setting. order: true means the rows must go in
   // sequence (AHI runs normal to severe); otherwise any row label can go in any row and that row's cells must match it.
   // These two use only the table-style games; facts come from the ahi and staging cards (the short hallmarks are cut from the card text).
-  EX.ahi = { cat: "Classification, in order", rec: "table", useGame: "sort", order: true, simple: true, boss: ["🦛", "The Snore Hippo"], games: ["table", "match", "sort", "drop", "blanks", "bingo", "escape", "boss"],
+  EX.ahi = { cat: "Classification, in order", rec: "table", useGame: "sort", order: true, simple: true, boss: ["🦛", "The Snore Hippo"], games: ["table", "match", "sort", "attack", "blanks", "bingo", "escape", "boss"],
     icons: ["😴", "🙂", "😐", "😫"], bIcons: ["🟢", "🟡", "🟠", "🔴"], tones: [2, 1, 0, 4], swap: true };
-  EX.staging = { cat: "Classification, any order", rec: "table", useGame: "blanks", simple: true, boss: ["🦉", "The Night Owl"], games: ["table", "match", "sort", "drop", "blanks", "bingo", "escape", "boss"],
+  EX.staging = { cat: "Classification, any order", rec: "table", useGame: "blanks", simple: true, boss: ["🦉", "The Night Owl"], games: ["table", "match", "sort", "attack", "blanks", "bingo", "escape", "boss"],
     icons: ["☀️", "🥱", "🧵", "🌊", "👁️"], bIcons: ["👓", "〰️", "🌀", "🐋", "🪚"], tones: [2, 1, 0, 3, 4],
     short: ["Alpha (8–13 Hz) over the occipital region in more than half the epoch", "Alpha replaced by low-amplitude 4–7 Hz activity", "K-complex (not tied to an arousal) or sleep spindle (11–16 Hz, 0.5 s or more)",
       "Slow-wave activity (0.5–2 Hz, 75 µV or more, frontal) in more than 20% of the epoch", "Low-amplitude mixed-frequency EEG, rapid eye movements, lowest chin tone"] };
@@ -216,7 +216,7 @@
     ["bingo", "Bingo", "🎱", "Hear the call, stamp the match"],
     ["escape", "Escape Room", "🔐", "Each right answer opens a padlock"],
     ["boss", "Boss Battle", "⚔️", "Right answers knock down its health"],
-    ["drop", "Block Drop", "🧱", "Tetris-style: steer each falling block into its column"],
+    ["attack", "Fact Attack", "🚀", "Fire the matching launcher at falling facts"],
   ];
   const gameName = (g, k) => g === "baby" ? (exKey(k) === "apgar" ? "Score the Baby" : exKey(k) === "gaslaws" ? "Which law is at work?" : "Calculate it") : (GAMES.find((x) => x[0] === g) || [, g])[1];
 
@@ -289,7 +289,7 @@
     else if (game === "crossword") { g.cw = crossword(D.E.words); g.n = g.cw.words.length; g.typed = g.cw.words.map(() => ""); g.checked = false; }
     else if (game === "odd") { g.rounds = Array.from({ length: 6 }, () => D.oddRound()); g.n = 6; }
     else if (game === "sort") { g.items = Array.from({ length: 10 }, () => D.sort.gen ? D.sort.gen() : pick(D.sort.items)); g.n = 10; g.cols = D.sort.cols; nextFall(); }
-    else if (game === "drop") { g.cols = D.sort.cols; g.rows = 8; g.stack = g.cols.map(() => []); g.n = 30; g.level = 1; dropSpawn(g); }
+    else if (game === "attack") { Object.assign(g, { cols: D.sort.cols, blocks: [], fx: [], uid: 0, combo: 0, hearts: 3, wave: 1, spawned: 0, bossOut: false, n: 21, nextSpawn: Date.now() + 600, slow: 0, freeze: 0, shield: false }); atkRun(g); }
     else if (game === "bingo") { const ps = shuffle(D.pairs).slice(0, 9); g.board = ps; g.calls = shuffle(ps.map((_, i) => i)); g.stamped = []; g.n = 9; }
     else if (game === "escape") { g.qs = D.qs().slice(0, 5); g.n = 5; g.keys = 3; g.open = 0; }
     else if (game === "boss") { g.qs = D.qs(); g.hp = 100; g.hearts = 3; g.n = g.qs.length; g.hitAnim = 0; }
@@ -312,27 +312,45 @@
   }
   function nextFall() { const g = G; clearTimeout(g.timer); g.fallStart = Date.now(); g.dur = Math.max(3200, 6500 - g.streak * 350);
     g.timer = setTimeout(() => { if (G !== g || g.over) return; hit(false, "Too slow"); sortMiss(g, g.items[g.i]); render(); }, g.dur); }
-  // Block Drop (Ken, t130u): the Speed Sort blocks fall into a Tetris-style well; a row of right blocks clears, a wrong one stays red
+  // Fact Attack (Ken picked attack mode, t134u; it replaced Block Drop): gray fact blocks fall, the player fires the matching launcher.
+  // Combos raise the multiplier and unlock power-ups; a wrong shot or a block that lands pauses with the answer until Next.
+  // 3 waves of 6 blocks, each ending with a boss block that takes 3 right hits (a new fact after each hit).
   const dropIcon = (it) => (it.t.match(/^([^\w\s]\S*) /) || [])[1] || "", dropText = (it) => it.t.replace(/^[^\w\s]\S* /, "");
-  function dropSpawn(g) { g.cur = { it: g.D.sort.gen ? g.D.sort.gen() : pick(g.D.sort.items), col: Math.floor(g.cols.length / 2), row: 0 }; dropRun(g); }
-  function dropRun(g) { clearInterval(g.timer); g.timer = setInterval(() => { if (G !== g || g.over || g.wait || !g.cur) return clearInterval(g.timer); dropStep(g); render(); }, Math.max(260, 950 - (g.level - 1) * 130)); }
-  function dropStep(g, hard) { const c = g.cur, floor = g.rows - 1 - g.stack[c.col].length; if (hard) c.row = floor; if (c.row < floor) { c.row++; return; } dropLand(g); }
-  function dropLand(g) {
-    clearInterval(g.timer); const c = g.cur, ok = c.col === c.it.col; g.stack[c.col].push({ it: c.it, ok }); g.cur = null; g.i++;
-    if (ok) { hit(true); if (g.right % 5 === 0) { g.level++; g.fb.msg = `Level ${g.level}! Faster now`; }
-      const r = Math.min(...g.stack.map((x) => x.length));
-      for (let y = 0; y < r; y++) if (g.stack.every((x) => x[y].ok)) { g.stack.forEach((x) => x.splice(y, 1)); g.score += 50; g.fb.msg = "Row cleared! +50 🎉"; g.flash = Date.now(); beep("win"); break; } }
-    else hit(false, "Wrong column");
-    const top = g.stack.some((x) => x.length >= g.rows), next = () => { if (top) finish(false); else if (g.i >= g.n) finish(true); else dropSpawn(g); };
-    if (ok) next(); else g.wait = { a: g.cols[c.it.col], why: dropText(c.it), col: c.it.col, go: next };
+  const atkItem = (g) => g.D.sort.gen ? g.D.sort.gen() : pick(g.D.sort.items);
+  const POW = { slow: ["⏱", "Slow motion"], shield: ["🛡", "Shield"], clear: ["💥", "Blast the lowest block"], freeze: ["❄", "Freeze"] };
+  function atkRun(g) { clearInterval(g.timer); g.last = Date.now(); g.timer = setInterval(() => { if (G !== g || g.over) return clearInterval(g.timer); if (g.wait) { g.last = Date.now(); return; } atkTick(g); render(); }, 110); }
+  function atkTick(g) {
+    const now = Date.now(), dt = (now - g.last) / 1000, f = now < g.freeze ? 0 : now < g.slow ? 0.4 : 1; g.last = now;
+    g.blocks.forEach((b) => { b.y += b.v * dt * f; });
+    if (f && now >= g.nextSpawn) {
+      if (g.spawned < 6) { if (g.blocks.length < 3) { g.blocks.push({ id: ++g.uid, it: atkItem(g), x: rnd(0, 58), y: -6, v: rnd(7, 12) + g.wave * 2.5 }); g.spawned++; } g.nextSpawn = now + Math.max(700, 2300 - g.wave * 400) + rnd(0, 700); }
+      else if (!g.bossOut && !g.blocks.length) { g.blocks.push({ id: ++g.uid, it: atkItem(g), x: 29, y: -6, v: 5 + g.wave, boss: true, hp: 3 }); g.bossOut = true; }
+    }
+    const down = g.blocks.find((b) => b.y >= 100);
+    if (down) { g.blocks = g.blocks.filter((b) => b !== down); if (down.boss) g.bossOut = false;
+      if (g.shield) { g.shield = false; g.fb = { ok: true, msg: "🛡 Your shield took that one", n: (g.fb ? g.fb.n : 0) + 1 }; }
+      else { g.hearts--; g.combo = 0; g.shake = now; hit(false, "It landed! −1 ❤"); g.wait = { a: g.cols[down.it.col], why: dropText(down.it), col: down.it.col, go: () => { if (g.hearts <= 0) finish(false); } }; } }
+    g.fx = g.fx.filter((e) => now - e.t0 < 700);
   }
-  function dropMove(v) { const g = G; if (!g || g.game !== "drop" || g.wait || !g.cur || g.over) return false;
-    if (v === 2) dropStep(g, true); else g.cur.col = Math.max(0, Math.min(g.cols.length - 1, g.cur.col + v)); render(); return false; }
-  document.addEventListener("keydown", (e) => { if (!G || G.game !== "drop") return; const v = { ArrowLeft: -1, ArrowRight: 1, ArrowDown: 2 }[e.key]; if (v) { e.preventDefault(); dropMove(v); } });
-  let tx0 = null;
-  document.addEventListener("touchstart", (e) => { tx0 = G && G.game === "drop" && e.target.closest && e.target.closest(".gwell") ? [e.touches[0].clientX, e.touches[0].clientY] : null; }, { passive: true });
-  document.addEventListener("touchend", (e) => { if (!tx0) return; const t = e.changedTouches[0], dx = t.clientX - tx0[0], dy = t.clientY - tx0[1]; tx0 = null;
-    if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) dropMove(dx > 0 ? 1 : -1); else if (dy > 40) dropMove(2); });
+  function atkPower(g, now) {
+    const P = { 3: "slow", 5: "shield", 8: "clear", 12: "freeze" }, p = P[g.combo] || (g.combo > 12 && g.combo % 4 === 0 ? pick(Object.keys(POW)) : null); if (!p) return;
+    if (p === "slow") g.slow = now + 5000; else if (p === "freeze") g.freeze = now + 4000; else if (p === "shield") g.shield = true;
+    else { const low = g.blocks.filter((b) => !b.boss).sort((a, b) => b.y - a.y)[0]; if (low) { g.blocks = g.blocks.filter((b) => b !== low); g.i++; g.fx.push({ k: "burst", x: low.x, y: low.y, tone: low.it.tone, t0: now }); } }
+    g.fb.msg += ` · ${POW[p][0]} ${POW[p][1]}!`;
+  }
+  function atkFire(j) {
+    const g = G; if (!g || g.game !== "attack" || g.wait || g.over) return false;
+    const b = g.blocks.find((x) => x.id === g.sel) || g.blocks.slice().sort((a, c) => c.y - a.y)[0]; if (!b) return false;
+    const now = Date.now(), ok = j === b.it.col; g.fx.push({ k: "shot", j, x: b.x, y: b.y, t0: now, ok }); g.sel = null;
+    if (ok) { g.combo++; const mult = 1 + Math.floor(g.combo / 3); hit(true, `Hit! ×${mult}`); g.score += 10 * (mult - 1); g.fx.push({ k: "burst", x: b.x, y: b.y, tone: b.it.tone, t0: now });
+      if (b.boss && --b.hp > 0) { b.it = atkItem(g); b.y = Math.max(-6, b.y - 12); g.fb.msg = `Boss hit! ${b.hp} more`; }
+      else { g.blocks = g.blocks.filter((x) => x !== b); g.i++;
+        if (b.boss) { g.wave++; g.spawned = 0; g.bossOut = false; g.nextSpawn = now + 1500; g.fb.msg = g.wave > 3 ? "All waves cleared!" : `Wave ${g.wave - 1} cleared! 🎉`; beep("win"); if (g.wave > 3) { finish(true); render(); return false; } } }
+      atkPower(g, now); }
+    else { g.combo = 0; hit(false, "Wrong launcher"); g.shake = now; g.wait = { a: g.cols[b.it.col], why: dropText(b.it), col: b.it.col, go: () => {} }; }
+    render(); return false;
+  }
+  document.addEventListener("keydown", (e) => { if (!G || G.game !== "attack" || !/^[1-9]$/.test(e.key) || +e.key > G.cols.length) return; e.preventDefault(); atkFire(+e.key - 1); });
 
   // Speed Sort: a miss pauses the game and shows the right column until Next
   function sortMiss(g, it) { g.wait = { a: g.cols[it.col], why: (it.why ? it.why + ". " : "") + it.t.replace(/^[^\w\s]\S* /, ""), go: () => sortNext(g) }; }
@@ -413,16 +431,16 @@
       h += `<p class="ghelp">Tap the right column before the block lands. It speeds up as your streak grows.</p>
         <div class="gfall"><div class="gdrop" style="${g.wait ? "top:180px;animation:none" : `animation-duration:${g.dur}ms;animation-delay:-${el}ms`}" data-i="${g.i}">${esc(it.t)}</div><div class="gground"></div></div>
         ${fbBar()}<div class="gcols" style="grid-template-columns: repeat(${g.cols.length}, 1fr)">${g.cols.map((c, j) => { const d = (D.deco || {})[c]; return `<button type="button" class="gcol${d && d.tone != null ? " tone" + d.tone : ""}${g.wait && j === it.col ? " right" : ""}" data-act="bgsort" data-v="${j}" ${g.wait ? "disabled" : ""}>${d && d.icon ? `<i>${d.icon}</i> ` : ""}${esc(c)}</button>`; }).join("")}</div>${waitBox()}`;
-    } else if (g.game === "drop") {
-      const n = g.cols.length, c = g.cur, dm = D.deco || {}, tn = (it) => it.tone != null ? " tone" + it.tone : "";
-      h += `<p class="ghelp">Level ${g.level} · Steer each block into its column with ◀ ▶, a swipe, or arrow keys. ▼ drops it.</p>`;
-      h += c ? `<div class="gnow${tn(c.it)}">${dropIcon(c.it) ? `<i>${dropIcon(c.it)}</i> ` : ""}${esc(dropText(c.it))}</div>` : `<div class="gnow"></div>`;
-      h += `<div class="gwell${g.flash && Date.now() - g.flash < 900 ? " flash" : ""}" style="grid-template-columns: repeat(${n}, 1fr)">`;
-      h += g.cols.map((t, j) => { const d = dm[t]; return `<button type="button" class="gwh${d && d.tone != null ? " tone" + d.tone : ""}${g.wait && g.wait.col === j ? " right" : ""}" data-act="bgdcol" data-v="${j}">${d && d.icon ? `<i>${d.icon}</i>` : ""}${esc(t)}</button>`; }).join("");
-      for (let y = 0; y < g.rows; y++) for (let x = 0; x < n; x++) {
-        const st = g.stack[x][g.rows - 1 - y], it = c && c.col === x && c.row === y ? c.it : st ? st.it : null;
-        h += it ? `<b class="gdc${tn(it)}${st ? (st.ok ? "" : " bad") : " cur"}"><i>${dropIcon(it) || "■"}</i><small>${esc(dropText(it))}</small></b>` : `<b class="gdc empty"></b>`; }
-      h += `</div>${fbBar()}<div class="gdpad"><button type="button" data-act="bgdmove" data-v="-1" aria-label="Left">◀</button><button type="button" data-act="bgdmove" data-v="2" aria-label="Drop">▼</button><button type="button" data-act="bgdmove" data-v="1" aria-label="Right">▶</button></div>${waitBox()}`;
+    } else if (g.game === "attack") {
+      const now = Date.now(), n = g.cols.length, dm = D.deco || {}, TC = ["#E53935", "#FB8C00", "#43A047", "#1E88E5", "#8E24AA"];
+      const pw = [g.slow > now ? "⏱" : "", g.freeze > now ? "❄" : "", g.shield ? "🛡" : ""].join(" ");
+      h += `<div class="gatkbar"><span>${"❤️".repeat(Math.max(0, g.hearts))}${"🤍".repeat(Math.max(0, 3 - g.hearts))}</span><span>Wave ${Math.min(g.wave, 3)} of 3</span><span class="gcombo${g.combo >= 3 ? " hot" : ""}">×${1 + Math.floor(g.combo / 3)} combo ${g.combo}</span><span>${pw}</span></div>`;
+      h += `<div class="gfield${g.shake && now - g.shake < 350 ? " shake" : ""}${g.freeze > now ? " frozen" : ""}${g.slow > now ? " slowmo" : ""}" style="animation-delay:-${now - (g.shake || 0)}ms">`;
+      h += g.blocks.map((b) => `<button type="button" class="gab${b.boss ? " boss" : ""}${g.sel === b.id ? " sel" : ""}" data-act="bgasel" data-v="${b.id}" style="left:${b.x}%;top:${b.y * 0.82}%">${b.boss ? `<em>${D.E.boss[0]} ${esc(D.E.boss[1])} ${"♥".repeat(b.hp)}</em>` : ""}${dropIcon(b.it) ? `<i>${dropIcon(b.it)}</i>` : ""}<small>${esc(dropText(b.it))}</small></button>`).join("");
+      h += g.fx.map((e) => e.k === "shot" ? `<i class="gshot${e.ok ? "" : " bad"}" style="--fx:${(e.j + 0.5) / n * 100}%;--tx:${e.x + 21}%;--ty:${e.y * 0.82 + 4}%;animation-delay:-${now - e.t0}ms"></i>`
+        : Array.from({ length: 10 }, (_, i) => { const a = i / 10 * 6.283; return `<i class="gpart" style="left:${e.x + 21}%;top:${e.y * 0.82 + 4}%;--dx:${Math.round(Math.cos(a) * 46)}px;--dy:${Math.round(Math.sin(a) * 46)}px;background:${e.tone != null ? TC[e.tone] : "#FFD54F"};animation-delay:-${now - e.t0}ms"></i>`; }).join("")).join("");
+      h += `<div class="gground"></div></div><div class="gcannons" style="grid-template-columns: repeat(${n}, 1fr)">${g.cols.map((t, j) => { const d = dm[t]; return `<button type="button" class="gcan${d && d.tone != null ? " tone" + d.tone : ""}${g.wait && g.wait.col === j ? " right" : ""}" data-act="bgafire" data-v="${j}" ${g.wait ? "disabled" : ""}><b>${j + 1}</b>${d && d.icon ? `<i>${d.icon}</i>` : ""}<span>${esc(t)}</span></button>`; }).join("")}</div>
+        ${fbBar()}${waitBox()}<p class="ghelp">Tap a block to aim (or it aims at the lowest), then tap its launcher or press 1–${n}. Combos of 3, 5, 8 and 12 unlock ⏱ 🛡 💥 ❄.</p>`;
     } else if (g.game === "bingo") {
       const call = g.board[g.calls[g.i]];
       h += `<div class="gcall"><small>The call</small><b>${call.icon ? call.icon + " " : ""}${esc(call.a)}</b></div><div class="gbingo">${g.board.map((p, i) => `<button type="button" class="gbc${p.tone != null ? " tone" + p.tone : ""}${g.stamped.includes(i) ? " st" : ""}${g.fb && g.fb.i === i && !g.fb.ok ? " shake" : ""}${g.wait && g.calls[g.i] === i ? " right" : ""}" data-act="bgbingo" data-i="${i}" ${g.stamped.includes(i) ? "disabled" : ""}>${p.bicon ? `<i>${p.bicon}</i>` : ""}<span>${esc(p.b)}</span>${g.stamped.includes(i) ? '<em aria-hidden="true">★</em>' : ""}</button>`).join("")}</div>${fbBar()}${waitBox()}`;
@@ -439,7 +457,7 @@
   }
   function resultView() {
     const g = G, stars = g.pct >= 90 ? 3 : g.pct >= 70 ? 2 : g.pct >= 40 ? 1 : 0;
-    const msg = g.game === "boss" ? (g.win ? `You beat ${g.D.E.boss[1]}!` : `${g.D.E.boss[1]} wins this round.`) : g.game === "escape" ? (g.win ? `You escaped in ${Math.max(1, Math.round((Date.now() - g.t0) / 1000))} second${Math.round((Date.now() - g.t0) / 1000) > 1 ? "s" : ""}!` : "Out of keys. The door stays locked.") : g.game === "bingo" ? "BINGO!" : g.game === "drop" ? (g.win ? "All 30 blocks dropped!" : "The stack hit the top!") : g.win ? "Round complete!" : "Round over";
+    const msg = g.game === "boss" ? (g.win ? `You beat ${g.D.E.boss[1]}!` : `${g.D.E.boss[1]} wins this round.`) : g.game === "escape" ? (g.win ? `You escaped in ${Math.max(1, Math.round((Date.now() - g.t0) / 1000))} second${Math.round((Date.now() - g.t0) / 1000) > 1 ? "s" : ""}!` : "Out of keys. The door stays locked.") : g.game === "bingo" ? "BINGO!" : g.game === "attack" ? (g.win ? "You fought off every wave!" : "Out of hearts!") : g.win ? "Round complete!" : "Round over";
     const more = SESSION && SESSION.queue.length;
     return `<div class="gres${g.win ? " win" : ""}"><p class="gstars" aria-label="${stars} of 3 stars">${"★".repeat(stars)}<span>${"★".repeat(3 - stars)}</span></p><h2>${esc(msg)}</h2>
       <p class="gnums"><span><b>${g.score}</b>points</span><span><b>${g.pct}%</b>right</span><span><b>${g.best}</b>best streak</span></p>
@@ -556,8 +574,8 @@
       else hit(ok);
       g.wait = { a: q.a, v, ok, why: q.why || "", go }; },
     bgnext: () => { const w = G.wait; if (!w) return false; G.wait = null; G.fb = null; G.calc = ""; w.go(); },
-    bgdmove: (b) => dropMove(+b.dataset.v),
-    bgdcol: (b) => { if (!G.cur || G.wait) return false; G.cur.col = +b.dataset.v; },
+    bgasel: (b) => { if (G.wait) return false; G.sel = +b.dataset.v; },
+    bgafire: (b) => atkFire(+b.dataset.v),
     bgcalc: (b) => { calcKey(b.dataset.v); return false; },
     bgcr: (b) => { G.cr = b.dataset.v === "cr"; G.reveal = false; },
     bgreveal: () => { G.reveal = true; },

@@ -218,9 +218,9 @@ study("Ask offers Print study sheet and brings back Your study page", vsrc.inclu
   }
   {
     const X = loadStudy("SDS"); vm.runInContext(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8"), X, { filename: "js/bin.js" });
-    const bad = Object.keys(X.OB_BIN.EX).filter((k) => { const d = X.OB_BIN.data(k), E = X.OB_BIN.EX[k]; if (E.games && !E.games.includes("drop")) return true;
+    const bad = Object.keys(X.OB_BIN.EX).filter((k) => { const d = X.OB_BIN.data(k), E = X.OB_BIN.EX[k]; if (E.games && !E.games.includes("attack")) return true;
       for (let i = 0; i < 30; i++) { const it = d.sort.gen ? d.sort.gen() : d.sort.items[i % d.sort.items.length]; if (!(it.col >= 0 && it.col < d.sort.cols.length) || !it.t) return true; } return false; });
-    study("Block Drop: every study bin card has columns and falling blocks that each belong to a column", X.OB_BIN.GAMES.some((g) => g[0] === "drop") && !bad.length, bad.join(", "));
+    study("Fact Attack (replaced Block Drop): every study bin card has launchers and falling facts that each belong to one, and blocks fall gray", !X.OB_BIN.GAMES.some((g) => g[0] === "drop") && X.OB_BIN.GAMES.some((g) => g[0] === "attack") && /\.gab \{[^}]*#ECEFF1/.test(fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8")) && !/class="gab\$\{[^"]*tone/.test(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8")) && !bad.length, bad.join(", "));
   }
   let babyOk = true, babyWhy = "";
   for (let i = 0; i < 200; i++) { const s = BN.scenario("apgar"), parts = s.why.match(/(\d) \+ .* = (\d+)/), nums = s.why.split("=")[0].match(/\d/g).map(Number), tot = +s.a;
