@@ -424,13 +424,15 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .party.mw .pbubble { left: 30%; transition: left 2.2s linear; }
 @keyframes pglide { from { left: 50%; } to { left: -10%; } }
 @keyframes pstep { 0%, 100% { translate: -50% 0; } 50% { translate: -50% -6px; } }
-.pball b::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 40px; background: rgba(0,0,0,.35); }
 .pconf i { position: absolute; top: -20px; left: var(--x); width: var(--w); height: var(--h); background: var(--c); border-radius: 2px; animation: pfall var(--t) linear var(--d) infinite backwards, pflut var(--f) ease-in-out infinite alternate; }
 @keyframes pfall { from { translate: 0 0; } to { translate: var(--dx) 110vh; } }
 @keyframes pflut { from { transform: rotateZ(0) rotateX(0); } to { transform: rotateZ(200deg) rotateX(160deg); } }
-.pball b { position: absolute; bottom: -90px; left: var(--x); width: calc(38px * var(--s, 1)); height: calc(48px * var(--s, 1)); border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.7), transparent 30%), var(--c); transform-origin: 50% 120%; animation: prise 1.3s cubic-bezier(.2,.8,.3,1) var(--d) both, pbob var(--p) ease-in-out calc(var(--d) + 1.3s + var(--ph, 0s)) infinite alternate; }
-@keyframes prise { from { translate: 0 0; } to { translate: 0 calc(-1 * var(--y)); } }
-@keyframes pbob { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-14px) rotate(4deg); } }
-.pskip { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: #4F6B75; font-size: 13px; }
+.pstream { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.pstream-front { z-index: 3; clip-path: inset(calc(82% - 114px) 0 0 0); } /* front streamers only over the body, lower half and sides; head and face stay clear (t184u) */
+.pstr { position: absolute; top: -24px; left: var(--x); animation: pstrfall var(--t) linear var(--d) infinite backwards, pstrflut var(--f) ease-in-out infinite alternate; transform-origin: 50% 0; }
+.pstr svg { display: block; overflow: visible; }
+@keyframes pstrfall { from { translate: 0 -8%; } to { translate: var(--dx) 110vh; } }
+@keyframes pstrflut { from { transform: rotate(-14deg) translateX(-10px); } to { transform: rotate(16deg) translateX(12px); } }
+.pskip { position: absolute; bottom: 14px; left: 0; right: 0; z-index: 4; text-align: center; color: #4F6B75; font-size: 13px; }
 .party.still, .party.still * { animation: none !important; transition: none !important; }
-@media (prefers-reduced-motion: reduce) { .party, .party * { animation: none !important; transition: none !important; } .pconf, .pball, .pmw { display: none !important; } .party.mw .pyes { display: block; } }
+@media (prefers-reduced-motion: reduce) { .party, .party * { animation: none !important; transition: none !important; } .pconf, .pstream, .pmw { display: none !important; } .party.mw .pyes { display: block; } }

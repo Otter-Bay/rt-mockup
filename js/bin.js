@@ -314,14 +314,22 @@
     save(); beep(win ? "win" : "no");
     if (win && G.right > 0 && G.wrong === 0) celebrate();
   }
-  // perfect score party (Ken, t148u to t153u): "Yes, perfect score!!!" bubble, fist pump, side-view moonwalk, confetti raining and balloons bobbing (t154u), 4.5 s at most; tap to skip
+  // perfect score party (Ken, t148u to t153u): "Yes, perfect score!!!" bubble, fist pump, moonwalk still, confetti raining (t154u) and curly streamers (t183u), some in front of the otter but never over the face (t184u), 4.5 s at most; tap to skip
   const YES = "Yes, perfect score!!!";
-  // balloons are random every time (Ken, t155u): 5 to 9, bright colors, spread across the width in jittered slots, random size, rise delay, bob speed and phase
-  function balloons() {
-    const R = (a, b) => a + Math.random() * (b - a), n = 5 + Math.floor(Math.random() * 5);
-    const pal = shuffle(["#E53935", "#FB8C00", "#FDD835", "#43A047", "#1E88E5", "#8E24AA", "#EC407A", "#00ACC1", "#7CB342"]);
-    return Array.from({ length: n }, (_, i) => { const slot = 96 / n;
-      return `<b style="--x:${(2 + i * slot + R(0, slot - 9)).toFixed(1)}%;--y:${R(40, 74).toFixed(0)}vh;--s:${R(0.8, 1.3).toFixed(2)};--d:${R(0, 0.6).toFixed(2)}s;--ph:${R(0, 0.6).toFixed(2)}s;--p:${R(0.9, 1.7).toFixed(2)}s;--c:${pal[i % pal.length]}"></b>`; }).join("");
+  // streamers (Ken, t183u, t184u): curly wavy ribbons in random bright colors, fall from the top and flutter; the front set is clipped to the body, lower half and sides so the head stays clear
+  function streamers(front) {
+    const R = (a, b) => a + Math.random() * (b - a), pal = shuffle(["#E53935", "#FB8C00", "#FDD835", "#43A047", "#1E88E5", "#8E24AA", "#EC407A", "#00ACC1", "#7CB342"]);
+    const n = front ? 6 : 12;
+    return Array.from({ length: n }, (_, i) => {
+      const amp = R(7, 14), period = R(22, 40), len = front ? R(110, 170) : R(140, 220), w = R(6, 11), steps = 24;
+      let d = "";
+      for (let s = 0; s <= steps; s++) {
+        const y = (s / steps) * len, x = 16 + Math.sin((y / period) * Math.PI * 2) * amp;
+        d += (s ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+      }
+      const x = front ? 8 + i * (84 / n) + R(0, 6) : (i * 41) % 100;
+      return `<i class="pstr" style="--x:${x.toFixed(1)}%;--d:${R(0, 0.9).toFixed(2)}s;--t:${((front ? 1.8 : 2.2) + R(0, 1.1)).toFixed(2)}s;--dx:${R(-28, 28).toFixed(0)}px;--f:${R(0.5, 0.9).toFixed(2)}s;--c:${pal[i % pal.length]}"><svg viewBox="0 0 32 ${len.toFixed(0)}" width="${(w + 10).toFixed(0)}" height="${len.toFixed(0)}" aria-hidden="true"><path d="${d}" fill="none" stroke="var(--c)" stroke-width="${w.toFixed(1)}" stroke-linecap="round" stroke-linejoin="round"/></svg></i>`;
+    }).join("");
   }
   function celebrate() {
     const old = document.querySelector(".party"); if (old) old.remove();
@@ -330,7 +338,7 @@
     const el = document.createElement("div");
     el.className = "party" + (still ? " still" : ""); el.setAttribute("role", "status"); el.setAttribute("aria-label", YES);
     el.innerHTML = `<div class="pstage"><p class="pbubble">${YES}</p><img class="pyes" src="${IMG}otter-yes.webp" alt="" width="242" height="300">${still ? "" : `<img class="pmw" src="${IMG}otter-moonwalk.webp" alt="" width="202" height="300">`}</div>` +
-      (still ? "" : `<div class="pconf" aria-hidden="true">${Array.from({ length: 72 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--d:${((i * 53) % 120) / 100}s;--t:${1.6 + (i % 5) * 0.25}s;--dx:${(i % 7) * 9 - 27}px;--w:${5 + (i % 4) * 2}px;--h:${8 + (i % 3) * 4}px;--f:${0.5 + (i % 4) * 0.15}s;--c:${cols[i % 6]}"></i>`).join("")}</div><div class="pball" aria-hidden="true">${balloons()}</div>`) +
+      (still ? "" : `<div class="pconf" aria-hidden="true">${Array.from({ length: 72 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--d:${((i * 53) % 120) / 100}s;--t:${1.6 + (i % 5) * 0.25}s;--dx:${(i % 7) * 9 - 27}px;--w:${5 + (i % 4) * 2}px;--h:${8 + (i % 3) * 4}px;--f:${0.5 + (i % 4) * 0.15}s;--c:${cols[i % 6]}"></i>`).join("")}</div><div class="pstream" aria-hidden="true">${streamers()}</div><div class="pstream pstream-front" aria-hidden="true">${streamers(true)}</div>`) +
       `<small class="pskip">Tap to continue</small>`;
     const done = () => { el.classList.add("out"); setTimeout(() => el.remove(), 250); };
     el.addEventListener("click", done);
