@@ -193,7 +193,7 @@ study("Ask offers Print study sheet and brings back Your study page", vsrc.inclu
   const C = exams[0], BN = C.OB_BIN, card = (k) => JSON.stringify(C.SCALES[k]) + JSON.stringify(C.SCALES.oxy || "");
   study("the bin's three example cards load in all four apps", exams.every((X) => ["apgar", "gaslaws", "abg"].every((k) => X.OB_BIN.data(k))), "an example card is missing in one app");
   study("ten games, each with a name", BN.GAMES.length === 10 && BN.GAMES.every((g) => g[1] && g[2]), BN.GAMES.length);
-  study("oxygenation indices share the blood gas example; other cards have no games yet", BN.exKey("oxy") === "abg" && BN.exKey("ahi") === null && BN.data("ahi") === null, "exKey");
+  study("oxygenation indices share the blood gas example; other cards have no games yet", BN.exKey("oxy") === "abg" && BN.exKey("ess") === null && BN.data("ess") === null, "exKey");
   const D = { apgar: BN.data("apgar"), gaslaws: BN.data("gaslaws"), abg: BN.data("abg") };
   const plainOf = (k) => C.OB_STUDY.plain(card(k));
   const offCard = []; for (const k in D) for (const p of D[k].pairs) if (!plainOf(k).includes(p.b)) offCard.push(k + ": " + p.b);
@@ -203,6 +203,19 @@ study("Ask offers Print study sheet and brings back Your study page", vsrc.inclu
   study("Apgar answer blocks each have a picture and a score color", ap.cellIcons.length === 5 && ap.cellIcons.every((r) => r.length === 3 && r.every(Boolean)) && new Set(ap.cellIcons.flat()).size === 15 && ap.cellTone.every((r) => r.join() === "0,1,2"), "cell pictures");
   study("every answer on all three cards has a picture and a color", Object.values(D).every((d) => d.pairs.every((p) => p.bicon && p.tone != null) && d.table.cells.every((r, i) => r.every((_, j) => d.table.cellIcons[i][j]))), "pair or cell without a picture");
   study("answers stay up until Next (no auto-advance), and number games offer a calculator", !/after\(\(\) =>/.test(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8")) && /bgnext:/.test(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8")) && /calcBox\(\)/.test(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8")), "auto-advance left");
+  {
+    // Build the Table row order flag: AHI rows must be in order; Apgar and sleep stages take any order, and cells follow the placed label
+    const X = loadStudy("SDS"); vm.runInContext(fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8"), X, { filename: "js/bin.js" });
+    const XB = X.OB_BIN, ah = XB.data("ahi"), stg = XB.data("staging");
+    study("sleep examples: AHI is ordered, sleep stages and Apgar are not", XB.EX.ahi.order === true && !XB.EX.staging.order && !XB.EX.apgar.order && XB.EX.apgar.tip.includes("A-P-G-A-R"), "order flags");
+    study("AHI table runs Normal, Mild, Moderate, Severe with the card's ranges", ah.table.rowHeads.map((r) => r.t).join() === "Normal,Mild,Moderate,Severe" && ah.table.cells.map((c) => c[0]).join("|") === "Below 5|5 to 14|15 to 29|30 or more", JSON.stringify(ah.table.cells));
+    const stPlain = X.OB_STUDY.plain(JSON.stringify(X.SCALES.staging));
+    study("sleep stage hallmarks are cut from the staging card", stg.pairs.length === 5 && stg.pairs.every((p) => stPlain.includes(p.b)), stg.pairs.map((p) => p.b).find((b) => !stPlain.includes(b)));
+    let ahOk = true; for (let i = 0; i < 200; i++) { const v = ah.sort.gen(), n = +v.t.match(/\d+/)[0], c = n < 5 ? 0 : n < 15 ? 1 : n < 30 ? 2 : 3; if (c !== v.col) ahOk = false; }
+    study("Speed Sort: made-up AHI values land in the right severity", ahOk, "AHI sort");
+    const bsrc2 = fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8");
+    study("Build the Table checks a cell against the label placed in its row, and row order only when the card says so", bsrc2.includes("const ordered = !!g.D.E.order") && bsrc2.includes("T.cells[src]"), "order logic");
+  }
   let babyOk = true, babyWhy = "";
   for (let i = 0; i < 200; i++) { const s = BN.scenario("apgar"), parts = s.why.match(/(\d) \+ .* = (\d+)/), nums = s.why.split("=")[0].match(/\d/g).map(Number), tot = +s.a;
     const band = tot >= 7 ? "reassuring" : tot >= 4 ? "moderately abnormal" : "low";

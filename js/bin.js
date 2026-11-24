@@ -22,7 +22,7 @@
 
   // ---------- The three example cards ----------
   const EX = {
-    apgar: { cat: "Scoring grid", rec: "table", use: "baby", boss: ["👾", "The Fussy Monster"], icons: ["👶", "💓", "😖", "🤸", "🎺"],
+    apgar: { cat: "Scoring grid", rec: "table", use: "baby", tip: "In order, the rows spell A-P-G-A-R.", boss: ["👾", "The Fussy Monster"], icons: ["👶", "💓", "😖", "🤸", "🎺"],
       // a picture for each 0 / 1 / 2 description (rows follow the card): blue baby, pink with blue hands, all pink; no beat, slow, fast; ...
       cellIcons: [["🥶", "🧤", "🌸"], ["💔", "🐢", "🐇"], ["😐", "😬", "😭"], ["🧸", "🦐", "🥊"], ["😶", "😢", "📣"]],
       words: [["PINK", "Appearance scores 2: ___ all over"], ["BLUE", "Appearance scores 0: ___ or pale all over"], ["ABSENT", "Pulse or respiration that scores 0"],
@@ -38,6 +38,15 @@
         ["NORMAL", "The A–a gradient in pure hypoventilation"], ["GRADIENT", "PAO2 − PaO2 = the A–a ___"], ["FORTYSEVEN", "Subtract this from PB in the PAO2 equation"],
         ["ANIONGAP", "Na+ − (Cl- + HCO3-)"], ["SEVEN", "Normal pH starts with ___ point three five"], ["HUNDRED", "PAO2 at sea level on room air is about one ___ mm Hg"]] },
   };
+  // Sleep examples (Ken, t126u to t129u): Build the Table row order is a per-card setting. order: true means the rows must go in
+  // sequence (AHI runs normal to severe); otherwise any row label can go in any row and that row's cells must match it.
+  // These two use only the table-style games; facts come from the ahi and staging cards (the short hallmarks are cut from the card text).
+  EX.ahi = { cat: "Classification, in order", rec: "table", useGame: "sort", order: true, simple: true, boss: ["🦛", "The Snore Hippo"], games: ["table", "match", "sort", "blanks", "bingo", "escape", "boss"],
+    icons: ["😴", "🙂", "😐", "😫"], bIcons: ["🟢", "🟡", "🟠", "🔴"], tones: [2, 1, 0, 4], swap: true };
+  EX.staging = { cat: "Classification, any order", rec: "table", useGame: "blanks", simple: true, boss: ["🦉", "The Night Owl"], games: ["table", "match", "sort", "blanks", "bingo", "escape", "boss"],
+    icons: ["☀️", "🥱", "🧵", "🌊", "👁️"], bIcons: ["👓", "〰️", "🌀", "🐋", "🪚"], tones: [2, 1, 0, 3, 4],
+    short: ["Alpha (8–13 Hz) over the occipital region in more than half the epoch", "Alpha replaced by low-amplitude 4–7 Hz activity", "K-complex (not tied to an arousal) or sleep spindle (11–16 Hz, 0.5 s or more)",
+      "Slow-wave activity (0.5–2 Hz, 75 µV or more, frontal) in more than 20% of the epoch", "Low-amplitude mixed-frequency EEG, rapid eye movements, lowest chin tone"] };
   const ALIAS = { oxy: "abg" };
   const exKey = (k) => (EX[k] ? k : ALIAS[k]) || null;
 
@@ -48,6 +57,7 @@
   function data0(k0) {
     const k = exKey(k0); if (!k) return null;
     const E = EX[k], card = W.SCALES[k], title = W.OB_STUDY.plain(card.title);
+    if (E.simple) return simple(k, E, card);
     if (k === "apgar") {
       const t = rows("apgar"), signs = t.rows.map((r) => short(r[0])), cols = t.heads.slice(1);
       const pairs = []; t.rows.forEach((r, i) => cols.forEach((c, j) => pairs.push({ a: `${signs[i]} · scores ${c}`, icon: E.icons[i], b: r[j + 1], bicon: E.cellIcons[i][j], tone: j, row: i, col: j })));
@@ -100,13 +110,28 @@
       note: W.OB_STUDY.plain(card.note) };
   }
 
+  // a two-column card as table, pairs, sort and quick questions (AHI: rows are the severity, cells the AHI range)
+  function simple(k, E, card) {
+    const t = rows(k), head = E.swap ? [t.heads[1], t.heads[0]] : t.heads;
+    const R2 = t.rows.map((r, i) => E.swap ? [r[1], r[0]] : [r[0], E.short ? E.short[i] : r[1]]);
+    const pairs = R2.map((r, i) => ({ a: r[0], icon: E.icons[i], b: r[1], bicon: E.bIcons[i], tone: E.tones[i], row: i }));
+    const cols = R2.map((r) => r[0]);
+    const sort = k === "ahi" ? { cols, gen: () => { const i = rnd(0, 3), v = rnd([0, 5, 15, 30][i], [4, 14, 29, 80][i]); return { t: `AHI ${v} events/hour`, col: i, why: `${R2[i][0]}: ${R2[i][1]}` }; } }
+      : { cols, items: pairs.map((p) => ({ t: `${p.bicon} ${p.b}`, col: p.row })) };
+    return { k, E, title: W.OB_STUDY.plain(card.title), pairs, sort,
+      table: { corner: head[0], rowHeads: pairs.map((p) => ({ t: p.a, icon: p.icon })), colHeads: [{ t: head[1] }], cells: pairs.map((p) => [p.b]), cellIcons: pairs.map((p) => [p.bicon]), cellTone: pairs.map((p) => [p.tone]) },
+      qs() { const A = pairs.map((p) => p.a), Bs = pairs.map((p) => p.b);
+        return shuffle(pairs.flatMap((p) => [{ p: `${p.icon} ${p.a}: ___`, a: p.b, o: opts(p.b, Bs) }, { p: `${p.bicon} “${p.b}”: which one?`, a: p.a, o: opts(p.a, A) }])); },
+      note: W.OB_STUDY.plain(card.note || "") };
+  }
+
   // a picture and color for every answer: pairs (Match, Bingo), table cells, and multiple-choice options through D.deco
   function deco(D) {
     const E = D.E, T = D.table;
     if (D.k === "gaslaws") D.pairs.forEach((p, i) => { p.bicon = E.bIcons[i]; p.tone = D.sort.cols.indexOf(p.held); });
     if (D.k === "abg") { D.pairs.forEach((p, i) => { p.bicon = E.bIcons[i]; p.tone = i < 6 ? 2 : 3; }); T.cellIcons = T.cells.map((r, i) => [E.bIcons[i]]); T.cellTone = T.cells.map(() => [2]); }
     const m = {};
-    D.pairs.forEach((p) => { m[p.b] = { icon: p.bicon, tone: p.tone }; if (D.k === "gaslaws") m[p.a] = { icon: p.icon, tone: null }; });
+    D.pairs.forEach((p) => { m[p.b] = { icon: p.bicon, tone: p.tone }; if (D.k === "gaslaws") m[p.a] = { icon: p.icon, tone: null }; if (E.simple) m[p.a] = { icon: p.icon, tone: p.tone }; });
     T.colHeads.forEach((c) => { if (c.tone != null) m[c.t] = m[c.t] || { icon: "", tone: c.tone }; });
     if (D.k === "apgar") D.sort.cols.forEach((c, j) => { m[c] = { icon: "", tone: j }; });
     if (E.heldIcons) Object.keys(E.heldIcons).forEach((h) => { m[h] = { icon: E.heldIcons[h], tone: D.sort.cols.indexOf(h) }; });
@@ -274,8 +299,9 @@
     const c = B.cards[G.k]; G.moved = "";
     if (c && win && pct >= 70) {
       const ex = EX[exKey(G.k)];
-      if (c.step === 2 && G.game !== "baby") { c.step = 3; G.moved = "Next step: Use it"; }
-      else if (c.step === 3 && G.game === "baby") { c.step = 4; c.due = now() + CHECKS[0] * DAY; G.moved = "Next: a quick check in 1 day"; }
+      const useG = EX[exKey(G.k)].useGame || "baby";
+      if (c.step === 2 && G.game !== useG) { c.step = 3; G.moved = "Next step: Use it"; }
+      else if (c.step === 3 && G.game === useG) { c.step = 4; c.due = now() + CHECKS[0] * DAY; G.moved = "Next: a quick check in 1 day"; }
       else if (c.step === 4 && c.due <= now()) { c.checks++; if (c.checks >= CHECKS.length) { c.mastered = true; G.moved = "Mastered! It leaves your bin."; } else { c.due = now() + CHECKS[c.checks] * DAY; G.moved = `Next quick check in ${CHECKS[c.checks]} days`; } }
       void ex;
     }
@@ -285,7 +311,7 @@
   function nextFall() { const g = G; clearTimeout(g.timer); g.fallStart = Date.now(); g.dur = Math.max(3200, 6500 - g.streak * 350);
     g.timer = setTimeout(() => { if (G !== g || g.over) return; hit(false, "Too slow"); sortMiss(g, g.items[g.i]); render(); }, g.dur); }
   // Speed Sort: a miss pauses the game and shows the right column until Next
-  function sortMiss(g, it) { g.wait = { a: g.cols[it.col], why: (it.why ? it.why + ". " : "") + it.t.replace(/^\S+ /, ""), go: () => sortNext(g) }; }
+  function sortMiss(g, it) { g.wait = { a: g.cols[it.col], why: (it.why ? it.why + ". " : "") + it.t.replace(/^[^\w\s]\S* /, ""), go: () => sortNext(g) }; }
   function sortNext(g) { g.i++; if (g.i >= g.n) finish(true); else nextFall(); }
 
   // ---------- views ----------
@@ -320,7 +346,7 @@
     if (g.game === "table") {
       const T = D.table, lv = level(g.k), fade = lv >= 3;
       const slot = (id, kind, label) => { const b = g.slots[id]; return `<button type="button" class="gslot ${kind}${b ? " full" : ""}${b && b.tone != null ? " tone" + b.tone : ""}${g.fb && !g.fb.ok && g.fb.i === id ? " shake" : ""}${g.fb && g.fb.ok && g.fb.i === id ? " pop" : ""}" data-act="bgslot" data-id="${id}" aria-label="${label}">${b ? `${b.icon ? `<i>${b.icon}</i>` : ""}<span${fade && b.icon ? ' class="faded"' : ""}>${esc(b.v)}</span>` : ""}</button>`; };
-      h += `<p class="ghelp">Tap a block, then tap where it goes: the row names, the column names, then every cell.${fade ? " You know this card well, so blocks show only their picture." : ""}</p>`;
+      h += `<p class="ghelp">Tap a block, then tap where it goes: the row names, the column names, then every cell.${D.E.order ? " Order matters here: put the rows in order, top to bottom." : " Rows can go in any order."}${fade ? " You know this card well, so blocks show only their picture." : ""}</p>`;
       h += `<div class="gtable" style="grid-template-columns: minmax(84px, 1.1fr) repeat(${T.colHeads.length}, minmax(0, 1fr))"><div class="gcorner">${esc(T.corner)}</div>`;
       T.colHeads.forEach((c, j) => { h += slot("c" + j, "ch", "Column " + (j + 1)); });
       T.rowHeads.forEach((r, i) => { h += slot("r" + i, "rh", "Row " + (i + 1)); T.colHeads.forEach((c, j) => { h += slot(`x${i}_${j}`, "cell", `Row ${i + 1}, column ${j + 1}`); }); });
@@ -383,7 +409,7 @@
     const more = SESSION && SESSION.queue.length;
     return `<div class="gres${g.win ? " win" : ""}"><p class="gstars" aria-label="${stars} of 3 stars">${"★".repeat(stars)}<span>${"★".repeat(3 - stars)}</span></p><h2>${esc(msg)}</h2>
       <p class="gnums"><span><b>${g.score}</b>points</span><span><b>${g.pct}%</b>right</span><span><b>${g.best}</b>best streak</span></p>
-      ${g.moved ? `<p class="gmoved">🎯 ${esc(g.moved)}</p>` : ""}
+      ${g.moved ? `<p class="gmoved">🎯 ${esc(g.moved)}</p>` : ""}${g.game === "table" && g.D.E.tip ? `<p class="gwhy">💡 ${esc(g.D.E.tip)}</p>` : ""}
       ${g.win ? `<div class="stconfetti" aria-hidden="true">${Array.from({ length: 24 }, (_, i) => `<i style="--x:${(i * 41) % 100}%;--d:${(i % 6) * 0.08}s;--c:${["#C62828", "#E65100", "#B08900", "#2E7D32", "#1565C0", "#6A1B9A"][i % 6]}"></i>`).join("")}</div>` : ""}
       <button type="button" class="gbig" data-act="${more ? "binnext" : "binend"}">${more ? "Continue: next card ▶" : SESSION ? "Finish session" : "Back to my study bin"}</button>
       <div class="grow"><button type="button" class="glink" data-act="bgagain">Play again</button><button type="button" class="glink" data-act="bingallery" data-k="${g.k}">Pick a different game</button></div></div>`;
@@ -392,7 +418,7 @@
     const cards = Object.entries(B.cards).filter(([, c]) => !c.mastered), done = Object.entries(B.cards).filter(([, c]) => c.mastered);
     let h = `<div class="bintop"><p>🔥 <b>${B.streak}</b>-day streak</p><button type="button" class="gsnd" data-act="binsound" aria-label="Sound ${B.sound ? "on" : "off"}">${B.sound ? "🔊" : "🔇"}</button></div>`;
     if (!cards.length) h += `<div class="binempty"><p><b>Your study bin is empty.</b> Tap <b>☆ Study this</b> after you answer a question (or on an Ask answer) to put that topic here.</p>
-      <button type="button" class="gbig" data-act="binseed">Try the three examples</button><p class="ghelp">Apgar (scoring grid), Gas laws (laws), Blood gas normals (numbers).</p></div>`;
+      <button type="button" class="gbig" data-act="binseed">Try the examples</button><p class="ghelp">Apgar (scoring grid), Gas laws (laws), Blood gas normals (numbers), and two sleep tables: AHI severity (order matters) and sleep stages (any order).</p></div>`;
     else {
       const sc = sessionCards().length;
       h += sc ? `<button type="button" class="gbig" data-act="binsession">▶ Quick session: ${sc} card${sc > 1 ? "s" : ""}, about 5 minutes</button><ul class="binlist">`
@@ -400,12 +426,12 @@
       cards.forEach(([k, c]) => { const ex = exKey(k), s = c.step;
         h += `<li class="bincard"><div class="binhead"><b>${esc(W.SCALES[k].title)}</b><small>${ex ? EX[ex].cat : "Study page"}</small></div>
           <ol class="binsteps" aria-label="Steps">${["Make it", "Recall it", "Use it", "Check"].map((t, i) => `<li class="${s > i + 1 ? "done" : s === i + 1 ? "cur" : ""}">${s > i + 1 ? "✓" : i + 1}<span>${t}</span></li>`).join("")}</ol>
-          <p class="binnow">${c.step === 1 ? "Next: make your study page (pictures and a song)" : c.step === 2 && ex ? `Next: recall it with ${esc(gameName(EX[ex].rec, k))}` : c.step === 3 && ex ? `Next: use it with ${esc(gameName("baby", k))}` : esc(stepName(c))}${c.step === 4 ? ` · checks ${c.checks} of 3 (1, 7, 30 days)` : ""}</p>
+          <p class="binnow">${c.step === 1 ? "Next: make your study page (pictures and a song)" : c.step === 2 && ex ? `Next: recall it with ${esc(gameName(EX[ex].rec, k))}` : c.step === 3 && ex ? `Next: use it with ${esc(gameName(EX[ex].useGame || "baby", k))}` : esc(stepName(c))}${c.step === 4 ? ` · checks ${c.checks} of 3 (1, 7, 30 days)` : ""}</p>
           <div class="binrow"><button type="button" class="bincont" data-act="bincont" data-k="${k}" ${c.step === 4 && c.due > now() ? "disabled" : ""}>Continue</button>
           ${ex ? `<button type="button" class="glink" data-act="bingallery" data-k="${k}">Pick a different game</button>` : `<span class="ghelp">Games come later for this card</span>`}</div></li>`; });
       const gk = cards.map(([k]) => k).find(exKey);
       h += `</ul><button type="button" class="glink small" data-act="binday">(Mockup) Pretend a day passed</button>`;
-      if (gk) h += `<p class="asklabel">Games</p><div class="gmini">${GAMES.map(([g, n, ic]) => `<button type="button" data-act="binplay" data-g="${g}" data-k="${gk}"><i>${ic}</i><span>${esc(n === "Score the Baby" ? "Use it" : n)}</span></button>`).join("")}</div><p class="ghelp">Games use ${esc(W.SCALES[gk].title)}. Use <b>Pick a different game</b> on a card to choose for that card.</p>`;
+      if (gk) h += `<p class="asklabel">Games</p><div class="gmini">${GAMES.filter(([g]) => !EX[exKey(gk)].games || EX[exKey(gk)].games.includes(g)).map(([g, n, ic]) => `<button type="button" data-act="binplay" data-g="${g}" data-k="${gk}"><i>${ic}</i><span>${esc(n === "Score the Baby" ? "Use it" : n)}</span></button>`).join("")}</div><p class="ghelp">Games use ${esc(W.SCALES[gk].title)}. Use <b>Pick a different game</b> on a card to choose for that card.</p>`;
     }
     if (done.length) h += `<p class="asklabel">Mastered</p><p class="ghelp">${done.map(([k]) => "🏅 " + esc(W.SCALES[k].title)).join("<br>")}</p>`;
     return h;
@@ -414,7 +440,7 @@
     const ex = exKey(k), E = EX[ex];
     return `<p class="ghelp">Every game uses the same card: <b>${esc(W.SCALES[k].title)}</b>. Same controls in each: tap to choose, a score, a streak.</p><div class="ggal">
       <button type="button" class="ggame make" data-act="binmake" data-k="${k}"><i>🎨</i><b>Make it: study page</b><small>Draw your pictures, add a song</small></button>
-      ${GAMES.map(([g, , ic, d]) => `<button type="button" class="ggame" data-act="binplay" data-g="${g}" data-k="${k}"><i>${ic}</i><b>${esc(gameName(g, k))}</b><small>${esc(d)}</small>${g === E.rec ? '<em>Best to recall</em>' : g === E.use ? '<em>Best to use it</em>' : ""}${B.cards[k] && B.cards[k].best[g] ? `<u>Best ${B.cards[k].best[g]}</u>` : ""}</button>`).join("")}</div>`;
+      ${GAMES.filter(([g]) => !E.games || E.games.includes(g)).map(([g, , ic, d]) => `<button type="button" class="ggame" data-act="binplay" data-g="${g}" data-k="${k}"><i>${ic}</i><b>${esc(gameName(g, k))}</b><small>${esc(d)}</small>${g === E.rec ? '<em>Best to recall</em>' : g === E.use ? '<em>Best to use it</em>' : ""}${B.cards[k] && B.cards[k].best[g] ? `<u>Best ${B.cards[k].best[g]}</u>` : ""}</button>`).join("")}</div>`;
   }
   function winView() {
     const s = SESSION.done;
@@ -439,7 +465,7 @@
     const c = B.cards[k], ex = exKey(k);
     if (!ex || c.step === 1) { c.step = Math.max(c.step, ex ? 2 : 1); save(); SESSION = null; W.PAGE_ACTIONS.stopenpage({ dataset: { k } }); return; }
     const E = EX[ex];
-    start(c.step === 2 ? E.rec : c.step === 3 ? "baby" : "blanks", k);
+    start(c.step === 2 ? E.rec : c.step === 3 ? E.useGame || "baby" : "blanks", k);
     if (c.step === 4) { G.qs = G.qs.slice(0, 5); G.n = 5; G.check = true; }
   }
   function endSession() {
@@ -457,7 +483,7 @@
     binback: () => { if (G) clearTimeout(G.timer); if (VIEW === "game" || VIEW === "gallery" || VIEW === "win") { VIEW = "bin"; G = null; SESSION = null; } else S.page = "home"; },
     binhome: () => { VIEW = "bin"; SESSION = null; },
     // the three examples start at different steps so the mockup shows each one (Apgar's study page counts as made)
-    binseed: () => { [["apgar", 2], ["gaslaws", 1], ["abg", 3]].forEach(([k, st]) => { if (W.SCALES[k]) { addCard(k); B.cards[k].step = st; } }); save(); },
+    binseed: () => { [["apgar", 2], ["gaslaws", 1], ["abg", 3], ["ahi", 2], ["staging", 2]].forEach(([k, st]) => { if (W.SCALES[k]) { addCard(k); B.cards[k].step = st; } }); save(); },
     binday: () => { B.offset = (B.offset || 0) + 1; save(); },
     binsound: () => { B.sound = !B.sound; save(); },
     bincont: (b) => { SESSION = null; runCard(b.dataset.k); },
@@ -474,7 +500,9 @@
     bgslot: (b) => { const g = G, id = b.dataset.id; if (g.slots[id]) return false;
       if (!g.sel) { g.fb = { ok: false, msg: "Pick a block first", n: (g.fb ? g.fb.n : 0) + 1 }; return; }
       const blk = g.blocks.find((x) => x.id === g.sel), T = g.D.table;
-      const want = id[0] === "r" ? ["rh", T.rowHeads[+id.slice(1)].t] : id[0] === "c" ? ["ch", T.colHeads[+id.slice(1)].t] : ["cell", T.cells[+id.slice(1).split("_")[0]][+id.split("_")[1]]];
+      // rows: in order only when the card says order matters; a cell must match the label actually placed in its row
+      const ordered = !!g.D.E.order, rl = id[0] === "x" && g.slots["r" + id.slice(1).split("_")[0]], src = rl ? T.rowHeads.findIndex((r) => r.t === rl.v) : -1;
+      const want = id[0] === "r" ? ["rh", ordered ? T.rowHeads[+id.slice(1)].t : blk.kind === "rh" ? blk.v : null] : id[0] === "c" ? ["ch", T.colHeads[+id.slice(1)].t] : ["cell", src >= 0 ? T.cells[src][+id.split("_")[1]] : null];
       // a cell is right only once its row and column headers are in place, so the learner rebuilds the whole grid
       const ready = id[0] !== "x" || (g.slots["r" + id.slice(1).split("_")[0]] && g.slots["c" + id.split("_")[1]]);
       if (blk.kind === want[0] && blk.v === want[1] && ready) { g.slots[id] = blk; blk.used = true; g.sel = null; g.i++; hit(true, "", id); if (g.i >= g.n) finish(true); }
