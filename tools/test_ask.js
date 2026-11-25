@@ -178,7 +178,7 @@ function loadStudy(exam) {
   study("Why this works lists 5 sources with links", SB.WHY.refs.length === 5 && SB.WHY.refs.every((r) => /^https:\/\/doi\.org\//.test(r[1])), "sources");
   const C2 = loadStudy("CNA"), vit = C2.OB_STUDY.model("vitals", {});
   study("CNA vitals: no false severity colors", vit.facts.every((f) => !f.sev), vit.facts.map((f) => f.sev).join());
-  // Image maker: paste-in photos, size, caption in the picture, Wood pictorial callouts (Ken, t191u–t201u)
+  // Image maker and printable recall notes (Ken, t191u–t222u)
   study("size is clamped to 25–100%", SB.clampScale(0.1) === 0.25 && SB.clampScale(2) === 1 && SB.clampScale(0.7) === 0.7, String(SB.clampScale(0.1)));
   const photo = { shape: "photo", src: "data:image/png;base64,AAAA", w: 200, h: 100, scale: 0.5 };
   SB.recallSvg(ahi, { custom: { stickers: { 0: photo } }, screen: true, builder: true });
@@ -190,16 +190,34 @@ function loadStudy(exam) {
   const listSvg = SB.recallSvg(ahi, { custom: { stickers: { 0: listSt } }, screen: true, builder: true });
   const listBox = SB.last().boxes[0], listPh = SB.composePhoto(listBox, listSt, "list");
   const items = SB.capItems(listSt, ahi.facts[0], listBox);
-  study("a bullet list becomes a pictorial recall: branches off the photo, keywords on horizontal lines, no text boxes", items.items.length >= 2 && listSvg.includes('class="rcallout"') && listSvg.includes('class="rrule"') && listSvg.includes('class="rpin"') && listSvg.includes('class="rkw"') && !listSvg.includes('class="rcapbg"') && listPh.w < (listBox.x2 - listBox.x1) - 40, "list=" + items.items.length);
+  const L = SB.calloutLayout(listBox, listPh, listSt, items, false);
+  study("a bullet list becomes index-card recall notes: facts live in the cards, not on the lines", items.items.length >= 2 && listSvg.includes('class="rcallout"') && listSvg.includes('class="rcard"') && listSvg.includes('class="rcardhead"') && listSvg.includes('class="rkw"') && listSvg.includes('class="rpin"') && listSvg.includes('class="rrule"') && listSvg.includes('class="rhub"') && !listSvg.includes('class="rcapbg"') && listPh.w < (listBox.x2 - listBox.x1) - 40, "list=" + items.items.length);
+  study("the center is a squircle (extra-rounded square) with the title inside", listSvg.includes('class="rhub"') && listSvg.includes('class="rhubtitle"') && L.hub && L.hub.rx / L.hub.w > 0.18 && L.hub.rx / L.hub.w < 0.28, L.hub ? "rx=" + L.hub.rx + " side=" + L.hub.w : "no hub");
+  study("index cards have sharp corners (rx about 6) to contrast with the squircle", listSvg.includes('rx="6"') || /class="rcardbg"[^>]*rx="6"/.test(listSvg), "card rx missing");
+  study("connector tabs sit just inside both ends, pill-shaped on the hub", listSvg.includes('rtab-hub') && listSvg.includes('rclip') && /rtab-hub"[^>]*rx="9"/.test(listSvg), "tabs missing");
+  study("on a narrow screen the topic sits above stacked cards", L.stacked === true, "expected stacked on a phone-width fact space");
+  const landSvg = SB.recallSvg(ahi, { custom: { stickers: { 0: listSt } }, landscape: true, print: true, builder: true });
+  const landL = SB.calloutLayout(SB.last().boxes[0], listPh, listSt, items, true);
+  study("print uses a wide landscape layout, not the stacked phone fallback", landSvg.includes('viewBox="0 0 1008') && landL.stacked === false, "print layout " + (SB.last().Wd || "?") + " stacked=" + landL.stacked);
   study("keywords stay short (Wood: keywords, not sentences)", SB.keywords("The mild range of the AHI is 5 to 15 events per hour of sleep", 7).split(" ").length <= 7, SB.keywords("The mild range of the AHI is 5 to 15 events per hour of sleep", 7));
   const nest = SB.capItems({ cap: "Airway\n  Tongue\n  Soft palate\nBreathing" }, {}, { label: ["OSA"], lines: [] });
   study("nested bullets become sub-branches off the parent line", nest.items.length === 2 && nest.items[0].kids.length === 2 && nest.items[0].kids[0].text === "Tongue", JSON.stringify(nest.items));
   const withThumb = Object.assign({}, listSt, { thumbs: { 0: { shape: "photo", src: "data:image/png;base64,BBBB", w: 40, h: 40, scale: 1 } } });
   const thSvg = SB.recallSvg(ahi, { custom: { stickers: { 0: withThumb } }, screen: true, builder: true });
-  study("each branch can show a small fact picture next to its line, without replacing the topic photo", thSvg.includes('class="rthumb"') && thSvg.includes('class="rphoto"') && thSvg.includes('class="rthumbadd"') && (thSvg.match(/class="rthumbadd"/g) || []).length >= 1, "thumb or topic photo missing");
+  study("each card can show a fact picture without replacing the topic photo", thSvg.includes('class="rthumb"') && thSvg.includes('class="rphoto"') && thSvg.includes('class="rthumbadd"') && (thSvg.match(/class="rthumbadd"/g) || []).length >= 1, "thumb or topic photo missing");
   const tb = SB.thumbBox({ w: 200, h: 200, scale: 3 }), tbMin = SB.thumbBox({ scale: 0.2 });
-  study("branch thumbnails stay small (16–48 px)", tb.w <= 48 && tb.h <= 48 && tbMin.w >= 16, JSON.stringify({ tb, tbMin }));
+  study("legacy branch thumbnails stay small (16–48 px)", tb.w <= 48 && tb.h <= 48 && tbMin.w >= 16, JSON.stringify({ tb, tbMin }));
+  const longCap = { shape: "photo", src: "data:image/png;base64,AAAA", w: 200, h: 200, scale: 0.7, cap: "Tripod position\n  Leaning forward, hands on knees to open the chest\nNasal flaring\n  Esp. in infants" };
+  const longSvg = SB.recallSvg(ahi, { custom: { stickers: { 0: Object.assign({}, listSt, longCap) } }, landscape: true, print: true, builder: true });
+  study("long fact lines wrap inside the card instead of overflowing", longSvg.includes("Leaning") && longSvg.includes("forward") && longSvg.includes('class="rfactline"'), "wrapped fact missing");
+  const idA = SB.imageId({ src: "data:image/png;base64,AAAA" }), idB = SB.imageId({ src: "data:image/png;base64,BBBB" }), idS = SB.imageId({ shape: "lungs" });
+  study("image ids distinguish photos and sample shapes", idA && idA !== idB && idS === "shape:lungs" && idA.indexOf("src:") === 0, idA + " " + idB + " " + idS);
+  const conf = SB.findImageConflicts([{ id: idA, where: "a" }], [{ ids: [idA], label: "Page 2" }]);
+  study("a repeated image on another print page is flagged", conf.length === 1 && conf[0].other === "Page 2", JSON.stringify(conf));
+  study("print pages use a new storage key", SB.printPageKey() === "obPrintPages:SDS", SB.printPageKey());
 }
+
+
 const PAGES_HTML = ["index.html", "sds/index.html", "rpsgt/index.html", "cna/index.html"];
 const missingRecall = PAGES_HTML.filter((p) => !fs.readFileSync(path.join(ROOT, p), "utf8").includes("js/recall.js"));
 const missingIdeas = PAGES_HTML.filter((f) => { const h = fs.readFileSync(path.join(ROOT, f), "utf8"); const a = h.indexOf("js/memory_ideas.js"), b = h.indexOf("js/recall.js"); return a < 0 || a > b; });
@@ -211,6 +229,9 @@ const rsrc = fs.readFileSync(path.join(ROOT, "js/recall.js"), "utf8");
 study("the image maker has paste/drop/choose, a size control, and Done", rsrc.includes("stpastebox") && rsrc.includes("Paste a sticker or photo, drop one here, or tap to choose") && rsrc.includes("data-stscale") && rsrc.includes('data-act="stdone"'), "ui missing");
 study("drawing a stroke does not re-render or navigate on pointer up", rsrc.includes("skipClick") && !/if \(pen\) \{ const k = pen\.k; pen = null; if \(k\.pts\.length > 1\)[\s\S]{0,180}render\(\)/.test(rsrc), "endPtr still calls render");
 study("Back and Done return to the Ask card, Memory Arcade, or Settings", vsrc.includes("returnFromStudy") && vsrc.includes('from === "bin"') && vsrc.includes('from === "settings"') && vsrc.includes("stdone"), "origin return missing");
+
+study("print maps go on a landscape letter page, in color, with the app chrome hidden", rsrc.includes("landscape: true") && fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8").includes("@page { size: letter landscape; margin: 0.4in; }") && fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8").includes("print-color-adjust: exact") && fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8").includes("body > *:not(#obPrint)"), "print css missing");
+study("Add to print page, Print pages tray, Print all, and swap-image are in the study sheet", rsrc.includes("staddprint") && rsrc.includes("stprinttray") && rsrc.includes("stprintall") && rsrc.includes("stprintswap") && rsrc.includes("obPrintPages:"), "print pages ui missing");
 
 // ---------- Memory Arcade (study bin) and games (js/bin.js) ----------
 {

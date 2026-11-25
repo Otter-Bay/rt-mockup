@@ -246,16 +246,49 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .tsheet footer { margin-top: 12px; font-size: 9.5px; color: #5A6670; }
 #obPrint { display: none; }
 @media print {
-  @page { size: letter portrait; margin: 0.4in; }
+  @page { size: letter landscape; margin: 0.4in; }
+  @page trad { size: letter portrait; margin: 0.5in; }
   html.obprinting body > *:not(#obPrint) { display: none !important; }
   html.obprinting, html.obprinting body { background: #fff !important; height: auto !important; overflow: visible !important; }
-  html.obprinting #obPrint { display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  #obPrint .recallsvg { display: block; width: auto; height: auto; max-width: 7.7in; max-height: 10.1in; margin: 0 auto; }
+  html.obprinting #obPrint { display: block; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html.obprinting:not(.obprint-map) { }
+  html.obprinting:not(.obprint-map) #obPrint { page: trad; }
+  #obPrint .recallsvg { display: block; width: auto; height: auto; max-width: 10.2in; max-height: 7.7in; margin: 0 auto; }
+  #obPrint.obprint-map .recallsvg, #obPrint .ppage .recallsvg { max-width: 100%; max-height: 100%; }
   #obPrint .tsheet { padding: 0; font-size: 11.5px; }
   #obPrint .tsheet.long { font-size: 9.5px; line-height: 1.3; }
   #obPrint .tsheet.long .tsheettbl { font-size: 9.5px; } #obPrint .tsheet.long .tsheettbl td { padding: 3px 5px; } #obPrint .tsheet.long .tsheettbl th { padding: 3px 5px; }
   #obPrint .tsheet.long h1 { font-size: 18px; margin: 8px 0 2px; } #obPrint .tsheet.long .ts-mynotes span { height: 20px; }
+  .ppage { box-sizing: border-box; width: 10.2in; height: 7.7in; display: grid; gap: 0.16in; page-break-after: always; break-after: page; background: #fff; }
+  .ppage:last-child { page-break-after: auto; break-after: auto; }
+  .ppage.layout-1 { grid-template: 1fr / 1fr; }
+  .ppage.layout-2 { grid-template: 1fr 1fr / 1fr; }
+  .ppage.layout-4 { grid-template: 1fr 1fr / 1fr 1fr; }
+  .pslot { overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 0; background: #fff; }
+  .pslot .recallsvg, .pslot .tsheet { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+  .rhubfill, .rcardbg, .rcardhead, .rtab, .rpin, .rpill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rcardbg { stroke-width: 2.8px; }
 }
+
+/* Print pages tray and add-to-page buttons */
+.staddprint, .stprinttraybtn { min-height: 48px; border: 2px solid var(--bay); border-radius: 14px; background: #fff; color: var(--bay); font: inherit; font-weight: 700; font-size: 16px; cursor: pointer; }
+.stprintpages { background: #fff; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 8px rgba(4,34,48,.08); }
+.stprintpages h3 { margin: 0; font-family: "Fredoka", var(--font); font-size: 20px; color: var(--bay); }
+.stppadd, .stppage { display: flex; flex-direction: column; gap: 8px; }
+.stppadd .stpppick, .stpplayouts button { min-height: 44px; border: 2px solid var(--bay); border-radius: 10px; background: #fff; color: var(--bay); font: inherit; font-weight: 700; cursor: pointer; }
+.stppadd .stpppick:disabled { opacity: .45; cursor: default; }
+.stpplayouts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.stppage header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stppage ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.stppage li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; padding: 8px; border: 1px solid #D5DDE2; border-radius: 10px; }
+.stppbtns { display: flex; gap: 4px; flex-wrap: wrap; }
+.stppbtns button, .stppdelpage, .stppswap { min-height: 36px; padding: 0 10px; border: 1px solid var(--bay); border-radius: 8px; background: #fff; color: var(--bay); font: inherit; font-size: 14px; cursor: pointer; }
+.stppnote { background: #FFF8E6; border: 2px solid var(--buoy, #F5B83D); border-radius: 12px; padding: 10px 12px; color: #3A2600; }
+.stppnote p { margin: 0 0 8px; }
+.stppwarn { display: block; width: 100%; color: #7A4A00; font-size: 13px; }
+
+.stpaper.builder .rpin { cursor: grab; }
+.stpaper.builder .rthumb, .stpaper.builder .rthumbadd, .stpaper.builder .rcallout, .stpaper.builder .rcard { cursor: pointer; }
 
 /* ---------- Study bin and games (js/bin.js) ---------- */
 .way.binway { grid-column: 1 / -1; border-left-color: var(--buoy, #F5B83D); min-height: 64px; background: linear-gradient(90deg, #FFF8E6, #fff); }

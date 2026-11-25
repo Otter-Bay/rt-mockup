@@ -261,10 +261,11 @@
     if (h > bh - 2) { h = Math.max(1, bh - 2); w = h / (ar || 1); }
     return [b.x1 + (bw - w) / 2, b.y1 + (bh - h) / 2, w, h];
   }
-  // Text in a picture, in the spirit of Evelyn Wood's recall patterns (Seven-Day Speed Reading and Learning Program):
-  // a recall pattern is "a picture of the material." Pictorial: branches come off a drawing, keywords written ON short
-  // horizontal lines (not in boxes). Nested details are smaller sub-branches. Slash (already the page): a diagonal main
-  // topic with branches. Keywords only, color allowed. (Ken, t198u–t201u).
+  // Printable recall notes in the spirit of Evelyn Wood (Ken, t198u–t222u). Level 0 is a squircle (extra-rounded
+  // square, rx ~22% of the side) with the title on top and the topic picture below. Level 1 is an index card
+  // (sharper rx 6) with a colored header, the picture nearest the hub, and the facts to remember inside (they wrap).
+  // Level 2 is a pill/tag for deeper nesting. Lines carry no text. Pill-ended tabs sit just inside the squircle;
+  // card tabs use rx 5. Phone screens stack; print uses a landscape sheet.
   const BRANCH = ["#0A4A63", "#B3261E", "#1565C0", "#2E7D32", "#E65100", "#6A1B9A", "#8A6D00"];
   const FILLER = /^(the|a|an|of|and|or|to|for|in|on|at|is|are|be|with|that|this|from|by|as|it)$/i;
   function keywords(s, max) {
@@ -286,31 +287,156 @@
       });
     } else {
       ((b && b.lines) || []).forEach((ln) => {
-        const text = keywords([ln.head, ln.text].filter(Boolean).join(" "), 8);
-        if (text) raw.push({ indent: ln.indent ? 2 : 0, text });
+        const head = keywords(ln.head || "", 6);
+        const text = keywords(ln.text || "", 8);
+        if (head && text) raw.push({ indent: 0, text: head, facts: [text] });
+        else if (text || head) raw.push({ indent: ln.indent ? 2 : 0, text: text || head });
       });
     }
     const roots = [], stack = [];
     raw.forEach((r) => {
-      const node = { text: r.text, kids: [] };
+      const node = { text: r.text, facts: r.facts ? r.facts.slice() : [], kids: [] };
       while (stack.length && stack[stack.length - 1].indent >= r.indent) stack.pop();
       if (!stack.length) roots.push(node); else stack[stack.length - 1].node.kids.push(node);
       stack.push({ indent: r.indent, node });
     });
-    if (!roots.length && label) roots.push({ text: label, kids: [] });
+    if (!roots.length && label) roots.push({ text: label, facts: [], kids: [] });
     return { label, items: roots };
   }
-  function composePhoto(b, st, mode) {
-    const box = { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 };
-    if (mode === "list") {
-      const w = b.x2 - b.x1, both = w >= 220, m = both ? Math.max(78, w * 0.26) : Math.max(84, w * 0.34);
-      if (both) { box.x1 += m; box.x2 -= m; } else box.x2 -= m;
+  function fitLines(text, maxW, maxFs, minFs, maxLines, bold) {
+    let fs = maxFs, lines = wrap(String(text || ""), maxW, fs, !!bold);
+    for (; fs >= minFs; fs -= 0.4) {
+      lines = wrap(String(text || ""), maxW, fs, !!bold);
+      if (lines.length <= maxLines && lines.every((l) => textW(l, fs, !!bold) <= maxW + 0.5)) break;
     }
-    return photoBox(box, st);
+    if (lines.length > maxLines) {
+      lines = lines.slice(0, maxLines);
+      const last = lines[lines.length - 1], cut = last.replace(/…$/, "");
+      let t = cut;
+      while (t.length && textW(t + "…", fs, !!bold) > maxW) t = t.slice(0, -1);
+      if (t) lines[lines.length - 1] = t + "…";
+    }
+    return { lines, fs, h: (lines.length || 1) * fs * 1.18 };
+  }
+  function cardLabel(item) {
+    if ((item.facts && item.facts.length) || (item.kids && item.kids.length)) return item.text || "";
+    const t = item.text || "";
+    const m = t.match(/^(.{1,22}?)(?:\s*[:—–]\s+|\s{2,})(.+)$/);
+    if (m) return m[1].trim();
+    const words = t.split(" ");
+    if (words.length >= 2 && words[0].length <= 16) return words[0];
+    return t;
+  }
+  function factLines(item) {
+    if (item.facts && item.facts.length) return item.facts.slice();
+    if (item.kids && item.kids.length && item.kids.every((k) => !(k.kids && k.kids.length))) return item.kids.map((k) => k.text).filter(Boolean);
+    const t = item.text || "";
+    const m = t.match(/^(.{1,22}?)(?:\s*[:—–]\s+|\s{2,})(.+)$/);
+    if (m) return [m[2].trim()];
+    const words = t.split(" ");
+    if (words.length >= 2 && words[0].length <= 16) return [words.slice(1).join(" ")];
+    return [];
+  }
+  // Level shapes are fixed app-wide (Ken t209u, t216u): 0 = squircle, 1 = index card (rx 6), 2 = pill.
+  const HUB_RX_RATIO = 0.22, CARD_RX = 6, HUB_TAB = { w: 18, h: 26 }, CARD_TAB = { w: 18, h: 26, rx: 5 };
+  function hubGeom(space, st, title, stacked) {
+    const sw = space.x2 - space.x1, sh = space.y2 - space.y1;
+    const reserve = stacked ? 12 : 78;
+    const maxSide = Math.min(sw - 2 * reserve, stacked ? sh * 0.48 : sh - 20, 240);
+    const minSide = 108;
+    const sc = clampScale(st && st.scale != null ? st.scale : 0.7);
+    let side = Math.max(minSide, Math.min(maxSide, minSide + (maxSide - minSide) * ((sc - 0.25) / 0.75)));
+    const pad = Math.max(8, side * 0.06);
+    function layout(side) {
+      const rx = side * HUB_RX_RATIO, innerW = Math.max(40, side - 2 * pad);
+      const fit = fitLines(title || "", innerW, Math.min(16, side * 0.09), 8, 3, true);
+      const titleH = fit.h + 4;
+      const imgTop = pad + titleH + 2;
+      const availH = Math.max(24, side - pad - imgTop);
+      const ar = (st && st.w > 0 && st.h > 0) ? st.h / st.w : 1;
+      let iw = innerW, ih = iw * ar;
+      if (ih > availH) { ih = availH; iw = ih / (ar || 1); }
+      if (iw > innerW) { iw = innerW; ih = iw * ar; }
+      return { side, rx, fit, titleH, pad, imgW: iw, imgH: ih, imgTop };
+    }
+    let L = layout(side);
+    while (side < maxSide && L.fit.fs < 11) { side += 6; L = layout(side); }
+    const cx = (space.x1 + space.x2) / 2;
+    const cy = stacked ? space.y1 + 10 + L.side / 2 : (space.y1 + space.y2) / 2;
+    return {
+      shape: "squircle", cx, cy, w: L.side, h: L.side, rx: L.rx, pad: L.pad, fit: L.fit,
+      titleY: cy - L.side / 2 + L.pad, stroke: Math.max(3.2, L.side * 0.018),
+      img: { x: cx - L.imgW / 2, y: cy - L.side / 2 + L.imgTop, w: L.imgW, h: L.imgH },
+      x1: cx - L.side / 2, y1: cy - L.side / 2, x2: cx + L.side / 2, y2: cy + L.side / 2
+    };
+  }
+  function cardImgBox(th) {
+    const sc = clampThumb(th && th.scale != null ? th.scale : 1);
+    let w = 52 * sc, h = w;
+    if (th && th.w > 0 && th.h > 0) h = w * (th.h / th.w);
+    if (w > 72) { h *= 72 / w; w = 72; }
+    if (h > 72) { w *= 72 / h; h = 72; }
+    if (w < 28) { h *= 28 / (w || 28); w = 28; }
+    return { w, h, scale: sc };
+  }
+  function cardGeom(cx, cy, side, item, th, maxW) {
+    const W = Math.min(210, Math.max(148, maxW || 176));
+    const rx = CARD_RX, pad = 7, imgBox = cardImgBox(th || { scale: 1 });
+    const img = Math.min(64, Math.max(40, imgBox.w, imgBox.h));
+    const label = cardLabel(item);
+    const facts = factLines(item);
+    const headFit = fitLines(label, W - 16, 11, 7, 2, true);
+    const headH = Math.max(22, headFit.h + 8);
+    const textColW = Math.max(48, W - pad * 3 - img);
+    const blocks = [];
+    (facts.length ? facts : [""]).forEach((f, i) => {
+      if (!f && facts.length) return;
+      const fs = i === 0 ? 10.5 : 9, bold = i === 0;
+      const lines = wrap(String(f || ""), textColW, fs, bold);
+      blocks.push({ lines: lines.slice(0, i === 0 ? 3 : 2), fs, bold });
+    });
+    if (!facts.length) blocks.length = 0;
+    const textH = blocks.reduce((a, b) => a + b.lines.length * b.fs * 1.28 + 3, 0);
+    const bodyH = Math.max(img + pad * 2, textH + pad * 2, 52);
+    const H = headH + bodyH;
+    return { shape: "card", cx, cy, w: W, h: H, rx, headH, headFit, blocks, img, imgBox, pad, side, textColW, label,
+      x1: cx - W / 2, y1: cy - H / 2, x2: cx + W / 2, y2: cy + H / 2 };
+  }
+  function pillGeom(cx, cy, item) {
+    const label = item.text || "";
+    const fit = fitLines(label, 86, 9, 6.5, 2, true);
+    const pad = 6, h = Math.max(28, fit.h + pad * 2), w = Math.max(h + 10, (fit.lines.reduce((m, l) => Math.max(m, textW(l, fit.fs, true)), 0)) + pad * 2 + 8);
+    return { shape: "pill", cx, cy, w, h, rx: h / 2, fit, label, x1: cx - w / 2, y1: cy - h / 2, x2: cx + w / 2, y2: cy + h / 2 };
+  }
+  function squircleAnchor(hub, side, y) {
+    const x = side === "L" ? hub.x1 : hub.x2;
+    const lo = hub.y1 + hub.rx + 4, hi = hub.y2 - hub.rx - 4;
+    return { x, y: Math.min(hi, Math.max(lo, y)), side };
+  }
+  function cardInnerEdge(card) {
+    // side L means the card sits on the left; the edge nearest the hub is the right edge
+    return card.side === "L" ? card.x2 : card.x1;
+  }
+  function rectTabEl(edgeX, edgeY, dir, color, cls, attrs, tab) {
+    // dir: R/L/U/D = the direction the tab extends (into the shape)
+    const deep = tab.w, along = tab.h, rx = tab.rx != null ? tab.rx : deep / 2;
+    let x, y, w, h;
+    if (dir === "R") { x = edgeX; y = edgeY - along / 2; w = deep; h = along; }
+    else if (dir === "L") { x = edgeX - deep; y = edgeY - along / 2; w = deep; h = along; }
+    else if (dir === "U") { x = edgeX - along / 2; y = edgeY - deep; w = along; h = deep; }
+    else { x = edgeX - along / 2; y = edgeY; w = along; h = deep; }
+    return `<rect class="${cls}" ${attrs || ""} x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w}" height="${h}" rx="${rx}" fill="${color}"/>`;
+  }
+  function composePhoto(b, st, mode) {
+    if (mode === "list") {
+      const hub = hubGeom(b, st, "", (b.x2 - b.x1) < 520);
+      return hub.img;
+    }
+    return photoBox(b, st);
   }
   function capLayout(photo, st, text) {
     const tx = st.tx == null ? 0.5 : Math.min(0.95, Math.max(0.05, Number(st.tx)));
-    const ty = st.ty == null ? 0.84 : Math.min(0.95, Math.max(0.05, Number(st.ty)));
+    const ty = st.ty == null ? 0.14 : Math.min(0.95, Math.max(0.05, Number(st.ty)));
     const maxW = Math.max(40, photo.w * 0.92), maxH = Math.max(16, photo.h * 0.55);
     let fs = Math.min(16, maxH * 0.28), lines, h;
     for (; fs >= 7; fs -= 0.5) {
@@ -324,46 +450,83 @@
     y = Math.min(photo.y + photo.h - h - 2, Math.max(photo.y + 2, y));
     return { x, y, w, h, fs, lines, tx, ty, photo };
   }
-  function calloutLayout(space, photo, st, tree) {
+  function calloutLayout(space, photo, st, tree, wide) {
     const items = tree.items || [], n = Math.max(items.length, 1);
-    const both = (space.x2 - space.x1) >= 220;
+    const sw = space.x2 - space.x1, sh = space.y2 - space.y1;
+    const stacked = !wide && sw < 520;
     const pins = st.pins || [];
-    function geom(item, i, parent, depth, ki) {
-      const side = (pins[i] && pins[i].side) || (both ? (i % 2 === 0 ? "L" : "R") : "R");
-      const ay = pins[i] && pins[i].y != null ? pins[i].y : (i + 0.5) / n;
-      const ax = pins[i] && pins[i].x != null ? pins[i].x : (side === "L" ? 0 : 1);
-      const axp = photo.x + ax * photo.w, ayp = photo.y + Math.min(1, Math.max(0, ay)) * photo.h;
-      const band = (space.y2 - space.y1 - 16) / n;
-      let hy = parent ? parent.hy + (ki + 1) * 16 : space.y1 + 8 + (i + 0.5) * band;
-      hy = Math.min(space.y2 - 8, Math.max(space.y1 + 8, hy));
-      let hx1, hx2, inner;
-      if (parent) {
-        const mid = (parent.hx1 + parent.hx2) / 2;
-        if (parent.side === "L") { hx1 = space.x1 + 6; hx2 = mid; inner = mid; }
-        else { hx1 = mid; hx2 = space.x2 - 6; inner = mid; }
-      } else if (side === "L") { hx1 = space.x1 + 6; hx2 = photo.x - 6; inner = hx2; }
-      else { hx1 = photo.x + photo.w + 6; hx2 = space.x2 - 6; inner = hx1; }
-      if (hx2 < hx1 + 20) { hx2 = hx1 + 20; }
-      const lineW = hx2 - hx1;
-      let fs = Math.min(11, Math.max(8, lineW / Math.max(6, item.text.length * 0.62)));
-      while (fs > 7 && textW(item.text, fs, true) > lineW - 4) fs -= 0.4;
-      const tw = textW(item.text, fs, true);
-      const tx = side === "L" || (parent && parent.side === "L") ? hx1 + 2 : hx2 - tw - 2;
-      const color = BRANCH[i % BRANCH.length];
-      const edgeX = (parent ? (parent.side === "L" ? photo.x : photo.x + photo.w) : (side === "L" ? photo.x : photo.x + photo.w));
-      let leader;
-      if (parent) leader = `M${(parent.hx1 + parent.hx2) / 2} ${parent.hy}L${inner} ${hy}`;
-      else if (ax > 0.04 && ax < 0.96) leader = `M${axp.toFixed(1)} ${ayp.toFixed(1)}L${edgeX.toFixed(1)} ${ayp.toFixed(1)}L${inner.toFixed(1)} ${hy.toFixed(1)}`;
-      else leader = `M${axp.toFixed(1)} ${ayp.toFixed(1)}L${inner.toFixed(1)} ${hy.toFixed(1)}`;
-      return { i, text: item.text, side: parent ? parent.side : side, ax, ay, axp, ayp, hx1, hx2, hy, tx, fs, tw, color, leader, depth, kids: [] };
+    const thumbs = (st && st.thumbs) || {};
+    const hub = hubGeom(space, st, tree.label || "", stacked);
+    const both = !stacked && sw >= 520;
+    function assignSide(i) {
+      const pin = pins[i];
+      return (pin && pin.side) || (both ? (i % 2 === 0 ? "L" : "R") : (stacked ? "L" : "R"));
     }
-    let idx = 0;
-    const nodes = items.map((item) => {
-      const node = geom(item, idx++, null, 0, 0);
-      (item.kids || []).forEach((k, ki) => node.kids.push(geom(k, idx++, node, 1, ki)));
-      return node;
-    });
-    return { photo, label: tree.label, nodes, both };
+    const left = [], right = [];
+    items.forEach((item, i) => { (assignSide(i) === "L" ? left : right).push({ item, i }); });
+    const nodes = [];
+    const cardW = stacked ? Math.min(sw - 36, 280) : Math.min(200, Math.max(150, (sw - hub.w - 48) / 2));
+    function placeGroup(list, side) {
+      const m = list.length;
+      if (stacked) return;
+      const maxCardH = list.reduce((h, it) => Math.max(h, cardGeom(0, 0, side, it.item, thumbs[it.i], cardW).h), 70);
+      const span = Math.max(sh - 16, maxCardH);
+      const top = space.y1 + 8 + maxCardH / 2;
+      const bot = space.y2 - 8 - maxCardH / 2;
+      const use = Math.max(bot - top, 1);
+      list.forEach((it, k) => {
+        const pin = pins[it.i] || {};
+        const t = m === 1 ? 0.5 : k / Math.max(m - 1, 1);
+        let cy = pin.y != null && pin.y >= 0 && pin.y <= 1 ? space.y1 + pin.y * sh : top + t * use;
+        const cx = side === "L" ? space.x1 + cardW / 2 + 4 : space.x2 - cardW / 2 - 4;
+        const card = cardGeom(cx, cy, side, it.item, thumbs[it.i], cardW);
+        if (card.y1 < space.y1 + 2) { card.cy += (space.y1 + 2 - card.y1); card.y1 = card.cy - card.h / 2; card.y2 = card.cy + card.h / 2; }
+        if (card.y2 > space.y2 - 2) { card.cy -= (card.y2 - (space.y2 - 2)); card.y1 = card.cy - card.h / 2; card.y2 = card.cy + card.h / 2; }
+        const defaultY = card.cy;
+        const hy = pin.y != null && pin.ang == null ? squircleAnchor(hub, side, space.y1 + (pin.y) * sh).y : squircleAnchor(hub, side, defaultY).y;
+        const hA = squircleAnchor(hub, side, hy);
+        const bA = { x: cardInnerEdge(card), y: card.cy, side };
+        const elbowX = side === "L" ? Math.min(bA.x - 16, Math.max(hub.x1 - 10, (hA.x + bA.x) / 2 + (hA.x - bA.x) * 0.08))
+          : Math.max(bA.x + 16, Math.min(hub.x2 + 10, (hA.x + bA.x) / 2 + (hA.x - bA.x) * 0.08));
+        const leader = `M${hA.x.toFixed(1)} ${hA.y.toFixed(1)}L${elbowX.toFixed(1)} ${bA.y.toFixed(1)}L${bA.x.toFixed(1)} ${bA.y.toFixed(1)}`;
+        const color = BRANCH[it.i % BRANCH.length];
+        const kids = [];
+        const deep = (it.item.kids || []).filter((k) => k.kids && k.kids.length);
+        deep.forEach((k, ki) => {
+          const py = card.y2 + 16 + ki * 32;
+          const px = side === "L" ? card.cx : card.cx;
+          const pill = pillGeom(px, py, k);
+          kids.push({ pill, item: k, color, leader: `M${card.cx.toFixed(1)} ${card.y2.toFixed(1)}L${pill.cx.toFixed(1)} ${pill.y1.toFixed(1)}` });
+        });
+        nodes.push({ i: it.i, item: it.item, side, color, leader, card, hA, bA, elbowX, kids, depth: 0, hx1: Math.min(elbowX, bA.x), hx2: Math.max(elbowX, bA.x), hy: bA.y });
+      });
+    }
+    if (stacked) {
+      let y = hub.y2 + 16;
+      items.forEach((item, i) => {
+        const card = cardGeom((space.x1 + space.x2) / 2 + 10, y, "L", item, thumbs[i], cardW);
+        card.cx = space.x1 + 22 + card.w / 2;
+        card.cy = y + card.h / 2;
+        card.x1 = card.cx - card.w / 2; card.x2 = card.cx + card.w / 2;
+        card.y1 = y; card.y2 = y + card.h;
+        const pin = pins[i] || {};
+        const frac = i / Math.max(n, 1);
+        const hA = squircleAnchor(hub, "L", hub.y2 - 8 - (1 - frac) * Math.min(hub.h * 0.35, n * 10));
+        // prefer bottom edge for stacked: along the bottom of the squircle
+        const bx = hub.cx - hub.w * 0.18 + frac * hub.w * 0.2;
+        const hB = { x: Math.min(hub.x2 - hub.rx, Math.max(hub.x1 + hub.rx, bx)), y: hub.y2, side: "B" };
+        const bA = { x: card.x1, y: card.cy, side: "L" };
+        const elbowX = Math.min(bA.x - 8, hB.x);
+        const leader = `M${hB.x.toFixed(1)} ${hB.y.toFixed(1)}L${hB.x.toFixed(1)} ${bA.y.toFixed(1)}L${bA.x.toFixed(1)} ${bA.y.toFixed(1)}`;
+        const color = BRANCH[i % BRANCH.length];
+        nodes.push({ i, item, side: "L", color, leader, card, hA: hB, bA, elbowX: hB.x, kids: [], depth: 0, hx1: hB.x, hx2: bA.x, hy: bA.y, stacked: true });
+        y = card.y2 + 10;
+      });
+    } else {
+      placeGroup(left, "L");
+      placeGroup(right, "R");
+    }
+    return { photo: hub.img, label: tree.label, nodes, both, stacked, hub };
   }
   function photoElAt(st, r, clipId) {
     const src = esc(st.src || "");
@@ -374,28 +537,92 @@
     const body = practice ? `<line class="rrule" x1="${L.x + 6}" y1="${L.y + L.h / 2}" x2="${L.x + L.w - 6}" y2="${L.y + L.h / 2}" stroke="#5A6670" stroke-width="1"/>`
       : L.lines.map((ln, j) => `<text x="${(L.x + 6).toFixed(1)}" y="${(L.y + 5 + L.fs * 0.85 + j * L.fs * 1.22).toFixed(1)}" font-size="${L.fs.toFixed(1)}" font-weight="700" fill="#14222C">${esc(ln)}</text>`).join("");
     return `<g class="rcap" data-cap="${i}" data-px="${photo.x.toFixed(1)}" data-py="${photo.y.toFixed(1)}" data-pw="${photo.w.toFixed(1)}" data-ph="${photo.h.toFixed(1)}">
-      <rect class="rcapbg" x="${L.x.toFixed(1)}" y="${L.y.toFixed(1)}" width="${L.w.toFixed(1)}" height="${L.h.toFixed(1)}" rx="6" fill="#fff" fill-opacity=".82"/>${body}</g>`;
+      <rect class="rcapbg" x="${L.x.toFixed(1)}" y="${L.y.toFixed(1)}" width="${L.w.toFixed(1)}" height="${L.h.toFixed(1)}" rx="6" fill="#fff" fill-opacity=".86"/>${body}</g>`;
   }
-  function calloutEl(space, photo, st, tree, fi, practice, builder, selPin) {
-    const L = calloutLayout(space, photo, st, tree);
-    const thumbs = (st && st.thumbs) || {};
-    const draw = (node) => {
-      const mid = node.hy, th = thumbs[node.i], T = thumbBox(th || { scale: 1 });
-      const tcx = node.side === "L" ? node.tx + Math.min(8, T.w / 2) : node.tx + (node.tw || 0) - Math.min(8, T.w / 2);
-      const tcy = mid - 3 - T.h / 2;
-      const text = practice ? "" : `<text class="rkw" x="${node.tx.toFixed(1)}" y="${(mid - 2).toFixed(1)}" font-size="${node.fs.toFixed(1)}" font-weight="700" fill="${node.color}">${esc(node.text)}</text>`;
-      const thumb = practice ? "" : branchThumbEl(th, tcx, tcy, node.color, fi, node.i, builder);
+  function cardFace(card, th, color, fi, pin, practice, builder) {
+    const { x1, y1, w, h, rx, headH, headFit, blocks, img, pad, side } = card;
+    const picOnRight = side === "L"; // nearest the hub
+    const imgX = picOnRight ? x1 + w - pad - img : x1 + pad;
+    const imgY = y1 + headH + (h - headH - img) / 2;
+    const textX = picOnRight ? x1 + pad : x1 + pad * 2 + img;
+    let g = `<g class="rcard" data-cap="${fi}" data-pin="${pin}">`;
+    g += `<rect class="rcardbg" x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" fill="#fff" stroke="${color}" stroke-width="2.6"/>`;
+    g += `<path class="rcardhead" d="M${(x1 + rx).toFixed(1)} ${y1.toFixed(1)}h${(w - 2 * rx).toFixed(1)}a${rx} ${rx} 0 0 1 ${rx} ${rx}v${(headH - rx).toFixed(1)}h${(-w).toFixed(1)}v${(-(headH - rx)).toFixed(1)}a${rx} ${rx} 0 0 0 ${rx} ${-rx}z" fill="${color}"/>`;
+    if (!practice) {
+      headFit.lines.forEach((ln, j) => {
+        g += `<text class="rkw" x="${(x1 + w / 2).toFixed(1)}" y="${(y1 + 5 + headFit.fs * 0.85 + j * headFit.fs * 1.18).toFixed(1)}" text-anchor="middle" font-size="${headFit.fs.toFixed(1)}" font-weight="700" fill="#fff">${esc(ln)}</text>`;
+      });
+      let ty = y1 + headH + pad + (blocks[0] ? blocks[0].fs * 0.9 : 0);
+      const textBottom = y1 + h - pad;
+      blocks.forEach((b) => {
+        b.lines.forEach((ln) => {
+          if (ty > textBottom) return;
+          g += `<text class="rfactline" x="${textX.toFixed(1)}" y="${ty.toFixed(1)}" font-size="${b.fs.toFixed(1)}" font-weight="${b.bold ? 700 : 400}" fill="#14222C">${esc(ln)}</text>`;
+          ty += b.fs * 1.28;
+        });
+        ty += 3;
+      });
+    }
+    const clip = `rcimg${fi}p${pin}`;
+    g += `<clipPath id="${clip}"><rect x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${img.toFixed(1)}" height="${img.toFixed(1)}" rx="4"/></clipPath>`;
+    if (th && (th.src || (th.shape && th.shape !== "photo" && SHAPES[th.shape]))) {
+      if (th.shape === "photo" && th.src) {
+        const src = esc(th.src);
+        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${img.toFixed(1)}" height="${img.toFixed(1)}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clip})"/></g>`;
+      } else {
+        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${SHAPES[th.shape](imgX, imgY + 4, img, Math.max(12, img * 0.7), th.c || color)}</g>`;
+      }
+    } else if (builder) {
+      g += `<g class="rthumbadd" data-cap="${fi}" data-pin="${pin}" transform="translate(${(imgX + img / 2).toFixed(1)} ${(imgY + img / 2).toFixed(1)})"><rect x="${(-img / 2).toFixed(1)}" y="${(-img / 2).toFixed(1)}" width="${img.toFixed(1)}" height="${img.toFixed(1)}" rx="4" fill="#F4F7F8" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 2"/><path d="M-6 0h12M0-6v12" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/></g>`;
+    }
+    g += `</g>`;
+    return g;
+  }
+  function calloutEl(space, photo, st, tree, fi, practice, builder, selPin, wide) {
+    const L = calloutLayout(space, photo || {}, st, tree, wide);
+    const cid = "rc" + SVGN + "f" + fi;
+    const hub = L.hub, thumbs = (st && st.thumbs) || {};
+    let g = `<g class="rdiagram" data-cap="${fi}" data-px="${hub.x1.toFixed(1)}" data-py="${hub.y1.toFixed(1)}" data-pw="${hub.w.toFixed(1)}" data-ph="${hub.h.toFixed(1)}" data-cx="${hub.cx.toFixed(1)}" data-cy="${hub.cy.toFixed(1)}" data-w="${hub.w.toFixed(1)}" data-h="${hub.h.toFixed(1)}" data-rx="${hub.rx.toFixed(1)}">`;
+    g += `<clipPath id="${cid}hub"><rect x="${hub.x1.toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${hub.w.toFixed(1)}" height="${hub.h.toFixed(1)}" rx="${hub.rx.toFixed(1)}"/></clipPath>`;
+    g += `<g class="rhub">`;
+    g += `<rect class="rhubfill" x="${hub.x1.toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${hub.w.toFixed(1)}" height="${hub.h.toFixed(1)}" rx="${hub.rx.toFixed(1)}" fill="#fff" stroke="#0A2A4A" stroke-width="${hub.stroke.toFixed(1)}"/>`;
+    if (st && st.src) g += photoElAt(st, hub.img, cid + "hub");
+    if (tree.label && !practice) {
+      const bandH = hub.fit.h + 8;
+      g += `<rect class="rhubband" x="${(hub.x1 + 6).toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${(hub.w - 12).toFixed(1)}" height="${(hub.pad + bandH).toFixed(1)}" fill="#fff" fill-opacity=".92" clip-path="url(#${cid}hub)"/>`;
+      hub.fit.lines.forEach((ln, j) => {
+        g += `<text class="rhubtitle" x="${hub.cx.toFixed(1)}" y="${(hub.titleY + hub.fit.fs * 0.9 + j * hub.fit.fs * 1.18).toFixed(1)}" text-anchor="middle" font-size="${hub.fit.fs.toFixed(1)}" font-weight="700" fill="#14222C">${esc(ln)}</text>`;
+      });
+    }
+    g += `</g>`;
+    L.nodes.forEach((node) => {
       const on = selPin === node.i ? " sel" : "";
-      return `<g class="rcallout${on}" data-cap="${fi}" data-pin="${node.i}">
-        <path class="rleader" d="${node.leader}" fill="none" stroke="${node.color}" stroke-width="${node.depth ? 1.1 : 1.4}" stroke-linecap="round" stroke-linejoin="round"/>
-        <line class="rrule" x1="${node.hx1.toFixed(1)}" y1="${mid.toFixed(1)}" x2="${node.hx2.toFixed(1)}" y2="${mid.toFixed(1)}" stroke="${node.color}" stroke-width="1.3" stroke-linecap="round"/>
-        ${text}${thumb}
-        <circle class="rpin" data-cap="${fi}" data-pin="${node.i}" cx="${node.axp.toFixed(1)}" cy="${node.ayp.toFixed(1)}" r="6" fill="#fff" stroke="${node.color}" stroke-width="2"/>
-      </g>` + (node.kids || []).map(draw).join("");
-    };
-    const title = L.label && !practice ? `<text class="rkw" x="${(photo.x + photo.w / 2).toFixed(1)}" y="${(photo.y + photo.h + 11).toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="700" fill="#14222C">${esc(L.label)}</text>` : "";
-    return `<g class="rdiagram" data-cap="${fi}" data-px="${photo.x.toFixed(1)}" data-py="${photo.y.toFixed(1)}" data-pw="${photo.w.toFixed(1)}" data-ph="${photo.h.toFixed(1)}">${L.nodes.map(draw).join("")}${title}</g>`;
+      g += `<g class="rcallout${on}" data-cap="${fi}" data-pin="${node.i}">`;
+      g += `<path class="rleader" d="${node.leader}" fill="none" stroke="${node.color}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>`;
+      g += `<line class="rrule" x1="${node.hx1.toFixed(1)}" y1="${node.hy.toFixed(1)}" x2="${node.hx2.toFixed(1)}" y2="${node.hy.toFixed(1)}" stroke="${node.color}" stroke-width="2.3" stroke-linecap="round"/>`;
+      if (!practice) g += cardFace(node.card, thumbs[node.i], node.color, fi, node.i, practice, builder);
+      (node.kids || []).forEach((k) => {
+        const p = k.pill;
+        g += `<path class="rleader" d="${k.leader}" fill="none" stroke="${k.color}" stroke-width="1.3" stroke-linecap="round"/>`;
+        g += `<rect class="rpill" x="${p.x1.toFixed(1)}" y="${p.y1.toFixed(1)}" width="${p.w.toFixed(1)}" height="${p.h.toFixed(1)}" rx="${p.rx.toFixed(1)}" fill="#fff" stroke="${k.color}" stroke-width="1.8"/>`;
+        if (!practice) p.fit.lines.forEach((ln, j) => {
+          g += `<text x="${p.cx.toFixed(1)}" y="${(p.y1 + p.h / 2 + p.fit.fs * 0.35 + j * p.fit.fs * 1.15).toFixed(1)}" text-anchor="middle" font-size="${p.fit.fs.toFixed(1)}" font-weight="700" fill="${k.color}">${esc(ln)}</text>`;
+        });
+      });
+      g += `</g>`;
+    });
+    // Tabs on top of the outlines, just inside both ends (Ken t210u, t216u)
+    L.nodes.forEach((node) => {
+      const pillTab = { w: HUB_TAB.w, h: HUB_TAB.h, rx: HUB_TAB.w / 2 };
+      const hubDir = node.hA.side === "B" ? "U" : node.hA.side === "T" ? "D" : (node.hA.x <= hub.cx ? "R" : "L");
+      g += `<g class="rpin" data-cap="${fi}" data-pin="${node.i}">${rectTabEl(node.hA.x, node.hA.y, hubDir, node.color, "rtab rtab-hub", "", pillTab)}</g>`;
+      const cardDir = node.bA.x >= node.card.cx ? "L" : "R";
+      g += rectTabEl(node.bA.x, node.bA.y, cardDir, node.color, "rtab rclip", `data-cap="${fi}" data-pin="${node.i}"`, CARD_TAB);
+    });
+    g += `</g>`;
+    return g;
   }
+
   function slashFactEl(b, st, tree, practice) {
     // Mini slash inside a fact space when there is a list but no picture (Wood's slash recall).
     const x0 = b.x1 + 10, y0 = b.y2 - 12, x1 = b.x2 - 10, y1 = b.y1 + 16;
@@ -426,8 +653,8 @@
   }
   function recallSvg(m, opts) {
     opts = opts || {};
-    const practice = opts.mode === "practice", scr = !!opts.screen;
-    const Wd = scr ? 400 : 612, M = scr ? 14 : 22;
+    const practice = opts.mode === "practice", scr = !!opts.screen, land = !scr && !!(opts.landscape || opts.print);
+    const Wd = scr ? 400 : land ? 1008 : 612, M = scr ? 14 : land ? 20 : 22;
     // header (measured first so the drawing area knows where to start)
     let hd = `<image href="${LOGO}" x="${M}" y="16" width="26" height="26"/>`;
     hd += `<text x="${M + 32}" y="27" font-size="9" font-weight="700" fill="${BAY}">${esc(APP)} · Otter Bay</text><text x="${M + 32}" y="39" font-size="8.5" fill="#5A6670">Study sheet: recall map${practice ? " (practice)" : ""}</text>`;
@@ -455,8 +682,8 @@
     [[steps, 8.2, "#24313E"], [why, 7.2, "#5A6670"], [src, 7.2, "#5A6670"]].forEach(([t, fs, fill]) => rows.push({ h: lines(0, 0, t, fs, FW, "", fs * 1.3).h + 3, text: t, fs, fill }));
     const foot = rows.reduce((a, r) => a + r.h, 0) + 16;
     // the drawing area: screen keeps the text full size and grows taller; print shrinks first, then grows (and print fits the page)
-    let H = scr ? 640 : 792, out = null;
-    const SCALES = scr ? [1.15, 1.08, 1] : [1.45, 1.3, 1.18, 1.08, 1, 0.93, 0.86, 0.8, 0.74, 0.68, 0.62, 0.58];
+    let H = scr ? 640 : land ? 756 : 792, out = null;
+    const SCALES = scr ? [1.15, 1.08, 1] : land ? [1.2, 1.1, 1, 0.93, 0.86, 0.8, 0.74, 0.68] : [1.45, 1.3, 1.18, 1.08, 1, 0.93, 0.86, 0.8, 0.74, 0.68, 0.62, 0.58];
     if (scr) {
       for (let grow = 0; grow < 24 && !out; grow++, H = Math.round(H * 1.12))
         for (const s of SCALES) { out = layout(m, opts, s, Wd, H, M, head, foot); if (out) { out.H = H; break; } }
@@ -478,16 +705,27 @@
     H = out.H;
     const ang = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
     let g = "";
-    // the slash
-    g += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="${BAY}" stroke-width="4" stroke-linecap="round"/>`;
-    g += `<circle cx="${x0}" cy="${y0}" r="5" fill="${BAY}"/><path d="M${x1} ${y1}l-14 1 6 9z" fill="${BAY}" transform="rotate(${ang + 135} ${x1} ${y1})" opacity="0"/>`;
-    g += `<text x="${title.x}" y="${title.y}" transform="rotate(${ang} ${title.x} ${title.y})" font-size="${title.fs}" font-weight="700" fill="${BAY}">${esc(title.text)}</text>`;
+    const pictorialWide = boxes.some((b, i) => {
+      const st = (cu.stickers || {})[i];
+      if (!(st && st.shape === "photo" && st.src)) return false;
+      const tree = capItems(st, b.f, b);
+      return tree.items && tree.items.length >= 2 && (b.x2 - b.x1) >= 520;
+    });
+    if (!pictorialWide) {
+      g += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="${BAY}" stroke-width="4" stroke-linecap="round"/>`;
+      g += `<circle cx="${x0}" cy="${y0}" r="5" fill="${BAY}"/><path d="M${x1} ${y1}l-14 1 6 9z" fill="${BAY}" transform="rotate(${ang + 135} ${x1} ${y1})" opacity="0"/>`;
+      g += `<text x="${title.x}" y="${title.y}" transform="rotate(${ang} ${title.x} ${title.y})" font-size="${title.fs}" font-weight="700" fill="${BAY}">${esc(title.text)}</text>`;
+    }
     boxes.forEach((b, i) => {
       const f = b.f, sv = SEV[f.sev], col = sv ? sv.c : TIDE;
       const st = (cu.stickers || {})[i];
+      const tree0 = (st && st.shape === "photo" && st.src) ? capItems(st, f, b) : null;
+      const listed0 = !!(tree0 && tree0.items.length >= 2 && (b.x2 - b.x1) >= 520);
       // branch from the slash to the fact (follows the fact when the learner moves it)
+      if (!listed0) {
       const ex = Math.abs(b.ax - b.cx1) < Math.abs(b.ax - b.cx2) ? b.cx1 : b.cx2, ey = Math.min(Math.max(b.ay, b.cy1 + 6), b.cy2 - 6);
       g += `<path d="M${b.ax} ${b.ay}Q${(b.ax + ex) / 2} ${b.ay} ${ex} ${ey}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round"/><circle cx="${b.ax}" cy="${b.ay}" r="3.2" fill="${col}"/>`;
+      }
       g += `<g class="rfact${opts.sel === i ? " sel" : ""}" data-fi="${i}">`;
       // the draw-your-own space
       g += `<clipPath id="${uid}c${i}"><rect x="${b.x1}" y="${b.y1}" width="${b.x2 - b.x1}" height="${b.y2 - b.y1}" rx="12"/></clipPath>`;
@@ -497,10 +735,12 @@
       const tree = (st && st.shape === "photo" && st.src) ? capItems(st, f, b) : null;
       const listed = !!(tree && tree.items.length >= 2);
       if (st && st.shape === "photo" && st.src) {
-        const ph = composePhoto(b, st, listed ? "list" : "cap");
-        g += photoElAt(st, ph, uid + "c" + i);
-        if (listed) g += calloutEl(b, ph, st, tree, i, practice, opts.builder, opts.branch);
-        else g += capEl(st, ph, (tree.items[0] && tree.items[0].text) || tree.label, i, practice);
+        if (listed) g += calloutEl(b, st, st, tree, i, practice, opts.builder, opts.branch, !opts.screen);
+        else {
+          const ph = composePhoto(b, st, "cap");
+          g += photoElAt(st, ph, uid + "c" + i);
+          g += capEl(st, ph, (tree.items[0] && tree.items[0].text) || tree.label, i, practice);
+        }
       } else if (st && SHAPES[st.shape]) g += `<g clip-path="url(#${uid}c${i})">${SHAPES[st.shape](...scaledHr(hr, b, st), st.c || col).replace(/stroke-width="1.6"/g, 'stroke-width="2.4"')}</g>`;
       else if (opts.ideas) g += `<g opacity=".55" clip-path="url(#${uid}c${i})">${SHAPES[f.idea.shape](...hr, col)}</g>`;
       // the fact itself — hidden when a photo is composing the words (Ken, t198u: not a stamp over the card)
@@ -590,9 +830,16 @@
     const hits = (r) => r[0] < M || r[2] > Wd - M || r[1] < top || r[3] > bot || placed.concat(obst).some((o) => r[0] < o[2] + 5 && r[2] > o[0] - 5 && r[1] < o[3] + 5 && r[3] > o[1] - 5);
     const boxes = [];
     let t = 0.02, pref = "down";
+    const stMap = (opts.custom && opts.custom.stickers) || {};
     for (const f of m.facts) {
       let done = null;
-      const sizes = [258, 228, 290, 198, 172].map((bw) => {
+      const stF = stMap[boxes.length];
+      const treeF = (stF && stF.shape === "photo" && stF.src) ? capItems(stF, f, { label: [f.label], lines: (f.details || []).map((d) => ({ head: d.head, text: d.text })) }) : null;
+      const listedF = !!(treeF && treeF.items.length >= 2);
+      const baseWs = [258, 228, 290, 198, 172];
+      const wideW = Math.min(Wd - 2 * M, Wd >= 900 ? Wd - 2 * M : (opts.screen ? 372 : 380));
+      const widths = listedF ? [wideW, 340, 300].concat(baseWs) : baseWs;
+      const sizes = widths.map((bw) => {
         const inner = bw - 2 * spX - 2 * pad;
         const label = wrap(f.label, inner, lfs, true);
         const lines = [];
@@ -609,8 +856,21 @@
         // the builder keeps a fixed 3-line strip, so typing a new picture idea never moves the learner's drawing
         if (opts.builder) { if (pic && pic.length > 3) { pic = pic.slice(0, 3); pic[2] = clip(pic[2] + " …", bw - 2 * pad - 8 * s, pfs); } }
         const sb = opts.builder ? 7 * s + 3 * pfs * 1.22 + 5 * s : pic ? 7 * s + pic.length * pfs * 1.22 + 5 * s : spB;
+        if (listedF) {
+          const n = treeF.items.length, stacked = bw < 520;
+          const hubD = stacked ? Math.min(160, bw - 16) : Math.min(200, bw - 300);
+          const h = (stacked ? hubD + 18 + n * 108 + 16 : Math.max(hubD + 24, Math.ceil(n / 2) * 120 + 24)) + (sb || 0);
+          return { bw, label, lines, ch, pic, sb, h };
+        }
         return { bw, label, lines, ch, pic, sb, h: ch + spT + sb };
       });
+      if (listedF && !done) {
+        const z = sizes[0];
+        for (let y = top; y + z.h <= bot + 0.5 && !done; y += 6) {
+          const r = [M, y, M + z.bw, y + z.h];
+          if (!hits(r)) { done = { r, z, side: "down", ax: slashX(y + z.h / 2), ay: y + z.h / 2, tt: t }; break; }
+        }
+      }
       for (let tt = t; tt <= 1.0001 && !done; tt += 0.006) {
         const ax = x0 + (x1 - x0) * tt, ay = y0 + (y1 - y0) * tt;
         for (const side of [pref, pref === "up" ? "down" : "up"]) {
@@ -668,7 +928,46 @@
     </article>`;
   }
 
-  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb }; }
+
+  // Image identity for uniqueness checks on a recall map and on print pages (Ken, t222u).
+  function hashStr(s) {
+    let h = 5381;
+    const t = String(s || "");
+    for (let i = 0; i < t.length; i++) h = ((h << 5) + h) + t.charCodeAt(i) | 0;
+    return (h >>> 0).toString(36);
+  }
+  function imageId(st) {
+    if (!st) return "";
+    if (st.src) return "src:" + hashStr(st.src);
+    if (st.shape && st.shape !== "photo") return "shape:" + st.shape;
+    return "";
+  }
+  function collectImageIds(pg) {
+    const out = [];
+    if (!pg) return out;
+    const add = (st, where) => { const id = imageId(st); if (id) out.push({ id, where, sample: !!(st && st.shape && st.shape !== "photo" && !st.src) }); };
+    add(pg.hub, "topic");
+    Object.keys(pg.stickers || {}).forEach((k) => {
+      const st = pg.stickers[k];
+      add(st, "fact:" + k);
+      Object.keys((st && st.thumbs) || {}).forEach((t) => add(st.thumbs[t], "fact:" + k + ":" + t));
+    });
+    return out;
+  }
+  function printPageKey() { return "obPrintPages:" + EXAM; }
+  function findImageConflicts(ids, others) {
+    const have = {};
+    (others || []).forEach((o) => { (o.ids || []).forEach((id) => { if (!have[id]) have[id] = o; }); });
+    const hits = [];
+    (ids || []).forEach((it) => {
+      const id = it.id || it;
+      const owner = have[id];
+      if (owner) hits.push({ id, where: it.where, other: owner.label || owner.title || "another page", sample: !!(it.sample || owner.sample) });
+    });
+    return hits;
+  }
+
+  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, imageId, collectImageIds, printPageKey, findImageConflicts }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }
@@ -702,7 +1001,7 @@
     o = o || {};
     ST.k = k; ST.q = o.q || ""; ST.answer = o.answer || ""; ST.related = o.related || []; ST.hit = o.hit || null;
     ST.sel = null; ST.mode = "filled"; ST.ideas = false; ST.celebrate = false; ST.msg = ""; ST.zoom = false; ST.panel = o.panel || ""; ST.songPop = false;
-    ST.from = o.from || "ask"; ST.fromK = o.fromK || k; ST.focus = null; ST.branch = null; ST.focusBranch = null;
+    ST.from = o.from || "ask"; ST.fromK = o.fromK || k; ST.focus = null; ST.branch = null; ST.focusBranch = null; ST.ppNote = null;
     if (o.build) { ST.style = "map"; ST.map = "build"; }
     PG = fixPage(getPage(k)) || blankPage();
   }
@@ -728,11 +1027,14 @@
       h += `<div class="stopts">${seg("stmode", ST.mode, [["filled", "Filled"], ["practice", "Practice (blanks)"]])}
         ${ST.style === "map" ? `<label class="stchk"><input type="checkbox" data-act="stideas" ${ST.ideas ? "checked" : ""}> Show ideas (a starter picture)</label>` : ""}
         <p class="sthelp">${ST.mode === "practice" ? "Fill it in from memory, then switch to Filled and check. Add what you missed in another color." : ST.style === "map" ? "Each fact has an empty space. Draw your own picture around it after you print." : "A plain page with the full table, ready to print."}</p></div>`;
-      h += `<button type="button" class="stprint" data-act="stprint">${PRINTICON}<span>Print this sheet</span></button>`;
+      h += `<button type="button" class="stprint" data-act="stprint">${PRINTICON}<span>Print this sheet</span></button>
+      <button type="button" class="staddprint" data-act="staddprint">Add to print page</button>
+      <button type="button" class="stprinttraybtn" data-act="stprinttray">Print pages</button>`;
       h += memPanels(m);
       h += `<div class="stpaper ${ST.zoom ? "zoom" : ""}">${paperHtml(m)}</div>
         <button type="button" class="stzoom" data-act="stzoom">${ST.zoom ? "Fit to screen" : "Zoom in"}</button>`;
     } else h += builder(m);
+    if (ST.panel === "printpages") h += printPagesHtml();
     return h + `</section>`;
   }
   // What the paper on screen shows (also redrawn in place while the learner types, so the keyboard stays up)
@@ -806,11 +1108,11 @@
     const def = defaultCapText({ cap: "" }, f, b);
     const val = st.cap != null ? st.cap : def;
     const snaps = [["Top left", 0.18, 0.16], ["Top", 0.5, 0.16], ["Top right", 0.82, 0.16], ["Middle left", 0.18, 0.5], ["Middle", 0.5, 0.5], ["Middle right", 0.82, 0.5], ["Bottom left", 0.18, 0.84], ["Bottom", 0.5, 0.84], ["Bottom right", 0.82, 0.84]];
-    const tx = st.tx == null ? 0.5 : st.tx, ty = st.ty == null ? 0.84 : st.ty;
+    const tx = st.tx == null ? 0.5 : st.tx, ty = st.ty == null ? 0.14 : st.ty;
     let h = `<div class="stcap">`;
-    if (list) h += `<p class="sthelp">The big picture should show this topic itself (a person in distress for “Signs of Respiratory Distress,” not a decoration). Tap a line, then paste or pick a small picture for that fact — blue lips for cyanosis, a lean-forward pose for tripod. Drag a dot to point the line at the right part of the picture.</p>`;
+    if (list) h += `<p class="sthelp">The big picture should show this topic itself (a person in distress for “Signs of Respiratory Distress,” not a decoration). Each fact sits in its own index card: tap a card, then paste or pick a picture for that fact. Drag a tab to move where the line plugs in. Everything to remember stays inside the card.</p>`;
     else {
-      h += `<p class="sthelp">Drag the words to a clear spot in the picture, or snap them. They sit in the image, not as a stamp over the card.</p><div class="stsnaps" role="group" aria-label="Text position">`;
+      h += `<p class="sthelp">The name sits at the top inside the picture, not as a stamp over the card. Drag it to a clear spot, or snap it.</p><div class="stsnaps" role="group" aria-label="Text position">`;
       snaps.forEach(([lab, x, y]) => {
         const on = Math.abs(tx - x) < 0.12 && Math.abs(ty - y) < 0.12;
         h += `<button type="button" data-act="stcapsnap" data-x="${x}" data-y="${y}" aria-label="${lab}" aria-pressed="${on}" class="${on ? "on" : ""}"></button>`;
@@ -892,6 +1194,7 @@
     const next = m.facts[dec.findIndex((d) => !d)];
     if (got === n && n && !PG.done) { PG.done = true; ST.celebrate = true; savePage(); }
     const prompt = ST.msg || (next ? PROMPTS[(m.facts.indexOf(next) + PG.ink.length) % PROMPTS.length].replace("{f}", next.label) : "Every fact has a picture. Print it, then try Practice from memory tomorrow.");
+    const seenImgs = {}, mapDups = collectImageIds(PG).filter((x) => { if (seenImgs[x.id]) return true; seenImgs[x.id] = 1; return false; });
     const tools = [["look", "👀 Look"], ["draw", "✏️ Draw"], ["sticker", "⭐ Stickers"], ["move", "✋ Move"]];
     let h = `<div class="stbuild"><p class="stprompt" aria-live="polite">${esc(prompt)}</p>
       <div class="sttools">${seg("sttool", ST.tool, tools)}</div>
@@ -899,9 +1202,9 @@
     if (ST.tool === "sticker") {
       const factLab = ST.sel != null && m.facts[ST.sel] ? m.facts[ST.sel].label : "";
       const branchLab = ST.branch != null && ST.sel != null ? ((capItems((PG.stickers || {})[ST.sel], m.facts[ST.sel], ((LAST && LAST.boxes) || [])[ST.sel] || {}).items || [])[ST.branch] || {}).text : "";
-      const help = ST.sel == null ? "Tap a fact for its topic picture, or tap a line to add a small picture for that fact."
+      const help = ST.sel == null ? "Tap a fact for its topic picture, or tap a card to add a picture for that fact."
         : ST.branch != null ? `Picture for “${esc(branchLab || "this fact")}”. It should show that fact, not a decoration.`
-        : `Topic picture for “${esc(factLab)}”. It should show this topic itself, not a decoration. Tap a line to add a picture for one fact.`;
+        : `Topic picture for “${esc(factLab)}”. It should show this topic itself, not a decoration. Tap a card to add a picture for one fact.`;
       h += `<p class="sthelp">${help}</p>
       <div class="ststickers">${STICKERS.map(([sh, t]) => `<button type="button" data-act="ststicker" data-s="${sh}" aria-label="${t}"><svg viewBox="-30 -30 120 90" width="54" height="40" aria-hidden="true">${SHAPES[sh](0, 0, 60, 30, ST.color)}</svg><span>${t}</span></button>`).join("")}
       <button type="button" data-act="ststicker" data-s="" aria-label="No shape"><span class="none">✕</span><span>None</span></button></div>
@@ -911,10 +1214,13 @@
       </div>${sizeRow()}${capRow(m)}`; }
     if (ST.tool === "move") h += `<p class="sthelp">Drag a fact to where it makes sense to you. Its branch follows.</p>`;
     if (ST.tool === "draw") h += `<p class="sthelp">Draw with your finger or mouse right on the page. Lift and continue as often as you like; tap Done when you are finished.</p>`;
+    if (mapDups.length) h += `<p class="stppnote" role="status">Two facts on this page share a picture. A slightly different one will stick better.</p>`;
     h += `<div class="stpaper builder tool-${ST.tool} ${ST.zoom ? "zoom" : ""}">${paperHtml(m)}</div>
       <div class="strow"><button type="button" data-act="stzoom">${ST.zoom ? "Fit to screen" : "Zoom in"}</button><button type="button" data-act="stundo" ${PG.hist.length ? "" : "disabled"}>↶ Undo</button><button type="button" data-act="stclear">Clear</button><button type="button" class="stdone" data-act="stdone">Done</button></div>
       <p class="stprog"><span class="stbar"><i style="width:${n ? Math.round(100 * got / n) : 0}%"></i></span>${got} of ${n} facts have a picture${PG.done ? ' · <b>🏅 Page built!</b>' : ""}</p>
       <button type="button" class="stprint" data-act="stprint">${PRINTICON}<span>Print my page</span></button>
+      <button type="button" class="staddprint" data-act="staddprint">Add to print page</button>
+      <button type="button" class="stprinttraybtn" data-act="stprinttray">Print pages</button>
       <p class="sthelp">Saved on this device as you go. Ask about this topic again and your page comes back.</p></div>`;
     h += memPanels(m);
     if (ST.celebrate && !PG.song.asked) ST.songPop = true;
@@ -931,14 +1237,14 @@
     const m = mdl();
     if (ST.style === "trad") return traditionalHtml(m, { mode: ST.mode });
     if (ST.map === "build") return builtForPrint(m, PG);   // same layout as the builder, so the drawing lines up
-    return recallSvg(m, { mode: ST.mode, ideas: ST.ideas });
+    return recallSvg(m, { mode: ST.mode, ideas: ST.ideas, landscape: true, print: true });
   }
   // A built page on letter paper: lay the facts out for print, then carry each drawing over to its fact's new spot (each stroke
   // goes with the fact space it sits in, scaled evenly). Long cards built on the phone are tall; this keeps the print full width.
   function builtForPrint(m, pg) {
     recallSvg(m, { custom: pg, screen: true, builder: true, noSong: true });   // exactly the builder's layout
     const S = LAST.boxes.map((b) => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 }));
-    recallSvg(m, { custom: { stickers: pg.stickers }, ideas: false });
+    recallSvg(m, { custom: { stickers: pg.stickers }, ideas: false, landscape: true, print: true });
     const P0 = LAST.boxes.map((b) => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 }));
     const near = (p) => { let bi = -1, bd = 1e9; S.forEach((b, i) => { const dx = Math.max(b.x1 - p[0], 0, p[0] - b.x2), dy = Math.max(b.y1 - p[1], 0, p[1] - b.y2), d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } }); return bi; };
     const ink = (pg.ink || []).map((k) => {
@@ -948,16 +1254,146 @@
       const ox = (q.x1 + q.x2) / 2 - (s.x1 + s.x2) / 2 * f, oy = (q.y1 + q.y2) / 2 - (s.y1 + s.y2) / 2 * f;
       return { c: k.c, w: Math.max(1.2, (k.w || 2.6) * f), pts: k.pts.map((p) => [p[0] * f + ox, p[1] * f + oy]) };
     }).filter(Boolean);
-    return recallSvg(m, { custom: { ink, stickers: pg.stickers } });
+    return recallSvg(m, { custom: { ink, stickers: pg.stickers }, landscape: true, print: true });
   }
   function preparePrint() {
     let el = document.getElementById("obPrint");
     if (!el) { el = document.createElement("div"); el.id = "obPrint"; document.body.appendChild(el); }
     el.innerHTML = printHtml();
+    el.className = ST.style === "trad" ? "obprint-trad" : "obprint-map";
     document.documentElement.classList.add("obprinting");
+    if (ST.style !== "trad") document.documentElement.classList.add("obprint-map");
+    else document.documentElement.classList.remove("obprint-map");
     return el;
   }
-  window.addEventListener("afterprint", () => document.documentElement.classList.remove("obprinting"));
+  window.addEventListener("afterprint", () => document.documentElement.classList.remove("obprinting", "obprint-map"));
+
+  // Print pages tray: several maps on one landscape letter sheet (Ken, t218u–t222u).
+  // Stored under a new key only (obPrintPages:${EXAM}); existing study keys are left alone.
+  function ppLoad() {
+    try { const d = JSON.parse(localStorage.getItem(printPageKey()) || "null"); if (d && Array.isArray(d.pages)) return d; } catch (e) {}
+    return { pages: [] };
+  }
+  function ppSave(d) { try { localStorage.setItem(printPageKey(), JSON.stringify({ pages: d.pages || [] })); } catch (e) {} }
+  function ppNew(layout) { return { id: "p" + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36), layout: layout || 1, items: [] }; }
+  function itemImages(k) {
+    const pg = fixPage(getPage(k)) || {};
+    return collectImageIds(pg);
+  }
+  function ppOtherImages(data, skipPage, skipIndex) {
+    const others = [];
+    (data.pages || []).forEach((pg) => {
+      (pg.items || []).forEach((it, i) => {
+        if (pg.id === skipPage && i === skipIndex) return;
+        const ids = (it.imgs || itemImages(it.k).map((x) => x.id));
+        others.push({ ids, label: it.title || it.k, title: it.title || it.k, sample: false, page: pg.id });
+      });
+    });
+    return others;
+  }
+  function ppConflictsFor(k, data, pageId) {
+    const ids = itemImages(k);
+    const others = ppOtherImages(data, pageId, -1);
+    // also images already on the target page, and across all pages
+    return findImageConflicts(ids, others);
+  }
+  function addToPrintPage(pageId, layout) {
+    const data = ppLoad();
+    let page = pageId && data.pages.find((p) => p.id === pageId);
+    if (!page) { page = ppNew(layout || 1); data.pages.push(page); }
+    if (page.items.length >= (page.layout || 1)) { ST.msg = "That page is full. Pick another page, or start a new one."; return false; }
+    const m = mdl();
+    const imgs = itemImages(ST.k).map((x) => x.id);
+    const conflicts = ppConflictsFor(ST.k, data, page.id);
+    page.items.push({ k: ST.k, title: (m && m.title) || ST.k, kind: ST.style === "trad" ? "trad" : "map", imgs });
+    ppSave(data);
+    ST.ppNote = conflicts.length
+      ? { conflicts, k: ST.k, page: page.id }
+      : null;
+    ST.msg = conflicts.length
+      ? ""
+      : "Added to a print page (" + page.items.length + " of " + (page.layout || 1) + ").";
+    ST.panel = "printpages";
+    return true;
+  }
+  function ppSwap(k) {
+    ST.k = k; ST.style = "map"; ST.map = "build"; ST.tool = "sticker"; ST.sel = null; ST.branch = null;
+    ST.panel = ""; ST.ppNote = null;
+    ST.msg = "Pick a slightly different picture so this page stays unique.";
+    PG = fixPage(getPage(k)) || blankPage();
+  }
+  function printPagesHtml() {
+    const data = ppLoad(), m = mdl();
+    const curK = ST.k;
+    let h = `<div class="stprintpages"><h3>Print pages</h3>
+      <p class="sthelp">Combine maps on landscape letter pages: one, two stacked, or four in a grid. Saved on this device.</p>`;
+    if (ST.ppNote && ST.ppNote.conflicts && ST.ppNote.conflicts.length) {
+      const c = ST.ppNote.conflicts[0];
+      h += `<div class="stppnote" role="status"><p>This picture already appears on “${esc(c.other)}”. A slightly different one will stick better.</p>
+        <button type="button" class="stppswap" data-act="stprintswap" data-k="${esc(ST.ppNote.k)}">Swap image</button></div>`;
+    }
+    h += `<div class="stppadd"><p class="asklabel">Add “${esc((m && m.title) || "this topic")}” to</p>`;
+    data.pages.forEach((pg, i) => {
+      const cap = pg.layout || 1, used = (pg.items || []).length, open = used < cap;
+      h += `<button type="button" class="stpppick" data-act="stprintaddto" data-id="${pg.id}" ${open ? "" : "disabled"}>${open ? "Page " + (i + 1) + " · " + used + " of " + cap : "Page " + (i + 1) + " is full"}</button>`;
+    });
+    h += `<div class="stpplayouts"><span>New page</span>`;
+    [1, 2, 4].forEach((n) => { h += `<button type="button" data-act="stprintnew" data-v="${n}">${n === 1 ? "1 up" : n === 2 ? "2 stacked" : "4 in a grid"}</button>`; });
+    h += `</div></div>`;
+    if (!data.pages.length) h += `<p class="sthelp">No print pages yet. Choose a layout above to start one.</p>`;
+    data.pages.forEach((pg, i) => {
+      h += `<div class="stppage"><header><b>Page ${i + 1}</b> ${seg("stprintlayout", String(pg.layout || 1), [["1", "1"], ["2", "2"], ["4", "4"]]).replace('data-act="stprintlayout"', 'data-act="stprintlayout" data-id="' + pg.id + '"')}
+        <button type="button" class="stppdelpage" data-act="stprintdelpage" data-id="${pg.id}" aria-label="Remove this page">✕</button></header><ol>`;
+      (pg.items || []).forEach((it, j) => {
+        const conf = findImageConflicts(itemImages(it.k), ppOtherImages(data, pg.id, j));
+        h += `<li><span>${esc(it.title || it.k)}</span>
+          <span class="stppbtns">
+            <button type="button" data-act="stprintmove" data-id="${pg.id}" data-i="${j}" data-dir="-1" aria-label="Move up" ${j ? "" : "disabled"}>↑</button>
+            <button type="button" data-act="stprintmove" data-id="${pg.id}" data-i="${j}" data-dir="1" aria-label="Move down" ${j < pg.items.length - 1 ? "" : "disabled"}>↓</button>
+            <button type="button" data-act="stprintremove" data-id="${pg.id}" data-i="${j}" aria-label="Remove">Remove</button>
+            ${conf.length ? `<button type="button" data-act="stprintswap" data-k="${esc(it.k)}">Swap image</button>` : ""}
+          </span>
+          ${conf.length ? `<small class="stppwarn">This picture also appears on “${esc(conf[0].other)}”.</small>` : ""}
+        </li>`;
+      });
+      h += `</ol></div>`;
+    });
+    h += `<div class="strow"><button type="button" class="stprint" data-act="stprintall">${PRINTICON}<span>Print all</span></button>
+      <button type="button" data-act="stprinttray" data-v="off">Close</button></div></div>`;
+    return h;
+  }
+  function slotHtml(it) {
+    if (!it) return `<div class="pslot empty"></div>`;
+    const keep = PG, kk = ST.k, stStyle = ST.style, stMap = ST.map, stMode = ST.mode;
+    const page = fixPage(getPage(it.k));
+    let html = "";
+    try {
+      ST.k = it.k; PG = page || blankPage();
+      const m = model(it.k, { mine: PG });
+      if (it.kind === "trad") html = traditionalHtml(m, { mode: "filled" });
+      else if (page) html = builtForPrint(m, PG);
+      else html = recallSvg(m, { mode: "filled", landscape: true, print: true });
+    } catch (e) { html = `<p>${esc(it.title || it.k)}</p>`; }
+    ST.k = kk; PG = keep; ST.style = stStyle; ST.map = stMap; ST.mode = stMode;
+    return `<div class="pslot">${html}</div>`;
+  }
+  function printAllHtml() {
+    const data = ppLoad();
+    return data.pages.map((pg) => {
+      const n = pg.layout || 1, items = (pg.items || []).slice(0, n);
+      while (items.length < n) items.push(null);
+      return `<div class="ppage layout-${n}">${items.map(slotHtml).join("")}</div>`;
+    }).join("");
+  }
+  function preparePrintAll() {
+    let el = document.getElementById("obPrint");
+    if (!el) { el = document.createElement("div"); el.id = "obPrint"; document.body.appendChild(el); }
+    el.innerHTML = printAllHtml();
+    el.className = "obprint-map obprint-pages";
+    document.documentElement.classList.add("obprinting", "obprint-map");
+    return el;
+  }
+
   function thumb(k) {
     const p = getPage(k); if (!p) return "";
     const keep = PG, kk = ST.k; PG = p; ST.k = k;
@@ -978,9 +1414,10 @@
       e.preventDefault();
       const host = pin || cap, fi2 = Number(host.dataset.cap);
       if (fi2 >= 0 && PG.stickers[fi2]) {
-        const box = host.closest("[data-px]") || host;
+        const box = host.closest("[data-cx]") || host.closest("[data-px]") || host;
         const photo = { x: Number(box.dataset.px), y: Number(box.dataset.py), w: Number(box.dataset.pw), h: Number(box.dataset.ph) };
-        const start = { svg, i: fi2, p0: p, prev: Object.assign({}, PG.stickers[fi2]), photo, n: pin ? Number(pin.dataset.pin) : null };
+        const start = { svg, i: fi2, p0: p, prev: Object.assign({}, PG.stickers[fi2]), photo, n: pin ? Number(pin.dataset.pin) : null,
+          cx: Number(box.dataset.cx), cy: Number(box.dataset.cy), w: Number(box.dataset.w), h: Number(box.dataset.h) };
         if (pin) pinDrag = start; else capDrag = start;
         ST.sel = fi2; ST.tool = "sticker";
         try { svg.setPointerCapture(e.pointerId); } catch (x) {}
@@ -1017,9 +1454,17 @@
       PG.stickers[capDrag.i] = Object.assign({}, PG.stickers[capDrag.i], { tx: fr[0], ty: fr[1] });
       capDrag.moved = true; refreshPaper();
     } else if (pinDrag) {
-      const fr = photoFrac(pinDrag, svgPt(pinDrag.svg, e)), pins = (PG.stickers[pinDrag.i].pins || []).slice();
-      const side = fr[0] < 0.5 ? "L" : "R";
-      pins[pinDrag.n] = Object.assign({}, pins[pinDrag.n] || {}, { x: fr[0], y: fr[1], side });
+      const pt = svgPt(pinDrag.svg, e), pins = (PG.stickers[pinDrag.i].pins || []).slice();
+      let side, y;
+      if (pinDrag.cx && pinDrag.w) {
+        side = pt[0] < pinDrag.cx ? "L" : "R";
+        y = Math.min(1, Math.max(0, (pt[1] - (pinDrag.cy - pinDrag.h / 2)) / (pinDrag.h || 1)));
+      } else {
+        const fr = photoFrac(pinDrag, pt);
+        side = fr[0] < 0.5 ? "L" : "R";
+        y = fr[1];
+      }
+      pins[pinDrag.n] = Object.assign({}, pins[pinDrag.n] || {}, { side, y });
       PG.stickers[pinDrag.i] = Object.assign({}, PG.stickers[pinDrag.i], { pins });
       pinDrag.moved = true; refreshPaper();
     }
@@ -1150,7 +1595,7 @@
     stcolor: (b) => { ST.color = b.dataset.c; },
     stzoom: () => { ST.zoom = !ST.zoom; },
     ststicker: (b) => {
-      if (ST.sel == null) { ST.msg = "Tap a fact, or a line, then pick its shape."; return; }
+      if (ST.sel == null) { ST.msg = "Tap a fact, or a card, then pick its shape."; return; }
       const prev = (ST.branch != null ? ((PG.stickers[ST.sel] || {}).thumbs || {})[ST.branch] : PG.stickers[ST.sel]) || {};
       setBranchThumb(b.dataset.s ? { shape: b.dataset.s, c: ST.color, scale: prev.scale } : null);
     },
@@ -1181,6 +1626,35 @@
       savePage(); },
     stclear: () => { if (!confirm("Clear your drawings, shapes and moves on this page?")) return false; PG = blankPage(); savePage(); },
     stprint: () => { preparePrint(); setTimeout(() => window.print(), 50); return false; },
+    staddprint: () => { ST.panel = "printpages"; ST.ppNote = null; },
+    stprinttray: (b) => { ST.panel = b.dataset.v === "off" ? "" : (ST.panel === "printpages" ? "" : "printpages"); ST.ppNote = ST.panel === "printpages" ? ST.ppNote : null; },
+    stprintnew: (b) => { addToPrintPage(null, Number(b.dataset.v) || 1); },
+    stprintaddto: (b) => { addToPrintPage(b.dataset.id); },
+    stprintlayout: (b) => {
+      const data = ppLoad(), page = data.pages.find((p) => p.id === b.dataset.id);
+      if (!page) return false;
+      const n = Number(b.dataset.v) || 1;
+      if (page.items.length > n) { ST.msg = "Remove an item first, or move it to another page. This layout only holds " + n + "."; return; }
+      page.layout = n; ppSave(data);
+    },
+    stprintremove: (b) => {
+      const data = ppLoad(), page = data.pages.find((p) => p.id === b.dataset.id);
+      if (!page) return false;
+      page.items.splice(Number(b.dataset.i), 1); ppSave(data);
+    },
+    stprintmove: (b) => {
+      const data = ppLoad(), page = data.pages.find((p) => p.id === b.dataset.id);
+      if (!page) return false;
+      const i = Number(b.dataset.i), j = i + Number(b.dataset.dir);
+      if (j < 0 || j >= page.items.length) return false;
+      const t = page.items[i]; page.items[i] = page.items[j]; page.items[j] = t; ppSave(data);
+    },
+    stprintdelpage: (b) => {
+      const data = ppLoad();
+      data.pages = data.pages.filter((p) => p.id !== b.dataset.id); ppSave(data);
+    },
+    stprintall: () => { preparePrintAll(); setTimeout(() => window.print(), 50); return false; },
+    stprintswap: (b) => { ppSwap(b.dataset.k); },
     stpanel: (b) => { ST.panel = ST.panel === b.dataset.v ? "" : b.dataset.v; },
     stpicreset: (b) => { delete PG.pics[b.dataset.i]; savePage(); },
     sttune: (b) => { PG.song.tune = b.dataset.v; savePage(); },
