@@ -1160,7 +1160,7 @@
   }
   function screen() {
     const m = mdl(); if (!m) return "";
-    const backLabel = ST.from === "bin" ? "Back to Memory Arcade" : ST.from === "settings" ? "Back to Settings" : "Back to the answer";
+    const backLabel = ST.from === "bin" ? "Back to Study List" : ST.from === "settings" ? "Back to Settings" : "Back to the answer";
     let h = `<section class="stsheet" id="askRes"><div class="sthead"><button type="button" class="stback" data-act="stback">‹ ${backLabel}</button>
       <h2>Study sheet</h2><p class="stsub">Print the topic you asked about: <b>${esc(m.title)}</b></p>
       ${window.OB_BIN && OB_BIN.flag && ST.k ? `<div class="binflags starcade">${OB_BIN.flag(ST.k)}</div>` : ""}</div>

@@ -1,5 +1,5 @@
-/* Add to Arcade, inside the question-vetting pages. Same look and concept-key behavior as the apps (js/bin.js flag()).
-   Writes localStorage obBin:{EXAM} in the same format so a page on the same origin as the app shares the Arcade.
+/* Add to Study List, inside the question-vetting pages. Same look and concept-key behavior as the apps (js/bin.js flag()).
+   Writes localStorage obBin:{EXAM} in the same format so a page on the same origin as the app shares the Study List.
    A Claude artifact or a local file is a different origin and cannot share storage; the copyable OBARC1: code and
    the "Open in … Ready" link are the way to move the list into the app. Never stores question text, only card keys.
    Built into the vetting pages by tools/vetting/build_embed.js. */
@@ -21,10 +21,18 @@
   function listCode() { return "OBARC1:" + EXAM + ":" + liveKeys().join(","); }
   function appHref() { const ks = liveKeys(); return APP + (ks.length ? "?arcade=" + encodeURIComponent(ks.join(",")) : ""); }
 
+  const TIP_KEY = "obStudyTip:" + EXAM;
+  const loadTip = () => { try { return Object.assign({ shown: 0, picked: false }, JSON.parse(localStorage.getItem(TIP_KEY) || "{}") || {}); } catch (e) { return { shown: 0, picked: false }; } };
+  let TIP = loadTip(), JUST_TIP = false, JUST_KEY = "";
+  const saveTip = () => { try { localStorage.setItem(TIP_KEY, JSON.stringify(TIP)); } catch (e) {} };
+  function tipBanner() {
+    return `<div class="bintip" role="status"><p><b>Saved!</b> You can pick how to study it (game, picture, jingle, flashcard) from your Study List.</p></div>`;
+  }
   function flag(k) {
     if (!W.SCALES || !W.SCALES[k]) return "";
     const on = inBin(k);
-    return `<button type="button" class="binflag${on ? " on" : ""}" data-act="binflag" data-k="${k}" aria-pressed="${on}"><span aria-hidden="true">${on ? "★" : "🕹"}</span><span><b>${on ? "In your Memory Arcade" : "Add to Arcade"}</b><small>${esc(W.SCALES[k].title)}</small></span></button>`;
+    const btn = `<button type="button" class="binflag${on ? " on" : ""}" data-act="binflag" data-k="${k}" aria-pressed="${on}"><span aria-hidden="true">${on ? "★" : "☆"}</span><span><b>${on ? "Saved to Study List" : "Add to Study List"}</b><small>${esc(W.SCALES[k].title)}</small></span></button>`;
+    return (JUST_TIP && JUST_KEY === k) ? `<div class="binflagwrap">${btn}${tipBanner()}</div>` : btn;
   }
   function keysFor(q) {
     const out = [], seen = {};
@@ -42,16 +50,16 @@
   }
   function flags(q) {
     const ks = keysFor(q);
-    if (!ks.length) return `<p class="obarcnote">No reference card is linked to this question yet, so it can't go in the Arcade. You can still Ask about it.</p>${bar()}`;
+    if (!ks.length) return `<p class="obarcnote">No reference card is linked to this question yet, so it can't go on the Study List. You can still Ask about it.</p>${bar()}`;
     return `<div class="binflags">${ks.map(flag).join("")}</div>${bar()}`;
   }
   let copied = false;
   function bar() {
     const n = liveKeys().length;
-    return `<div class="obarcbar"><p><b>Memory Arcade:</b> ${n ? n + " topic" + (n === 1 ? "" : "s") + " flagged on this page." : "tap Add to Arcade to save this topic."}</p>
+    return `<div class="obarcbar"><p><b>Study List:</b> ${n ? n + " topic" + (n === 1 ? "" : "s") + " saved on this page." : "tap Add to Study List to save this topic."}</p>
       ${n ? `<div class="obarcacts"><button type="button" class="obarcbtn" data-act="obarccopy">${copied ? "Copied" : "Copy list"}</button>
         <a class="obarcbtn" href="${esc(appHref())}" target="_blank" rel="noopener">Open in ${esc(APP_NAME)}</a></div>
-        <p class="obarcnote">A Claude artifact or a file on your computer can't share saved cards with the app automatically. Copy the list or open the link. The list is an OBARC1 code of topic keys only. If the link does not add them, use Import on the Memory Arcade screen.</p>`
+        <p class="obarcnote">A Claude artifact or a file on your computer can't share saved cards with the app automatically. Copy the list or open the link. The list is an OBARC1 code of topic keys only. If the link does not add them, use Import on the Study List screen.</p>`
         : `<p class="obarcnote">This page can't share storage with the app. After you add topics, Copy list and Open in ${esc(APP_NAME)} will appear here.</p>`}
       </div>`;
   }
@@ -73,7 +81,10 @@
 .obarcbtn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 14px;border-radius:12px;border:2px solid #0A4A63;background:#fff;color:#0A4A63;font:inherit;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;box-sizing:border-box}
 .obarcnote{margin:8px 0 0;font-size:13px;line-height:1.4;color:#4A5663}
 .scaledlg .binflags{margin:10px 0 12px}
-.obaskcard .binflag{margin:0 0 8px}`;
+.obaskcard .binflag{margin:0 0 8px}
+.binflagwrap{display:flex;flex-direction:column;gap:8px;width:100%;max-width:100%;box-sizing:border-box}
+.bintip{margin:0;padding:12px 14px;border-radius:14px;background:#FFF6D8;border:1.5px solid #E8B13A;color:#3A2800;font-size:14px;line-height:1.4}
+.bintip p{margin:0;overflow-wrap:anywhere}`;
   document.head.appendChild(css);
 
   const origScale = W.scaleButtons;
@@ -92,7 +103,14 @@
   };
 
   W.PAGE_ACTIONS = Object.assign(W.PAGE_ACTIONS || {}, {
-    binflag: (b) => { toggle(b && b.dataset && b.dataset.k); copied = false; },
+    binflag: (b) => {
+      const k = b && b.dataset && b.dataset.k;
+      const was = k && inBin(k);
+      toggle(k);
+      copied = false;
+      if (k && !was && inBin(k) && !TIP.picked && TIP.shown < 2) { TIP.shown += 1; saveTip(); JUST_TIP = true; JUST_KEY = k; }
+      else { JUST_TIP = false; JUST_KEY = ""; }
+    },
     obarccopy: () => {
       const code = listCode();
       copied = true;

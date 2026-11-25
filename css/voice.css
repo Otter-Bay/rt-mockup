@@ -317,6 +317,25 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .binimport { background: #fff; border-radius: 16px; padding: 12px 14px; }
 .binimport summary { cursor: pointer; font-weight: 700; color: var(--bay, #0A4A63); }
 .binimport textarea { width: 100%; box-sizing: border-box; min-height: 56px; margin: 8px 0; padding: 8px 10px; border: 1.5px solid #D5DCE3; border-radius: 10px; font: inherit; font-size: 14px; }
+.binstyles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 2px; }
+.binstyle { box-sizing: border-box; min-height: 44px; padding: 8px 10px; border: 2px solid var(--bay, #0A4A63); border-radius: 12px; background: #fff; color: var(--bay, #0A4A63); font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; text-align: center; }
+.binstyle.on { background: var(--bay, #0A4A63); color: #fff; }
+.bincard.focus { box-shadow: 0 0 0 2px var(--buoy, #F5B83D), 0 2px 8px rgba(4,34,48,.08); }
+.focustag { font-style: normal; font-weight: 700; font-size: 11px; padding: 1px 7px; border-radius: 8px; background: var(--buoy, #F5B83D); color: #3A2800; margin-left: 4px; }
+.binsec { margin: 14px 0 6px; font-family: "Fredoka", var(--font); font-weight: 600; font-size: 16px; color: var(--bay, #0A4A63); }
+.binsec.sub { margin: 10px 0 4px; font-size: 14px; font-weight: 500; }
+.binviewswitch { margin: 2px 0 0; }
+.binmsg, .bintip { margin: 10px 0 0; padding: 12px 14px; border-radius: 14px; background: #FFF6D8; border: 1.5px solid #E8B13A; color: #3A2800; font-size: 14px; line-height: 1.4; }
+.bintip { display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; width: 100%; max-width: 100%; }
+.bintip p { margin: 0; overflow-wrap: anywhere; }
+.bintipgo { min-height: 44px;  align-self: flex-start; padding: 0 14px; border: 0; border-radius: 12px; background: var(--bay, #0A4A63); color: #fff; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+.binflagwrap { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 100%; box-sizing: border-box; }
+.way.listway { flex-direction: row; align-items: center; gap: 12px; min-height: 72px; text-align: left; }
+.way.listway .listico { flex: none; color: var(--bay, #0A4A63); }
+.way.listway .arctext { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.way.listway b { color: var(--bay, #0A4A63); }
+.way.listway .arctext > span { color: #4F6B75; font-size: 13px; overflow-wrap: anywhere; }
+.way.listway .listbadge { margin-left: auto; min-width: 28px; height: 28px; min-height: 28px; padding: 0 8px; border-radius: 14px; background: var(--buoy, #F5B83D); color: #3A2800; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; }
 .binflag.on { border-style: solid; background: var(--buoy, #F5B83D); color: #3A2800; } .binflag.on small { color: #3A2800; } .binflag.on > span:first-child { color: #3A2800; animation: gpop .35s; }
 .binscroll { display: flex; flex-direction: column; gap: 12px; padding-bottom: 40px; }
 .bin .gsnd { min-width: 44px; min-height: 44px; border: 0; border-radius: 22px; background: #fff; font-size: 20px; cursor: pointer; box-shadow: 0 1px 4px rgba(4,34,48,.12); }
@@ -490,7 +509,7 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .way.arcadeway .arcotter { width: 56px; height: 56px; border-radius: 12px; flex: none; box-shadow: 0 0 0 2px rgba(124,240,255,.6), 0 0 12px rgba(124,240,255,.5); }
 .archead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 10px; }
 .archead .arch1 { margin: 0; font-family: "Fredoka", var(--font); font-size: 24px; color: var(--ink, #12202E); }
-.archead p { margin: 2px 0 0; font-size: 14px; color: #5B4A86; font-weight: 600; }
+.archead p { margin: 2px 0 0; font-size: 14px; color: #4F6B75; font-weight: 500; }
 .archead-otter { width: 52px; height: 52px; border-radius: 12px; flex: none; }
 /* perfect score party (t148u to t153u) */
 .party { position: fixed; inset: 0; z-index: 90; background: rgba(255,255,255,.9); overflow: hidden; cursor: pointer; animation: pfade .3s ease-out; }

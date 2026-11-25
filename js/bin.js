@@ -1,13 +1,14 @@
-/* Memory Arcade ("Play to Learn"; first named the bin, until Ken renamed it, t136u to t140u) and its games (mockup).
+/* Study List (saved topics) plus Memory Arcade games (mockup).
    Code names (bin*, obBin storage keys) stay as they were so saved cards keep working.
-   - One tap "Add to Arcade" flag on a practice question's reference card (after the answer), on Ask answers, on an info-card
+   - One tap "Add to Study List" flag on a practice question's reference card (after the answer), on Ask answers, on an info-card
      sheet, and on a study page (including the recall-map image maker). The flag holds the
-     concept (the Ask card), so every question about Apgar lands on the same card.
-   - FlutterFlow: flag() is the reusable ArcadeFlag widget, bound to a concept key (the info-card id, never a question id).
-     It toggles that key in the same document as today: obBin:{exam} → cards[key] = { added, step, checks, due, best, mastered }.
-     Do not invent a new storage key. A vetting-page list imports through the same addCard() path.
-   - Memory Arcade: each card shows its step (1 Make it, 2 Recall it, 3 Use it, then quick checks) and ONE Continue button. A short
-     session runs 2 or 3 cards and ends with a small win. "Pick a different game" opens the games gallery.
+     concept (the Ask card), so every question about Apgar lands on the same card. It does not pick a study style.
+   - Study List: each saved item offers Picture, Jingle, Flashcard, and Game. The student picks per item. Last style tried
+     and Domain/Task/Topic live in obStudyStyle:{exam} (do not change obBin format). A first-save tip uses obStudyTip:{exam}.
+   - FlutterFlow: flag() is a reusable widget bound to a concept key (never a question id). The list is that same document
+     (obBin:{exam} → cards[key] = { added, step, checks, due, best, mastered }). Per-item style and outline tags are fields
+     on a separate per-exam doc. A vetting-page list imports through the same addCard() path.
+   - Games stay available as one style. The games gallery, sessions, and quick checks are unchanged once Game is chosen.
    - Ten games, all with the same controls (tap a choice; Check / Next), score, streak, quick rounds, optional sound.
    - Mockup scope: games are built for three example cards, one per content type: Apgar (scoring grid), Gas laws (laws and
      relationships), Blood gas normals with Oxygenation indices (equations and numbers). Every clinical fact comes from those cards
@@ -242,13 +243,84 @@
 
   // ======================= Screen =======================
   const KEY = `obBin:${EXAM}`, DAY = 864e5;
-  // the arcade otter (Ken, t141u to t143u): tagline-free icon (sign reads only Memory Arcade) on the home button and in the calm Memory Arcade screen header (t145u to t147u)
+  // Party otter images still live under images/brand/. The Study List home button uses a list icon, not the arcade otter (the sign on that art still reads Memory Arcade).
   const IMG = ((document.querySelector('link[href*="voice.css"]') || {}).href || "").replace(/css\/voice\.css.*$/, "") + "images/brand/";
   const load = () => { try { return Object.assign({ cards: {}, streak: 0, lastDay: "", sound: true, badges: [], offset: 0 }, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { return { cards: {}, streak: 0, lastDay: "", sound: true, badges: [], offset: 0 }; } };
   let B = load();
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(B)); } catch (e) {} };
   function importArcadeList(s) { const ks = parseArcadeList(s); ks.forEach(addCard); return ks; }
   let IMPORTED = 0;
+  // Per-item last style + Domain/Task/Topic. New key; never written into obBin.
+  const STYLE_KEY = "obStudyStyle:" + EXAM, TIP_KEY = "obStudyTip:" + EXAM;
+  const loadStyle = () => { try { return JSON.parse(localStorage.getItem(STYLE_KEY) || "{}") || {}; } catch (e) { return {}; } };
+  const loadTip = () => { try { return Object.assign({ shown: 0, picked: false }, JSON.parse(localStorage.getItem(TIP_KEY) || "{}") || {}); } catch (e) { return { shown: 0, picked: false }; } };
+  let STY = loadStyle(), TIP = loadTip(), JUST_TIP = false, JUST_KEY = "", FROM_LIST = false, LIST_MSG = "";
+  const saveStyle = () => { try { localStorage.setItem(STYLE_KEY, JSON.stringify(STY)); } catch (e) {} };
+  const saveTip = () => { try { localStorage.setItem(TIP_KEY, JSON.stringify(TIP)); } catch (e) {} };
+  const STYLES = [["picture", "Picture"], ["jingle", "Jingle"], ["flash", "Flashcard"], ["game", "Game"]];
+  const styleName = (s) => (STYLES.find((x) => x[0] === s) || [s, s])[1];
+  function fromQuestion(q) {
+    if (!q) return null;
+    const task = q.sec || "";
+    if (!task && !q.domain && !q.tgroup) return null;
+    return { domain: q.domain || (task.split("-")[0] || ""), task, topic: q.tgroup || q.topic || "",
+      taskName: q.secName || task, domainName: q.domName || "", topicName: q.tgroup || q.topic || "" };
+  }
+  function inferTaxonomy(k) {
+    try {
+      if (typeof Q === "function" && S && S.page === "quiz") {
+        const q = Q();
+        if (q && (q.scales || []).includes(k)) { const t = fromQuestion(q); if (t) return t; }
+      }
+    } catch (e) {}
+    try {
+      if (typeof QS !== "undefined" && QS && QS.length) {
+        const hits = QS.filter((q) => (q.scales || []).includes(k));
+        if (hits.length) {
+          const tally = {};
+          hits.forEach((q) => { const t = q.sec || ""; if (t) tally[t] = (tally[t] || 0) + 1; });
+          const top = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0];
+          const q = hits.find((x) => x.sec === top) || hits[0];
+          const t = fromQuestion(q); if (t) return t;
+        }
+      }
+    } catch (e) {}
+    return { domain: "", task: "", topic: "", taskName: "", domainName: "", topicName: "" };
+  }
+  function tagItem(k, extra) {
+    const cur = STY[k] || {}, tax = inferTaxonomy(k);
+    STY[k] = Object.assign({}, cur, tax, extra || {});
+    if (cur.last && !STY[k].last) STY[k].last = cur.last;
+    if (cur.at && !STY[k].at) STY[k].at = cur.at;
+    // keep an earlier task if this save has no taxonomy
+    if (!tax.task && cur.task) { STY[k].task = cur.task; STY[k].taskName = cur.taskName; STY[k].domain = cur.domain; STY[k].domainName = cur.domainName; STY[k].topic = cur.topic; STY[k].topicName = cur.topicName; }
+    saveStyle();
+  }
+  function rememberStyle(k, style) {
+    tagItem(k, { last: style, at: Date.now() });
+    if (!TIP.picked) { TIP.picked = true; saveTip(); }
+    JUST_TIP = false;
+  }
+  function currentFocusTasks() {
+    try {
+      const secs = (S.build && S.build.secs) || {};
+      const keys = Object.keys(secs).filter((x) => secs[x]);
+      if (keys.length && (!S.build.focus || S.build.focus === "task")) return keys;
+    } catch (e) {}
+    return [];
+  }
+  const currentFocusTask = () => currentFocusTasks()[0] || "";
+  function isFocusItem(k) { const t = (STY[k] || {}).task; return t && currentFocusTasks().indexOf(t) >= 0; }
+  function ensureTags() {
+    Object.keys(B.cards).forEach((k) => { if (W.SCALES[k] && !(STY[k] && STY[k].task)) tagItem(k); });
+  }
+  importArcadeList = function (s) { const ks = parseArcadeList(s); ks.forEach((k) => { addCard(k); tagItem(k); }); return ks; };
+  let LIST_FLAT = false;
+  const now = () => Date.now() + (B.offset || 0) * DAY;
+  const today = () => new Date(now()).toDateString();
+  const inBin = (k) => !!B.cards[k] && !B.cards[k].mastered;
+  const CHECKS = [1, 7, 30];
+  function addCard(k) { if (!B.cards[k] || B.cards[k].mastered) B.cards[k] = { added: now(), step: 1, checks: 0, due: 0, best: {}, mastered: false }; save(); }
   (function bootArcade() {
     try {
       const u = new URL(location.href);
@@ -260,22 +332,21 @@
       history.replaceState({}, "", u.pathname + (q ? "?" + q : "") + u.hash);
     } catch (e) {}
   })();
-  const now = () => Date.now() + (B.offset || 0) * DAY;
-  const today = () => new Date(now()).toDateString();
-  const inBin = (k) => !!B.cards[k] && !B.cards[k].mastered;
-  const CHECKS = [1, 7, 30];
-  function addCard(k) { if (!B.cards[k] || B.cards[k].mastered) B.cards[k] = { added: now(), step: 1, checks: 0, due: 0, best: {}, mastered: false }; save(); }
   // a session: up to 3 example cards that have a game step ready (step 1 is the study page, opened from Continue)
   const sessionCards = () => Object.keys(B.cards).filter((k) => { const c = B.cards[k]; return exKey(k) && !c.mastered && c.step > 1 && !(c.step === 4 && c.due > now()); }).slice(0, 3);
   // where the card is: 1 make, 2 recall, 3 use, 4 quick check (due or waiting)
   const stepName = (c) => c.mastered ? "Mastered" : c.step === 1 ? "Make it" : c.step === 2 ? "Recall it" : c.step === 3 ? "Use it" : (c.due <= now() ? "Quick check due" : `Quick check in ${Math.max(1, Math.ceil((c.due - now()) / DAY))} day${Math.ceil((c.due - now()) / DAY) > 1 ? "s" : ""}`);
   const level = (k) => { const c = B.cards[k] || {}; return c.mastered ? 7 : (c.step || 1) + (c.checks || 0); };   // 1 to 7; table row blocks lose their words from 3 (Use it) up
 
-  // the flag: same control everywhere (Ask, reference cards, info sheets, study pages)
+  // the flag: same control everywhere (Ask, reference cards, info sheets, study pages). Neutral: it only saves the item.
+  function tipBanner() {
+    return `<div class="bintip" role="status"><p><b>Saved!</b> You can pick how to study it (game, picture, jingle, flashcard) from your Study List.</p><button type="button" class="bintipgo" data-act="binopen">Open Study List</button></div>`;
+  }
   function flag(k) {
     if (!W.SCALES[k]) return "";
     const on = inBin(k);
-    return `<button type="button" class="binflag${on ? " on" : ""}" data-act="binflag" data-k="${k}" aria-pressed="${on}"><span aria-hidden="true">${on ? "★" : "🕹"}</span><span><b>${on ? "In your Memory Arcade" : "Add to Arcade"}</b><small>${esc(W.SCALES[k].title)}</small></span></button>`;
+    const btn = `<button type="button" class="binflag${on ? " on" : ""}" data-act="binflag" data-k="${k}" aria-pressed="${on}"><span aria-hidden="true">${on ? "★" : "☆"}</span><span><b>${on ? "Saved to Study List" : "Add to Study List"}</b><small>${esc(W.SCALES[k].title)}</small></span></button>`;
+    return (JUST_TIP && JUST_KEY === k) ? `<div class="binflagwrap">${btn}${tipBanner()}</div>` : btn;
   }
   // practice questions: a flag under the reference-card buttons (shown after the answer, like the cards)
   const origScale = W.scaleButtons;
@@ -293,9 +364,10 @@
     const btn = `<div class="binflags">${flag(k)}</div>`;
     return h.replace('<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button>', btn + '<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button>');
   };
-  // home: the Memory Arcade button
+  // home: the Study List button
+  const LISTICON = '<svg class="listico" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>';
   const way = () => { const n = Object.values(B.cards).filter((c) => !c.mastered).length;
-    return `<button type="button" class="way binway arcadeway" data-act="binopen" aria-label="Memory Arcade, Play to Learn${n ? `, ${n} saved` : ""}"><img class="arcotter" src="${IMG}otter-arcade-icon.jpg" alt="" width="56" height="56"><span class="arctext"><b>Memory Arcade</b><span>Play to Learn${n ? "" : " · tap 🕹 Add to Arcade on any answer"}</span></span>${n ? `<span class="arcbadge">${n}</span>` : ""}</button>`; };
+    return `<button type="button" class="way binway listway" data-act="binopen" aria-label="Study List${n ? `, ${n} saved` : ""}">${LISTICON}<span class="arctext"><b>Study List</b><span>${n ? `${n} topic${n === 1 ? "" : "s"} saved · pick a style` : "Save a topic, then pick how to study it"}</span></span>${n ? `<span class="listbadge">${n}</span>` : ""}</button>`; };
 
   // ---------- sound (optional) ----------
   let AC = null;
@@ -584,42 +656,67 @@
       <p class="gnums"><span><b>${g.score}</b>points</span><span><b>${g.pct}%</b>right</span><span><b>${g.best}</b>best streak</span></p>
       ${g.moved ? `<p class="gmoved">🎯 ${esc(g.moved)}</p>` : ""}${g.game === "table" && g.D.E.tip ? `<p class="gwhy">💡 ${esc(g.D.E.tip)}</p>` : ""}
       ${g.win ? `<div class="stconfetti" aria-hidden="true">${Array.from({ length: 24 }, (_, i) => `<i style="--x:${(i * 41) % 100}%;--d:${(i % 6) * 0.08}s;--c:${["#C62828", "#E65100", "#B08900", "#2E7D32", "#1565C0", "#6A1B9A"][i % 6]}"></i>`).join("")}</div>` : ""}
-      <button type="button" class="gbig" data-act="${more ? "binnext" : "binend"}">${more ? "Continue: next card ▶" : SESSION ? "Finish session" : "Back to my Memory Arcade"}</button>
+      <button type="button" class="gbig" data-act="${more ? "binnext" : "binend"}">${more ? "Continue: next card ▶" : SESSION ? "Finish session" : "Back to Study List"}</button>
       <div class="grow"><button type="button" class="glink" data-act="bgagain">Play again</button><button type="button" class="glink" data-act="bingallery" data-k="${g.k}">Pick a different game</button></div></div>`;
   }
+  function itemCard(k, focused) {
+    const meta = STY[k] || {}, last = meta.last;
+    const taskN = meta.taskName || meta.task || "", topicN = meta.topicName || meta.topic || "";
+    const where = [taskN, topicN && topicN.toLowerCase() !== taskN.toLowerCase() ? topicN : ""].filter(Boolean).join(" · ");
+    const lastLab = last ? "Last studied: " + styleName(last) : "Pick a study style";
+    return `<li class="bincard${focused ? " focus" : ""}" data-k="${k}"><div class="binhead"><b>${esc(W.SCALES[k].title)}</b>
+        <small>${esc(lastLab)}${where ? " · " + esc(where) : ""}${focused ? ' <em class="focustag">Your focus</em>' : ""}</small></div>
+        <div class="binstyles" role="group" aria-label="How to study ${esc(W.SCALES[k].title)}">${STYLES.map(([id, lab]) =>
+          `<button type="button" class="binstyle${last === id ? " on" : ""}" data-act="binstyle" data-k="${k}" data-s="${id}" aria-pressed="${last === id}">${esc(lab)}</button>`).join("")}</div></li>`;
+  }
   function binView() {
-    const cards = Object.entries(B.cards).filter(([, c]) => !c.mastered), done = Object.entries(B.cards).filter(([, c]) => c.mastered);
-    let h = `<div class="archead"><div><h1 class="arch1">Play to Learn</h1><p>Memory Arcade</p></div><img class="archead-otter" src="${IMG}otter-arcade-icon.jpg" alt="" width="52" height="52"></div><div class="bintop"><p>🔥 <b>${B.streak}</b>-day streak</p><button type="button" class="gsnd" data-act="binsound" aria-label="Sound ${B.sound ? "on" : "off"}">${B.sound ? "🔊" : "🔇"}</button></div>`;
-    if (!cards.length) h += `<div class="binempty"><p><b>Your Memory Arcade is empty.</b> Tap <b>🕹 Add to Arcade</b> after you answer a question, on an Ask answer, or on an info or study page to put that topic here.</p>
-      <button type="button" class="gbig" data-act="binseed">Try the examples</button><p class="ghelp">Apgar (scoring grid), Gas laws (laws), Blood gas normals (numbers), and two sleep tables: AHI severity (order matters) and sleep stages (any order).</p></div>`;
+    ensureTags();
+    const cards = Object.entries(B.cards).filter(([k, c]) => W.SCALES[k] && !c.mastered);
+    const done = Object.entries(B.cards).filter(([k, c]) => W.SCALES[k] && c.mastered);
+    const focusIds = currentFocusTasks();
+    const focusName = focusIds.map((id) => (cards.map(([k]) => STY[k]).find((m) => m && m.task === id) || {}).taskName || id).filter(Boolean).join(", ");
+    const inFocus = cards.filter(([k]) => isFocusItem(k));
+    const rest = cards.filter(([k]) => !isFocusItem(k));
+    const grouped = (entries) => {
+      const groups = [], seen = {};
+      entries.forEach(([k]) => {
+        const t = (STY[k] || {}).task || "", name = (STY[k] || {}).taskName || t || "Other topics";
+        if (!seen[t]) { seen[t] = { name, keys: [] }; groups.push(seen[t]); }
+        seen[t].keys.push(k);
+      });
+      return groups.map((g) => (groups.length > 1 ? `<p class="binsec sub">${esc(g.name)}</p>` : "") + `<ul class="binlist">${g.keys.map((k) => itemCard(k, isFocusItem(k))).join("")}</ul>`).join("");
+    };
+    let h = `<div class="archead"><div><h1 class="arch1">Study List</h1><p>Pick how you want to study each topic</p></div></div>`;
+    if (LIST_MSG) { h += `<p class="binmsg" role="status">${esc(LIST_MSG)}</p>`; LIST_MSG = ""; }
+    if (!cards.length) h += `<div class="binempty"><p><b>Your Study List is empty.</b> Tap <b>Add to Study List</b> after you answer a question, on an Ask answer, or on an info or study page. You’ll choose how to study it here — a picture, a jingle, flashcards, or a game.</p>
+      <button type="button" class="gbig" data-act="binseed">Try a few examples</button><p class="ghelp">Apgar, Gas laws, Blood gas normals, AHI severity, and sleep stages.</p></div>`;
     else {
-      const sc = sessionCards().length;
-      h += sc ? `<button type="button" class="gbig" data-act="binsession">▶ Quick session: ${sc} card${sc > 1 ? "s" : ""}, about 5 minutes</button><ul class="binlist">`
-        : `<p class="ghelp">Tap <b>Continue</b> on a card to make its study page. Then its games are ready for a quick session.</p><ul class="binlist">`;
-      cards.forEach(([k, c]) => { const ex = exKey(k), s = c.step;
-        h += `<li class="bincard" data-k="${k}"><div class="binhead"><b>${esc(W.SCALES[k].title)}</b><small>${ex ? EX[ex].cat : "Study page"}</small></div>
-          <ol class="binsteps" aria-label="Steps">${["Make it", "Recall it", "Use it", "Check"].map((t, i) => `<li class="${s > i + 1 ? "done" : s === i + 1 ? "cur" : ""}">${s > i + 1 ? "✓" : i + 1}<span>${t}</span></li>`).join("")}</ol>
-          <p class="binnow">${c.step === 1 ? "Next: make your study page (pictures and a song)" : c.step === 2 && ex ? `Next: recall it with ${esc(gameName(EX[ex].rec, k))}` : c.step === 3 && ex ? `Next: use it with ${esc(gameName(EX[ex].useGame || "baby", k))}` : esc(stepName(c))}${c.step === 4 ? ` · checks ${c.checks} of 3 (1, 7, 30 days)` : ""}</p>
-          <div class="binrow"><button type="button" class="bincont" data-act="bincont" data-k="${k}" ${c.step === 4 && c.due > now() ? "disabled" : ""}>Continue</button>
-          ${ex ? `<button type="button" class="glink" data-act="bingallery" data-k="${k}">Pick a different game</button>` : `<span class="ghelp">Games come later for this card</span>`}</div></li>`; });
-      const gk = cards.map(([k]) => k).find(exKey);
-      h += `</ul><button type="button" class="glink small" data-act="binday">(Mockup) Pretend a day passed</button>`;
-      if (gk) h += `<p class="asklabel">Games</p><div class="gmini">${GAMES.filter(([g]) => !EX[exKey(gk)].games || EX[exKey(gk)].games.includes(g)).map(([g, n, ic]) => `<button type="button" data-act="binplay" data-g="${g}" data-k="${gk}"><i>${ic}</i><span>${esc(n === "Score the Baby" ? "Use it" : n)}</span></button>`).join("")}</div><p class="ghelp">Games use ${esc(W.SCALES[gk].title)}. Use <b>Pick a different game</b> on a card to choose for that card.</p>`;
+      const hasFocus = !!(focusIds.length && inFocus.length);
+      h += `<p class="ghelp">All of your saved items are listed. Choose a style on any item.${hasFocus && !LIST_FLAT ? ` Your stats-page focus (<b>${esc(focusName)}</b>) is shown first — nothing else is hidden.` : ""}</p>`;
+      if (hasFocus && !LIST_FLAT) {
+        h += `<p class="binviewswitch"><button type="button" class="glink" data-act="binall">All items</button></p>`;
+        h += `<p class="binsec">Your focus</p><ul class="binlist">${inFocus.map(([k]) => itemCard(k, true)).join("")}</ul>`;
+        if (rest.length) h += `<p class="binsec">More in your list</p>${grouped(rest)}`;
+      } else {
+        if (hasFocus) h += `<p class="binviewswitch"><button type="button" class="glink" data-act="binfocusfirst">Show my focus first</button></p>`;
+        h += `<p class="binsec">All items</p>` + grouped(cards);
+      }
     }
     if (done.length) h += `<p class="asklabel">Mastered</p><p class="ghelp">${done.map(([k]) => "🏅 " + esc(W.SCALES[k].title)).join("<br>")}</p>`;
-    const live = Object.keys(B.cards).filter((k) => W.SCALES[k] && !B.cards[k].mastered);
+    const live = cards.map(([k]) => k);
     h += `<details class="binimport"><summary>Have a list from a vetting page?</summary>
-      <p class="ghelp">Paste the code (it starts with OBARC1:) or a list of topic keys, then tap Import. Topics already in your Arcade stay as they are.</p>
+      <p class="ghelp">Paste the code (it starts with OBARC1:) or a list of topic keys, then tap Import. Topics already in your Study List stay as they are.</p>
       ${IMPORTED ? `<p class="ghelp" role="status">Added ${IMPORTED} topic${IMPORTED === 1 ? "" : "s"} from a link.</p>` : ""}
-      <textarea id="binimport" rows="2" placeholder="OBARC1:${EXAM}:…" aria-label="Arcade list to import"></textarea>
+      <textarea id="binimport" rows="2" placeholder="OBARC1:${EXAM}:…" aria-label="Study list to import"></textarea>
       <div class="binrow"><button type="button" class="glink" data-act="binimport">Import</button>
       ${live.length ? `<button type="button" class="glink" data-act="bincopy">Copy my list</button>` : ""}</div></details>`;
     return h;
   }
   function galleryView(k) {
     const ex = exKey(k), E = EX[ex];
+    if (!E) return `<p class="ghelp">Games for <b>${esc(W.SCALES[k].title)}</b> aren’t in the mockup yet. You can still study it with a picture, a jingle, or flashcards.</p>
+      <button type="button" class="gbig" data-act="binhome">Back to Study List</button>`;
     return `<p class="ghelp">Every game uses the same card: <b>${esc(W.SCALES[k].title)}</b>. Same controls in each: tap to choose, a score, a streak.</p><div class="ggal">
-      <button type="button" class="ggame make" data-act="binmake" data-k="${k}"><i>🎨</i><b>Make it: study page</b><small>Draw your pictures, add a song</small></button>
       ${GAMES.filter(([g]) => !E.games || E.games.includes(g)).map(([g, , ic, d]) => `<button type="button" class="ggame" data-act="binplay" data-g="${g}" data-k="${k}"><i>${ic}</i><b>${esc(gameName(g, k))}</b><small>${esc(d)}</small>${g === E.rec ? '<em>Best to recall</em>' : g === E.use ? '<em>Best to use it</em>' : ""}${B.cards[k] && B.cards[k].best[g] ? `<u>Best ${B.cards[k].best[g]}</u>` : ""}</button>`).join("")}</div>`;
   }
   function winView() {
@@ -627,12 +724,12 @@
     return `<div class="gres win"><p class="gbadge">${SESSION.badge ? SESSION.badge[1] : "🔥"}</p><h2>Session done!</h2>${SESSION.badge ? `<p class="gmoved">New badge: ${esc(SESSION.badge[2])}</p>` : `<p class="gmoved">Streak kept: ${B.streak} day${B.streak === 1 ? "" : "s"}</p>`}<p class="gnums"><span><b>${s.cards}</b>cards</span><span><b>${s.points}</b>points</span><span><b>🔥 ${B.streak}</b>day streak</span></p>
       <p class="ghelp">Short and done. Come back tomorrow to keep your streak; quick checks come back at 1, 7 and 30 days.</p>
       <div class="stconfetti" aria-hidden="true">${Array.from({ length: 30 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--d:${(i % 7) * 0.08}s;--c:${["#C62828", "#E65100", "#B08900", "#2E7D32", "#1565C0", "#6A1B9A"][i % 6]}"></i>`).join("")}</div>
-      <button type="button" class="gbig" data-act="binhome">Back to my Memory Arcade</button></div>`;
+      <button type="button" class="gbig" data-act="binhome">Back to Study List</button></div>`;
   }
   function page() {
     const theme = W.OB_THEME ? W.OB_THEME() : "";
-    const title = VIEW === "game" ? gameName(G.game, G.k) : VIEW === "gallery" ? "Pick a game" : VIEW === "win" ? "Nice work" : "Memory Arcade";
-    const sub = VIEW === "game" ? G.D.title : VIEW === "gallery" ? W.SCALES[GAL].title : "Play to Learn";
+    const title = VIEW === "game" ? gameName(G.game, G.k) : VIEW === "gallery" ? "Pick a game" : VIEW === "win" ? "Nice work" : "Study List";
+    const sub = VIEW === "game" ? G.D.title : VIEW === "gallery" ? W.SCALES[GAL].title : "Your saved topics";
     const body = VIEW === "game" ? (G.over || G.demo ? "" : hud()) + gameView() : VIEW === "gallery" ? galleryView(GAL) : VIEW === "win" ? winView() : binView();
     return `<div class="ob ask bin" style="${theme}"><header class="obtop asktop"><button type="button" class="askback" data-act="binback" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>Back</span></button>
       ${VIEW === "bin" ? "" : `<span class="wm">${esc(title)}<small>${esc(sub)}</small></span>`}</header><div class="obscroll askscroll binscroll">${body}</div></div>`;
@@ -658,18 +755,49 @@
   }
   W.PAGES = Object.assign(W.PAGES || {}, { bin: page });
   W.PAGE_ACTIONS = Object.assign(W.PAGE_ACTIONS || {}, {
-    binflag: (b) => { const k = b.dataset.k; if (inBin(k)) delete B.cards[k]; else addCard(k); save(); },
+    binflag: (b) => {
+      const k = b.dataset.k;
+      if (inBin(k)) { delete B.cards[k]; save(); JUST_TIP = false; JUST_KEY = ""; }
+      else {
+        addCard(k); tagItem(k);
+        if (!TIP.picked && TIP.shown < 2) { TIP.shown += 1; saveTip(); JUST_TIP = true; JUST_KEY = k; }
+        else { JUST_TIP = false; JUST_KEY = ""; }
+      }
+    },
+    binstyle: (b) => {
+      const k = b.dataset.k, st = b.dataset.s; if (!k || !W.SCALES[k]) return;
+      if (!B.cards[k]) addCard(k);
+      rememberStyle(k, st); LIST_MSG = ""; FROM_LIST = true;
+      if (st === "picture" || st === "jingle") {
+        if (W.PAGE_ACTIONS && W.PAGE_ACTIONS.stopenpage) W.PAGE_ACTIONS.stopenpage({ dataset: { k } });
+        if (W.OB_STUDY && W.OB_STUDY.state) {
+          W.OB_STUDY.state.panel = st === "jingle" ? "song" : "";
+          W.OB_STUDY.state.style = "map"; W.OB_STUDY.state.map = "build";
+          W.OB_STUDY.state.from = "bin"; W.OB_STUDY.state.fromK = k;
+        }
+      } else if (st === "flash") {
+        const idx = (typeof QS !== "undefined" && QS) ? QS.map((q, i) => i).filter((i) => (QS[i].scales || []).includes(k)) : [];
+        if (!idx.length) { LIST_MSG = "No flashcards for this topic yet. You can study it with a picture, a jingle, or a game."; VIEW = "bin"; return; }
+        S.set = idx; S.mode = "flash"; S.build.mode = "flash"; S.page = "quiz"; S.results = false; S.reviewing = false; S.settings = false;
+        if (W.FLASH && FLASH.reset) FLASH.reset();
+        newRun();
+      } else if (st === "game") {
+        GAL = k; VIEW = "gallery"; G = null;
+      }
+    },
     binimport: () => { const el = document.getElementById("binimport"); IMPORTED = importArcadeList(el ? el.value : "").length; },
     bincopy: () => {
       const code = listCode(Object.keys(B.cards).filter((k) => W.SCALES[k] && !B.cards[k].mastered));
       const go = () => { const el = document.getElementById("binimport"); if (el) el.value = code; };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(go).catch(go); else go();
     },
-    binopen: () => { B = load(); VIEW = "bin"; G = null; S.page = "bin"; S.settings = false; },
+    binopen: () => { B = load(); STY = loadStyle(); TIP = loadTip(); VIEW = "bin"; G = null; FROM_LIST = false; S.page = "bin"; S.settings = false; JUST_TIP = false; },
+    binall: () => { LIST_FLAT = true; VIEW = "bin"; S.page = "bin"; },
+    binfocusfirst: () => { LIST_FLAT = false; VIEW = "bin"; S.page = "bin"; },
     binback: () => { if (G) clearTimeout(G.timer); if (VIEW === "game" || VIEW === "gallery" || VIEW === "win") { VIEW = "bin"; G = null; SESSION = null; } else S.page = "home"; },
     binhome: () => { VIEW = "bin"; SESSION = null; },
     // the three examples start at different steps so the mockup shows each one (Apgar's study page counts as made)
-    binseed: () => { [["apgar", 2], ["gaslaws", 1], ["abg", 3], ["ahi", 2], ["staging", 2]].forEach(([k, st]) => { if (W.SCALES[k]) { addCard(k); B.cards[k].step = st; } }); save(); },
+    binseed: () => { [["apgar", 2], ["gaslaws", 1], ["abg", 3], ["ahi", 2], ["staging", 2]].forEach(([k, st]) => { if (W.SCALES[k]) { addCard(k); B.cards[k].step = st; tagItem(k); } }); save(); },
     binday: () => { B.offset = (B.offset || 0) + 1; save(); },
     binsound: () => { B.sound = !B.sound; save(); },
     bincont: (b) => { SESSION = null; runCard(b.dataset.k); },
@@ -742,5 +870,18 @@
     for (let i = 0; i < w.w.length; i++) { const x = w.x + (w.dir === "a" ? i : 0), y = w.y + (w.dir === "a" ? 0 : i), el = document.querySelector(`[data-cell="${x},${y}"] span`); if (el) el.textContent = G.typed[wi][i] || ""; }
   });
 
-  W.OB_BIN = Object.assign(API(), { flag, way, inBin, celebrate, importArcadeList, state: () => ({ B, G, VIEW }) });
+  const render0 = W.render || (typeof render === "function" ? render : null);
+  if (typeof render === "function") {
+    const r0 = render;
+    render = function () {
+      r0.apply(this, arguments);
+      if (FROM_LIST && S.page === "quiz") {
+        const foot = document.querySelector(".foot");
+        if (foot && !foot.querySelector("[data-act='binopen']")) {
+          foot.insertAdjacentHTML("afterbegin", '<button type="button" class="btn grey" data-act="binopen">Back to Study List</button>');
+        }
+      }
+    };
+  }
+  W.OB_BIN = Object.assign(API(), { flag, way, inBin, celebrate, importArcadeList, currentFocusTask, state: () => ({ B, G, VIEW, STY, TIP }) });
 })();

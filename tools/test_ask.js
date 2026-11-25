@@ -388,29 +388,34 @@ study("Add to print page, Print pages tray, Print all, and swap-image are in the
   const missingBin = PAGES_HTML.filter((f) => { const h = fs.readFileSync(path.join(ROOT, f), "utf8"); return !(h.indexOf("js/bin.js") > h.indexOf("js/voice.js")); });
   study("all four apps load the study bin after Ask", !missingBin.length, missingBin.join(", "));
   const hsrc = fs.readFileSync(path.join(ROOT, "js/home.js"), "utf8");
-  study("Add to Arcade flag on Ask answers, Memory Arcade on home", vsrc.includes("OB_BIN.flag(k)") && hsrc.includes("OB_BIN.way()") && vsrc.includes("window.OB_THEME = themeVars"), "hook missing");
+  study("Add to Study List flag on Ask answers, Study List on home", vsrc.includes("OB_BIN.flag(k)") && hsrc.includes("OB_BIN.way()") && vsrc.includes("window.OB_THEME = themeVars"), "hook missing");
   const bsrc = fs.readFileSync(path.join(ROOT, "js/bin.js"), "utf8");
-  study("arcade otter: calm header with an h1 and a small otter on the Memory Arcade screen, small otter on the button, both image files present and the small one under 60 KB", bsrc.includes('class="archead"') && !bsrc.includes('class="archero"') && bsrc.includes('<h1 class="arch1">Play to Learn</h1>') && bsrc.split("otter-arcade-icon.jpg").length === 3 && fs.existsSync(path.join(ROOT, "images/brand/otter-arcade.jpg")) && fs.statSync(path.join(ROOT, "images/brand/otter-arcade-256.jpg")).size < 60000, "otter images");
+  study("Study List header and home button use a list control, not the arcade otter", bsrc.includes('class="archead"') && bsrc.includes('<h1 class="arch1">Study List</h1>') && bsrc.includes("listway") && !/arcadeway/.test(bsrc.split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n")) && !bsrc.includes('class="archero"'), "list header/button");
+  study("party otter images still present and the small one under 60 KB", fs.existsSync(path.join(ROOT, "images/brand/otter-arcade.jpg")) && fs.existsSync(path.join(ROOT, "images/brand/otter-arcade-icon.jpg")) && fs.statSync(path.join(ROOT, "images/brand/otter-arcade-256.jpg")).size < 60000, "otter images");
   study("perfect score party: fires on a win with no misses, bubble says Yes, perfect score!!!, moonwalk still, confetti, streamers (some in front, none over the face), no balloons, reduced-motion still version, both otter cut-outs present", bsrc.includes("if (win && G.right > 0 && G.wrong === 0) celebrate();") && bsrc.includes('"Yes, perfect score!!!"') && bsrc.includes("otter-moonwalk.webp") && bsrc.includes('class="pstream"') && bsrc.includes("pstream-front") && !bsrc.includes('class="pball"') && !bsrc.includes("function balloons") && bsrc.includes('class="pconf"') && bsrc.includes("prefers-reduced-motion") && fs.existsSync(path.join(ROOT, "images/brand/otter-yes.webp")) && fs.existsSync(path.join(ROOT, "images/brand/otter-moonwalk.webp")), "party");
-  study("renamed Memory Arcade: no \"study bin\" or \"Study this\" left in what the learner sees", !/study bin|Study this/i.test(bsrc.split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n")) && bsrc.includes(">Memory Arcade<") && bsrc.includes("Play to Learn") && bsrc.includes("Add to Arcade") && bsrc.includes("obBin:"), "old name in the UI");
+  const learnerBin = bsrc.split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n");
+  study("Study List: learner-facing names, same obBin key, new style and tip keys", !/study bin|Study this|Add to Arcade|In your Memory Arcade|Play to Learn/i.test(learnerBin) && bsrc.includes("Add to Study List") && bsrc.includes("Saved to Study List") && bsrc.includes("obBin:") && bsrc.includes("obStudyStyle:") && bsrc.includes("obStudyTip:") && !bsrc.includes("obBin2") && !bsrc.includes("obArcade:"), "study list names/keys");
+  study("each saved item offers Picture, Jingle, Flashcard, and Game, with last style remembered", bsrc.includes('["picture", "Picture"]') && bsrc.includes('["jingle", "Jingle"]') && bsrc.includes('["flash", "Flashcard"]') && bsrc.includes('["game", "Game"]') && bsrc.includes("data-act=\"binstyle\"") && bsrc.includes("rememberStyle") && /TIP\.shown < 2/.test(bsrc) && bsrc.includes("You can pick how to study it"), "style picker or tip missing");
+  study("stats-page Task only sorts or highlights the list, never hides items, and All items is always available", bsrc.includes("Your focus") && bsrc.includes("More in your list") && bsrc.includes("All items") && bsrc.includes("data-act=\"binall\"") && bsrc.includes("nothing else is hidden") && bsrc.includes("currentFocusTasks") && !/VIEW = \"bin\".*filter.*focus/.test(bsrc), "focus hide/sort missing");
   study("practice questions get the flag through scaleButtons, after the answer", /W\.scaleButtons = function \(q, c\)/.test(bsrc) && bsrc.includes("if (!c || !c.done) return h"), "wrap missing");
-  study("Add to Arcade on info sheets and study pages, hidden in print",
+  study("Add to Study List on info sheets and study pages, hidden in print",
     bsrc.includes("origSheet") && bsrc.includes("W.scaleSheet") && rsrc.includes("starcade") && rsrc.includes("OB_BIN.flag")
     && vcss.includes("html.obprinting .starcade") && vcss.includes("#obPrint .binflag"), "info/study flag or print hide missing");
   const SDS = exams.find((X) => X.EXAM === "SDS") || exams[1];
   const parsed = SDS.OB_BIN.parseArcadeList("OBARC1:SDS:staging,staging,nonesuch,ahi", SDS.SCALES);
   const bare = SDS.OB_BIN.parseArcadeList("  ahi , staging ", SDS.SCALES);
-  study("Arcade import keeps only known concept keys and de-duplicates, without changing the obBin key name",
+  study("Study List import keeps only known concept keys and de-duplicates, without changing the obBin key name",
     JSON.stringify(parsed) === JSON.stringify(["staging", "ahi"]) && JSON.stringify(bare) === JSON.stringify(["ahi", "staging"])
     && bsrc.includes("obBin:") && bsrc.includes("parseArcadeList") && !bsrc.includes("obBin2") && !bsrc.includes("obArcade:"),
     JSON.stringify(parsed) + " / " + JSON.stringify(bare));
   const asrc = fs.readFileSync(path.join(ROOT, "tools/vetting/ask_ui.js"), "utf8");
   const arsrc = fs.readFileSync(path.join(ROOT, "tools/vetting/arcade_ui.js"), "utf8");
   const embed = fs.readFileSync(path.join(ROOT, "tools/vetting/build_embed.js"), "utf8");
-  study("vetting pages get the same Add to Arcade flag and an export list, not question text",
+  study("vetting pages get the same Add to Study List flag and an export list, not question text",
     asrc.includes("OB_VET_ARCADE.flag") && arsrc.includes("obBin:") && arsrc.includes("OBARC1:") && arsrc.includes("data-act=\"binflag\"")
+    && arsrc.includes("Add to Study List") && arsrc.includes("Saved to Study List") && !arsrc.includes("Add to Arcade")
     && embed.includes("arcade_ui.js") && !arsrc.includes("questionId") && !arsrc.includes("EMBEDDED_QUESTIONS"),
-    "vetting arcade hook missing");
+    "vetting study-list hook missing");
 }
 
 const total = CHECKS.length + ROW_CHECKS.length + UI_FILES.length + st;
