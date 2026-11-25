@@ -559,7 +559,7 @@
       h += sc ? `<button type="button" class="gbig" data-act="binsession">▶ Quick session: ${sc} card${sc > 1 ? "s" : ""}, about 5 minutes</button><ul class="binlist">`
         : `<p class="ghelp">Tap <b>Continue</b> on a card to make its study page. Then its games are ready for a quick session.</p><ul class="binlist">`;
       cards.forEach(([k, c]) => { const ex = exKey(k), s = c.step;
-        h += `<li class="bincard"><div class="binhead"><b>${esc(W.SCALES[k].title)}</b><small>${ex ? EX[ex].cat : "Study page"}</small></div>
+        h += `<li class="bincard" data-k="${k}"><div class="binhead"><b>${esc(W.SCALES[k].title)}</b><small>${ex ? EX[ex].cat : "Study page"}</small></div>
           <ol class="binsteps" aria-label="Steps">${["Make it", "Recall it", "Use it", "Check"].map((t, i) => `<li class="${s > i + 1 ? "done" : s === i + 1 ? "cur" : ""}">${s > i + 1 ? "✓" : i + 1}<span>${t}</span></li>`).join("")}</ol>
           <p class="binnow">${c.step === 1 ? "Next: make your study page (pictures and a song)" : c.step === 2 && ex ? `Next: recall it with ${esc(gameName(EX[ex].rec, k))}` : c.step === 3 && ex ? `Next: use it with ${esc(gameName(EX[ex].useGame || "baby", k))}` : esc(stepName(c))}${c.step === 4 ? ` · checks ${c.checks} of 3 (1, 7, 30 days)` : ""}</p>
           <div class="binrow"><button type="button" class="bincont" data-act="bincont" data-k="${k}" ${c.step === 4 && c.due > now() ? "disabled" : ""}>Continue</button>

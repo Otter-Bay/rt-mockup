@@ -494,11 +494,18 @@
       <button type="button" class="askprint" data-act="askstudy" data-k="${k}">${PRINT_ICON}<span>Print study sheet</span></button></div>`;
   }
   const PRINT_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>';
-  function openStudy(k, build) {
+  function openStudy(k, build, from) {
     const r = V.res || {}, hit = r.q ? findHitRow(k, r.q) : null;
     const cells = ((hit && hit.cells) || []).map((c) => String(c).trim()).filter(Boolean);
-    window.OB_STUDY.open(k, { q: r.q || "", hit, answer: cells.join(" · "), related: [r.best, ...(r.others || [])].filter((x) => x && x !== k), build });
+    window.OB_STUDY.open(k, { q: r.q || "", hit, answer: cells.join(" · "), related: [r.best, ...(r.others || [])].filter((x) => x && x !== k), build, from: from || "ask", fromK: k });
     V.sheet = true;
+  }
+  function returnFromStudy() {
+    const st = window.OB_STUDY && window.OB_STUDY.state, from = (st && st.from) || "ask", k = (st && (st.fromK || st.k)) || "";
+    V.sheet = false;
+    if (from === "bin") { S.page = "bin"; V.jump = { kind: "bin", k }; return; }
+    if (from === "settings") { S.page = V.studyReturnPage && V.studyReturnPage !== "ask" ? V.studyReturnPage : (V.from || "home"); S.settings = true; V.jump = { kind: "settings" }; return; }
+    V.jump = { kind: "ask" };
   }
   // The question that was on screen, inside Ask, so the spelling of a term is right there (Ken, Nov 22). Tap a word to add it.
   // The explanation shows only once the answer is revealed, so Ask never gives away an answer.
@@ -553,9 +560,15 @@
       V.text = (V.text.trim() ? V.text.trim() + " " : "") + w; setBox(V.text); b.classList.add("added");
       return false;   // no re-render, so the question stays open where it was
     },
-    askstudy: (b) => { stopSpeak(); openStudy(b.dataset.k, !!b.dataset.build); const sc = document.querySelector(".askscroll"); if (sc) setTimeout(() => { sc.scrollTop = 0; }, 0); },
-    stback: () => { V.sheet = false; },
-    stopenpage: (b) => { open(false); V.res = { best: b.dataset.k, others: [], q: "" }; V.text = ""; openStudy(b.dataset.k, true); },
+    askstudy: (b) => { stopSpeak(); openStudy(b.dataset.k, !!b.dataset.build, "ask"); const sc = document.querySelector(".askscroll"); if (sc) setTimeout(() => { sc.scrollTop = 0; }, 0); },
+    stback: () => returnFromStudy(),
+    stdone: () => returnFromStudy(),
+    stopenpage: (b) => {
+      const from = S.settings ? "settings" : (S.page === "bin" ? "bin" : "ask");
+      V.studyReturnPage = S.page;
+      open(false); V.res = { best: b.dataset.k, others: [], q: "" }; V.text = "";
+      openStudy(b.dataset.k, true, from);
+    },
     askex: (b) => { V.text = b.dataset.q; setBox(V.text); find(); return false; },
     askpick: (b) => { stopSpeak(); V.pick = Number(b.dataset.i) || 0; },
     askread: (b) => { if (V.speaking) stopSpeak(); else speak(b.dataset.k); },
@@ -586,8 +599,36 @@
   const r0 = render;
   render = function () {
     if (S.page !== "ask" && (V.listening || V.speaking)) { stopListening(); stopSpeak(); }
+    const sc0 = document.querySelector(".askscroll"), y = sc0 ? sc0.scrollTop : null;
+    const paper = document.querySelector(".stpaper"), py = paper ? paper.scrollTop : null;
+    const keepAsk = S.page === "ask" && V.sheet && !V.jump;
     r0();
-    if (S.page === "ask") { const ta = document.getElementById("askText"); if (ta && ta.value !== V.text) ta.value = V.text; V.qCue = false; return; }
+    if (S.page === "ask") {
+      const ta = document.getElementById("askText"); if (ta && ta.value !== V.text) ta.value = V.text; V.qCue = false;
+      const sc = document.querySelector(".askscroll");
+      if (sc && y != null && keepAsk) sc.scrollTop = y;
+      const p2 = document.querySelector(".stpaper");
+      if (p2 && py != null && keepAsk) p2.scrollTop = py;
+      if (window.OB_STUDY && OB_STUDY.afterRender) OB_STUDY.afterRender();
+      if (V.jump && V.jump.kind === "ask") {
+        const target = document.querySelector(".askcard") || document.querySelector(".askmypage") || document.getElementById("askRes");
+        if (sc && target) sc.scrollTop += target.getBoundingClientRect().top - sc.getBoundingClientRect().top - 8;
+        V.jump = null;
+      }
+      return;
+    }
+    if (V.jump) {
+      const j = V.jump; V.jump = null;
+      setTimeout(() => {
+        if (j.kind === "bin" && j.k) {
+          const el = document.querySelector(`.bincard[data-k="${j.k}"]`);
+          if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+        if (j.kind === "settings") {
+          document.querySelectorAll("fieldset.asksent").forEach((fs) => { if (/My study pages/.test(fs.textContent || "")) fs.scrollIntoView({ block: "start", behavior: "smooth" }); });
+        }
+      }, 0);
+    }
     const btn = `<button type="button" class="askbtn" data-act="ask" aria-label="Ask a question">${window.ASK_ICON}<span>Ask</span></button>`;
     const top = document.querySelector("#phone .obtop .obgear"); if (top) top.insertAdjacentHTML("beforebegin", btn);
     const bar = document.querySelector('#phone .appbar [data-act="stats"]'); if (bar) bar.insertAdjacentHTML("beforebegin", btn.replace("askbtn", "askbtn bar"));

@@ -217,6 +217,177 @@
       P(`M${x + w / 2 + 8} ${y}q${w * 0.25}-6 ${w / 2 - 2} 10q10 ${h * 0.5} 2 ${h}q-${w * 0.2} 6 -${w / 2 - 6} 2z`, c),
   };
 
+
+  // Photo and sticker size: 25–100% of the fact's drawing space, never overflowing (Ken, t193u).
+  const clampScale = (v) => Math.min(1, Math.max(0.25, Number(v) || 0.7));
+  function photoBox(b, st) {
+    const bw = b.x2 - b.x1, bh = b.y2 - b.y1;
+    const scale = clampScale(st.scale == null ? 0.7 : st.scale);
+    const ar = (st.w > 0 && st.h > 0) ? st.h / st.w : 1;
+    let w = bw * scale, h = w * ar;
+    if (h > bh - 2) { h = Math.max(1, bh - 2); w = h / (ar || 1); }
+    if (w > bw - 2) { w = Math.max(1, bw - 2); h = w * ar; }
+    return { x: b.x1 + (bw - w) / 2, y: b.y1 + (bh - h) / 2, w, h, scale };
+  }
+  function photoEl(st, b, clipId) {
+    const r = photoBox(b, st), src = esc(st.src || "");
+    return `<image class="rphoto" href="${src}" xlink:href="${src}" x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w.toFixed(1)}" height="${r.h.toFixed(1)}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clipId})"/>`;
+  }
+  function scaledHr(hr, b, st) {
+    if (!st || st.scale == null) return hr;
+    const sc = clampScale(st.scale), bw = b.x2 - b.x1, bh = b.y2 - b.y1, ar = hr[3] / (hr[2] || 1);
+    let w = bw * sc, h = w * ar;
+    if (h > bh - 2) { h = Math.max(1, bh - 2); w = h / (ar || 1); }
+    return [b.x1 + (bw - w) / 2, b.y1 + (bh - h) / 2, w, h];
+  }
+  // Text in a picture, in the spirit of Evelyn Wood's recall patterns (Seven-Day Speed Reading and Learning Program):
+  // a recall pattern is "a picture of the material." Pictorial: branches come off a drawing, keywords written ON short
+  // horizontal lines (not in boxes). Nested details are smaller sub-branches. Slash (already the page): a diagonal main
+  // topic with branches. Keywords only, color allowed. (Ken, t198u–t201u).
+  const BRANCH = ["#0A4A63", "#B3261E", "#1565C0", "#2E7D32", "#E65100", "#6A1B9A", "#8A6D00"];
+  const FILLER = /^(the|a|an|of|and|or|to|for|in|on|at|is|are|be|with|that|this|from|by|as|it)$/i;
+  function keywords(s, max) {
+    const t = String(s || "").replace(/<[^>]+>/g, " ").replace(/^\s*(?:[•●▪◦\-–]|\d+[.)])\s*/, "").replace(/\s+/g, " ").trim();
+    if (!t) return "";
+    const words = t.split(" ");
+    if (words.length <= (max || 7)) return t;
+    const kept = words.filter((w, i) => i === 0 || !FILLER.test(w.replace(/[^A-Za-z]/g, "")));
+    return (kept.length ? kept : words).slice(0, max || 7).join(" ");
+  }
+  function capItems(st, f, b) {
+    const label = keywords(((b && b.label) || []).join(" ") || (f && (Array.isArray(f.label) ? f.label.join(" ") : f.label)) || "", 7);
+    const raw = [];
+    if (st && st.cap != null && String(st.cap).trim()) {
+      String(st.cap).split(/\n/).forEach((line) => {
+        const m = line.match(/^(\s*)(.*)$/);
+        const text = keywords(m ? m[2] : line, 8);
+        if (text) raw.push({ indent: m ? m[1].replace(/\t/g, "  ").length : 0, text });
+      });
+    } else {
+      ((b && b.lines) || []).forEach((ln) => {
+        const text = keywords([ln.head, ln.text].filter(Boolean).join(" "), 8);
+        if (text) raw.push({ indent: ln.indent ? 2 : 0, text });
+      });
+    }
+    const roots = [], stack = [];
+    raw.forEach((r) => {
+      const node = { text: r.text, kids: [] };
+      while (stack.length && stack[stack.length - 1].indent >= r.indent) stack.pop();
+      if (!stack.length) roots.push(node); else stack[stack.length - 1].node.kids.push(node);
+      stack.push({ indent: r.indent, node });
+    });
+    if (!roots.length && label) roots.push({ text: label, kids: [] });
+    return { label, items: roots };
+  }
+  function composePhoto(b, st, mode) {
+    const box = { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 };
+    if (mode === "list") {
+      const w = b.x2 - b.x1, both = w >= 220, m = both ? Math.max(78, w * 0.26) : Math.max(84, w * 0.34);
+      if (both) { box.x1 += m; box.x2 -= m; } else box.x2 -= m;
+    }
+    return photoBox(box, st);
+  }
+  function capLayout(photo, st, text) {
+    const tx = st.tx == null ? 0.5 : Math.min(0.95, Math.max(0.05, Number(st.tx)));
+    const ty = st.ty == null ? 0.84 : Math.min(0.95, Math.max(0.05, Number(st.ty)));
+    const maxW = Math.max(40, photo.w * 0.92), maxH = Math.max(16, photo.h * 0.55);
+    let fs = Math.min(16, maxH * 0.28), lines, h;
+    for (; fs >= 7; fs -= 0.5) {
+      lines = wrap(text, maxW - 12, fs, true);
+      h = lines.length * fs * 1.22 + 10;
+      if (h <= maxH && lines.every((l) => textW(l, fs, true) <= maxW - 12)) break;
+    }
+    const w = Math.min(maxW, Math.max.apply(null, lines.map((l) => textW(l, fs, true))) + 12);
+    let x = photo.x + tx * photo.w - w / 2, y = photo.y + ty * photo.h - h / 2;
+    x = Math.min(photo.x + photo.w - w - 2, Math.max(photo.x + 2, x));
+    y = Math.min(photo.y + photo.h - h - 2, Math.max(photo.y + 2, y));
+    return { x, y, w, h, fs, lines, tx, ty, photo };
+  }
+  function calloutLayout(space, photo, st, tree) {
+    const items = tree.items || [], n = Math.max(items.length, 1);
+    const both = (space.x2 - space.x1) >= 220;
+    const pins = st.pins || [];
+    function geom(item, i, parent, depth, ki) {
+      const side = (pins[i] && pins[i].side) || (both ? (i % 2 === 0 ? "L" : "R") : "R");
+      const ay = pins[i] && pins[i].y != null ? pins[i].y : (i + 0.5) / n;
+      const ax = pins[i] && pins[i].x != null ? pins[i].x : (side === "L" ? 0 : 1);
+      const axp = photo.x + ax * photo.w, ayp = photo.y + Math.min(1, Math.max(0, ay)) * photo.h;
+      const band = (space.y2 - space.y1 - 16) / n;
+      let hy = parent ? parent.hy + (ki + 1) * 16 : space.y1 + 8 + (i + 0.5) * band;
+      hy = Math.min(space.y2 - 8, Math.max(space.y1 + 8, hy));
+      let hx1, hx2, inner;
+      if (parent) {
+        const mid = (parent.hx1 + parent.hx2) / 2;
+        if (parent.side === "L") { hx1 = space.x1 + 6; hx2 = mid; inner = mid; }
+        else { hx1 = mid; hx2 = space.x2 - 6; inner = mid; }
+      } else if (side === "L") { hx1 = space.x1 + 6; hx2 = photo.x - 6; inner = hx2; }
+      else { hx1 = photo.x + photo.w + 6; hx2 = space.x2 - 6; inner = hx1; }
+      if (hx2 < hx1 + 20) { hx2 = hx1 + 20; }
+      const lineW = hx2 - hx1;
+      let fs = Math.min(11, Math.max(8, lineW / Math.max(6, item.text.length * 0.62)));
+      while (fs > 7 && textW(item.text, fs, true) > lineW - 4) fs -= 0.4;
+      const tw = textW(item.text, fs, true);
+      const tx = side === "L" || (parent && parent.side === "L") ? hx1 + 2 : hx2 - tw - 2;
+      const color = BRANCH[i % BRANCH.length];
+      const edgeX = (parent ? (parent.side === "L" ? photo.x : photo.x + photo.w) : (side === "L" ? photo.x : photo.x + photo.w));
+      let leader;
+      if (parent) leader = `M${(parent.hx1 + parent.hx2) / 2} ${parent.hy}L${inner} ${hy}`;
+      else if (ax > 0.04 && ax < 0.96) leader = `M${axp.toFixed(1)} ${ayp.toFixed(1)}L${edgeX.toFixed(1)} ${ayp.toFixed(1)}L${inner.toFixed(1)} ${hy.toFixed(1)}`;
+      else leader = `M${axp.toFixed(1)} ${ayp.toFixed(1)}L${inner.toFixed(1)} ${hy.toFixed(1)}`;
+      return { i, text: item.text, side: parent ? parent.side : side, ax, ay, axp, ayp, hx1, hx2, hy, tx, fs, tw, color, leader, depth, kids: [] };
+    }
+    let idx = 0;
+    const nodes = items.map((item) => {
+      const node = geom(item, idx++, null, 0, 0);
+      (item.kids || []).forEach((k, ki) => node.kids.push(geom(k, idx++, node, 1, ki)));
+      return node;
+    });
+    return { photo, label: tree.label, nodes, both };
+  }
+  function photoElAt(st, r, clipId) {
+    const src = esc(st.src || "");
+    return `<image class="rphoto" href="${src}" xlink:href="${src}" x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w.toFixed(1)}" height="${r.h.toFixed(1)}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clipId})" data-px="${r.x.toFixed(1)}" data-py="${r.y.toFixed(1)}" data-pw="${r.w.toFixed(1)}" data-ph="${r.h.toFixed(1)}"/>`;
+  }
+  function capEl(st, photo, text, i, practice) {
+    const L = capLayout(photo, st, text || "");
+    const body = practice ? `<line class="rrule" x1="${L.x + 6}" y1="${L.y + L.h / 2}" x2="${L.x + L.w - 6}" y2="${L.y + L.h / 2}" stroke="#5A6670" stroke-width="1"/>`
+      : L.lines.map((ln, j) => `<text x="${(L.x + 6).toFixed(1)}" y="${(L.y + 5 + L.fs * 0.85 + j * L.fs * 1.22).toFixed(1)}" font-size="${L.fs.toFixed(1)}" font-weight="700" fill="#14222C">${esc(ln)}</text>`).join("");
+    return `<g class="rcap" data-cap="${i}" data-px="${photo.x.toFixed(1)}" data-py="${photo.y.toFixed(1)}" data-pw="${photo.w.toFixed(1)}" data-ph="${photo.h.toFixed(1)}">
+      <rect class="rcapbg" x="${L.x.toFixed(1)}" y="${L.y.toFixed(1)}" width="${L.w.toFixed(1)}" height="${L.h.toFixed(1)}" rx="6" fill="#fff" fill-opacity=".82"/>${body}</g>`;
+  }
+  function calloutEl(space, photo, st, tree, fi, practice) {
+    const L = calloutLayout(space, photo, st, tree);
+    const draw = (node) => {
+      const mid = node.hy;
+      const text = practice ? "" : `<text class="rkw" x="${node.tx.toFixed(1)}" y="${(mid - 2).toFixed(1)}" font-size="${node.fs.toFixed(1)}" font-weight="700" fill="${node.color}">${esc(node.text)}</text>`;
+      return `<g class="rcallout" data-cap="${fi}" data-pin="${node.i}">
+        <path class="rleader" d="${node.leader}" fill="none" stroke="${node.color}" stroke-width="${node.depth ? 1.1 : 1.4}" stroke-linecap="round" stroke-linejoin="round"/>
+        <line class="rrule" x1="${node.hx1.toFixed(1)}" y1="${mid.toFixed(1)}" x2="${node.hx2.toFixed(1)}" y2="${mid.toFixed(1)}" stroke="${node.color}" stroke-width="1.3" stroke-linecap="round"/>
+        ${text}
+        <circle class="rpin" data-cap="${fi}" data-pin="${node.i}" cx="${node.axp.toFixed(1)}" cy="${node.ayp.toFixed(1)}" r="6" fill="#fff" stroke="${node.color}" stroke-width="2"/>
+      </g>` + (node.kids || []).map(draw).join("");
+    };
+    const title = L.label && !practice ? `<text class="rkw" x="${(photo.x + photo.w / 2).toFixed(1)}" y="${(photo.y + photo.h + 11).toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="700" fill="#14222C">${esc(L.label)}</text>` : "";
+    return `<g class="rdiagram" data-cap="${fi}" data-px="${photo.x.toFixed(1)}" data-py="${photo.y.toFixed(1)}" data-pw="${photo.w.toFixed(1)}" data-ph="${photo.h.toFixed(1)}">${L.nodes.map(draw).join("")}${title}</g>`;
+  }
+  function slashFactEl(b, st, tree, practice) {
+    // Mini slash inside a fact space when there is a list but no picture (Wood's slash recall).
+    const x0 = b.x1 + 10, y0 = b.y2 - 12, x1 = b.x2 - 10, y1 = b.y1 + 16;
+    const items = tree.items || [];
+    const n = Math.max(items.length, 1);
+    let g = `<line class="rslash" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="${BAY}" stroke-width="2.2" stroke-linecap="round"/>`;
+    if (tree.label) g += `<text x="${x0 + 4}" y="${y0 - 4}" font-size="8.5" font-weight="700" fill="${BAY}">${esc(tree.label)}</text>`;
+    items.forEach((it, i) => {
+      const t = i / Math.max(n - 1, 1), sx = x0 + (x1 - x0) * (0.18 + 0.64 * t), sy = y0 + (y1 - y0) * (0.18 + 0.64 * t);
+      const right = i % 2 === 0, hx1 = right ? sx + 8 : b.x1 + 8, hx2 = right ? b.x2 - 8 : sx - 8, hy = sy;
+      const fs = 9, tw = textW(it.text, fs, true), tx = right ? hx1 + 2 : hx2 - tw - 2, col = BRANCH[i % BRANCH.length];
+      g += `<path d="M${sx} ${sy}L${right ? hx1 : hx2} ${hy}" fill="none" stroke="${col}" stroke-width="1.3" stroke-linecap="round"/>`;
+      g += `<line class="rrule" x1="${Math.min(hx1, hx2)}" y1="${hy}" x2="${Math.max(hx1, hx2)}" y2="${hy}" stroke="${col}" stroke-width="1.3"/>`;
+      if (!practice) g += `<text class="rkw" x="${tx}" y="${hy - 2}" font-size="${fs}" font-weight="700" fill="${col}">${esc(it.text)}</text>`;
+    });
+    return `<g class="rslashfact">${g}</g>`;
+  }
+
   // ---------- Recall map (SVG) ----------
   // opts: { mode: "filled"|"practice", ideas: bool, hideNames: bool }
   // opts.screen: laid out for a phone screen (narrower page, never shrunk; it grows taller and the screen scrolls with the app's
@@ -297,9 +468,17 @@
       g += `<rect class="rspace" x="${b.x1}" y="${b.y1}" width="${b.x2 - b.x1}" height="${b.y2 - b.y1}" rx="12" fill="${opts.builder ? "#fff" : "none"}" fill-opacity="${opts.builder ? ".01" : "0"}" stroke="${opts.sel === i ? BAY : "#A9B4BD"}" stroke-width="${opts.sel === i ? 2 : 1}" stroke-dasharray="4 4"/>`;
       const ix = (b.cx1 - b.x1) * 0.45, iy = (b.cy1 - b.y1) * 0.4;
       const hr = [b.cx1 - ix, b.cy1 - iy, b.cx2 - b.cx1 + 2 * ix, b.cy2 - b.cy1 + 2 * iy];
-      if (st && SHAPES[st.shape]) g += `<g clip-path="url(#${uid}c${i})">${SHAPES[st.shape](...hr, st.c || col).replace(/stroke-width="1.6"/g, 'stroke-width="2.4"')}</g>`;
+      const tree = (st && st.shape === "photo" && st.src) ? capItems(st, f, b) : null;
+      const listed = !!(tree && tree.items.length >= 2);
+      if (st && st.shape === "photo" && st.src) {
+        const ph = composePhoto(b, st, listed ? "list" : "cap");
+        g += photoElAt(st, ph, uid + "c" + i);
+        if (listed) g += calloutEl(b, ph, st, tree, i, practice);
+        else g += capEl(st, ph, (tree.items[0] && tree.items[0].text) || tree.label, i, practice);
+      } else if (st && SHAPES[st.shape]) g += `<g clip-path="url(#${uid}c${i})">${SHAPES[st.shape](...scaledHr(hr, b, st), st.c || col).replace(/stroke-width="1.6"/g, 'stroke-width="2.4"')}</g>`;
       else if (opts.ideas) g += `<g opacity=".55" clip-path="url(#${uid}c${i})">${SHAPES[f.idea.shape](...hr, col)}</g>`;
-      // the fact itself
+      // the fact itself — hidden when a photo is composing the words (Ken, t198u: not a stamp over the card)
+      if (!(st && st.shape === "photo" && st.src)) {
       const cw = b.cx2 - b.cx1, ch = b.cy2 - b.cy1;
       g += `<rect x="${b.cx1}" y="${b.cy1}" width="${cw}" height="${ch}" rx="7" fill="${col}" fill-opacity=".07" stroke="${col}" stroke-width="${sv ? sv.w : 1.2}"${sv && sv.dash ? ` stroke-dasharray="${sv.dash}"` : ""}/>`;
       if (sv && sv.dbl) g += `<rect x="${b.cx1 + 3}" y="${b.cy1 + 3}" width="${cw - 6}" height="${ch - 6}" rx="5" fill="none" stroke="${col}" stroke-width="1"/>`;
@@ -312,6 +491,7 @@
         else g += `<text x="${b.cx1 + b.pad}" y="${ty}" font-size="${b.dfs}" fill="#24313E">${ln.head ? `<tspan font-weight="700" fill="#5A6670" font-size="${b.dfs * 0.86}">${esc(ln.head)} </tspan>` : ""}${esc(ln.text)}</text>`;
         ty += b.dfs * 1.28;
       });
+      } else if (f.hit) g += `<text x="${b.x2 - 4}" y="${b.y1 - 4}" text-anchor="end" font-size="${9 * s}" font-weight="700" fill="${BAY}">★ You asked about this</text>`;
       if (b.pic) { let py = b.cy2 + 7 * s + b.pfs * 0.85; const n = f.picMine ? "My picture:" : "Picture idea:";
         b.pic.forEach((ln, j) => { g += `<text class="rpic" x="${b.x1 + b.pad + 4 * s}" y="${py}" font-size="${b.pfs}" font-style="italic" fill="#4E5B66">${j === 0 ? `<tspan font-weight="700" font-style="normal" fill="${f.picMine ? BAY : "#5A6670"}">${esc(n)}</tspan>${esc(ln.slice(n.length))}` : esc(ln)}</text>`; py += b.pfs * 1.22; }); }
       const tip = b.pic || st || opts.custom ? "" : opts.ideas ? `Idea: ${f.idea.tip}. Or draw your own.` : "✎ Draw something that reminds you of this";
@@ -350,7 +530,7 @@
     });
     out.facts = boxes;
     LAST = { boxes, H, s, Wd };
-    return `<svg class="recallsvg${scr ? " screen" : ""}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Wd} ${H}" width="${Wd}" height="${H}" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Recall map: ${esc(m.title)}">` +
+    return `<svg class="recallsvg${scr ? " screen" : ""}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${Wd} ${H}" width="${Wd}" height="${H}" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Recall map: ${esc(m.title)}">` +
       `<rect width="${Wd}" height="${H}" fill="#fff"/>${hd}${g}${ft}</svg>`;
   }
   let SVGN = 0, LAST = null;
@@ -462,7 +642,7 @@
     </article>`;
   }
 
-  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST }; }
+  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }
@@ -471,7 +651,7 @@
   const sv = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} };
   const pref = ld(STYLE_KEY, {});
   const ST = { k: null, q: "", answer: "", related: [], hit: null, style: pref.style || "map", map: pref.map || "hand", mode: "filled", ideas: false,
-    tool: "draw", color: "#C62828", sel: null, zoom: false, celebrate: false, msg: "", panel: "", songPop: false };
+    tool: "draw", color: "#C62828", sel: null, zoom: false, celebrate: false, msg: "", panel: "", songPop: false, from: "ask", fromK: "", focus: null };
   const savePref = () => sv(STYLE_KEY, { style: ST.style, map: ST.map });
   const getPage = (k) => ld(PAGE_KEY(k), null);
   const blankPage = () => ({ ink: [], stickers: {}, moves: {}, hist: [], done: false, at: Date.now(), pics: {}, song: { tune: "", lines: {}, print: false, asked: false } });
@@ -496,6 +676,7 @@
     o = o || {};
     ST.k = k; ST.q = o.q || ""; ST.answer = o.answer || ""; ST.related = o.related || []; ST.hit = o.hit || null;
     ST.sel = null; ST.mode = "filled"; ST.ideas = false; ST.celebrate = false; ST.msg = ""; ST.zoom = false; ST.panel = o.panel || ""; ST.songPop = false;
+    ST.from = o.from || "ask"; ST.fromK = o.fromK || k; ST.focus = null;
     if (o.build) { ST.style = "map"; ST.map = "build"; }
     PG = fixPage(getPage(k)) || blankPage();
   }
@@ -511,7 +692,8 @@
   }
   function screen() {
     const m = mdl(); if (!m) return "";
-    let h = `<section class="stsheet" id="askRes"><div class="sthead"><button type="button" class="stback" data-act="stback">‹ Back to the answer</button>
+    const backLabel = ST.from === "bin" ? "Back to Memory Arcade" : ST.from === "settings" ? "Back to Settings" : "Back to the answer";
+    let h = `<section class="stsheet" id="askRes"><div class="sthead"><button type="button" class="stback" data-act="stback">‹ ${backLabel}</button>
       <h2>Study sheet</h2><p class="stsub">Print the topic you asked about: <b>${esc(m.title)}</b></p></div>
       <div class="stpick"><p class="asklabel">Style</p>${seg("ststyle", ST.style, [["map", "Recall map"], ["trad", "Traditional"]])}`;
     if (ST.style === "map") h += seg("stmap", ST.map, [["hand", "Draw on paper"], ["build", "Build it here"]]);
@@ -563,6 +745,100 @@
     }
     return h + `</div>`;
   }
+
+  // Size slider/buttons for the selected photo or shape (Ken, t193u).
+  function sizeRow() {
+    const st = ST.sel != null ? (PG.stickers || {})[ST.sel] : null; if (!st) return "";
+    const sc = Math.round(clampScale(st.scale == null ? (st.shape === "photo" ? 0.7 : 1) : st.scale) * 100);
+    return `<div class="stsize"><span>Size</span>
+      <button type="button" data-act="stsize" data-v="0.25" aria-pressed="${sc <= 33}">S</button>
+      <button type="button" data-act="stsize" data-v="0.6" aria-pressed="${sc > 33 && sc < 85}">M</button>
+      <button type="button" data-act="stsize" data-v="1" aria-pressed="${sc >= 85}">L</button>
+      <label class="stsizerange"><input type="range" min="25" max="100" step="5" value="${sc}" data-stscale="1" aria-label="Image size"><span class="stsizeval">${sc}%</span></label></div>`;
+  }
+  function defaultCapText(st, f, b) {
+    const tree = capItems({ cap: "" }, f, b || {});
+    const lines = [];
+    if (tree.label) lines.push(tree.label);
+    (tree.items || []).forEach((it) => { if (it.text && it.text !== tree.label) lines.push(it.text); (it.kids || []).forEach((k) => lines.push("  " + k.text)); });
+    return lines.join("\n");
+  }
+  function capRow(m) {
+    const st = ST.sel != null ? (PG.stickers || {})[ST.sel] : null;
+    if (!st || st.shape !== "photo") return "";
+    const f = m.facts[ST.sel], boxes = (LAST && LAST.boxes) || [], b = boxes[ST.sel] || { label: (f && f.label) || [], lines: [] };
+    const tree = capItems(st, f, b), list = tree.items.length >= 2;
+    const def = defaultCapText({ cap: "" }, f, b);
+    const val = st.cap != null ? st.cap : def;
+    const snaps = [["Top left", 0.18, 0.16], ["Top", 0.5, 0.16], ["Top right", 0.82, 0.16], ["Middle left", 0.18, 0.5], ["Middle", 0.5, 0.5], ["Middle right", 0.82, 0.5], ["Bottom left", 0.18, 0.84], ["Bottom", 0.5, 0.84], ["Bottom right", 0.82, 0.84]];
+    const tx = st.tx == null ? 0.5 : st.tx, ty = st.ty == null ? 0.84 : st.ty;
+    let h = `<div class="stcap">`;
+    if (list) h += `<p class="sthelp">This is a recall picture: each fact sits on its own line beside the image, like Evelyn Wood’s pictorial notes. Drag a dot to point a line at the right part of the picture.</p>`;
+    else {
+      h += `<p class="sthelp">Drag the words to a clear spot in the picture, or snap them. They sit in the image, not as a stamp over the card.</p><div class="stsnaps" role="group" aria-label="Text position">`;
+      snaps.forEach(([lab, x, y]) => {
+        const on = Math.abs(tx - x) < 0.12 && Math.abs(ty - y) < 0.12;
+        h += `<button type="button" data-act="stcapsnap" data-x="${x}" data-y="${y}" aria-label="${lab}" aria-pressed="${on}" class="${on ? "on" : ""}"></button>`;
+      });
+      h += `</div>`;
+    }
+    h += `<label class="stcaplab">Words in the picture<textarea data-stcap="${ST.sel}" rows="${list ? 4 : 3}">${esc(val)}</textarea></label></div>`;
+    return h;
+  }
+  function setSticker(next) {
+    if (ST.sel == null) { ST.msg = "Tap a fact on the page first, then pick its shape."; return false; }
+    PG.hist.push({ t: "st", i: ST.sel, prev: PG.stickers[ST.sel] || null });
+    if (next) PG.stickers[ST.sel] = next; else delete PG.stickers[ST.sel];
+    ST.focus = ST.sel; ST.msg = next && next.shape === "photo" ? "" : (next ? "Nice start! Now make it yours: switch to Draw and add your own details." : "");
+    savePage(); return true;
+  }
+  function showFact(i) {
+    const el = document.querySelector(`.rfact[data-fi="${i}"]`), sc = document.querySelector(".askscroll");
+    if (el) el.classList.add("just");
+    if (el && sc) {
+      const er = el.getBoundingClientRect(), sr = sc.getBoundingClientRect();
+      sc.scrollTop += (er.top + er.height / 2) - (sr.top + sr.height * 0.45);
+    }
+    const paper = document.querySelector(".stpaper");
+    if (el && paper) {
+      const er = el.getBoundingClientRect(), pr = paper.getBoundingClientRect();
+      if (er.top < pr.top || er.bottom > pr.bottom) paper.scrollTop += er.top - pr.top - 12;
+    }
+  }
+  function afterRender() { if (ST.focus != null) { const i = ST.focus; ST.focus = null; setTimeout(() => showFact(i), 0); } }
+  function enableUndo() { const b = document.querySelector('[data-act="stundo"]'); if (b) b.disabled = !(PG && PG.hist.length); }
+  function shrinkImage(src, cb) {
+    const im = new Image();
+    im.onload = () => {
+      let w = im.naturalWidth || im.width, h = im.naturalHeight || im.height; if (!w || !h) return;
+      const max = 512, z = Math.min(1, max / Math.max(w, h));
+      w = Math.max(1, Math.round(w * z)); h = Math.max(1, Math.round(h * z));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(im, 0, 0, w, h);
+      let url = "";
+      try { url = c.toDataURL("image/webp", 0.82); } catch (e) {}
+      if (!url || url.indexOf("image/webp") < 0) { try { url = c.toDataURL("image/png"); } catch (e) { url = src; } }
+      if (url.length > 200000) { try { url = c.toDataURL("image/jpeg", 0.8); } catch (e) {} }
+      cb({ src: url, w, h });
+    };
+    im.onerror = () => {};
+    im.src = src;
+  }
+  function applyPhoto(data) {
+    if (!data || !data.src) return;
+    if (ST.sel == null) { ST.msg = "Tap a fact on the page first, then paste or choose its picture."; render(); return; }
+    const prev = PG.stickers[ST.sel] || {};
+    setSticker({ shape: "photo", src: data.src, w: data.w, h: data.h, scale: prev.scale != null ? prev.scale : 0.7 });
+    const box = document.getElementById("stpastebox"); if (box) box.innerHTML = "";
+    render();
+  }
+  function takeImage(srcOrFile) {
+    if (!srcOrFile) return;
+    if (typeof srcOrFile === "string") { shrinkImage(srcOrFile, applyPhoto); return; }
+    if (srcOrFile.type && !/^image\//.test(srcOrFile.type)) return;
+    const fr = new FileReader(); fr.onload = () => shrinkImage(fr.result, applyPhoto); fr.readAsDataURL(srcOrFile);
+  }
+
   function builder(m) {
     const dec = decorated(m), n = dec.length, got = dec.filter(Boolean).length;
     const next = m.facts[dec.findIndex((d) => !d)];
@@ -572,13 +848,17 @@
     let h = `<div class="stbuild"><p class="stprompt" aria-live="polite">${esc(prompt)}</p>
       <div class="sttools">${seg("sttool", ST.tool, tools)}</div>
       <div class="stcolors" role="group" aria-label="Color">${COLORS.map(([c, t]) => `<button type="button" data-act="stcolor" data-c="${c}" aria-label="${t}" aria-pressed="${ST.color === c}" class="${ST.color === c ? "on" : ""}" style="--c:${c}"></button>`).join("")}</div>`;
-    if (ST.tool === "sticker") h += `<p class="sthelp">${ST.sel == null ? "Tap a fact on the page, then pick a starter shape for it. Then make it yours with Draw." : `Pick a shape for “${esc(m.facts[ST.sel].label)}”.`}</p>
+    if (ST.tool === "sticker") h += `<p class="sthelp">${ST.sel == null ? "Tap a fact on the page, then pick a starter shape or paste a picture for it." : `Pick a shape or paste a picture for “${esc(m.facts[ST.sel].label)}”.`}</p>
       <div class="ststickers">${STICKERS.map(([sh, t]) => `<button type="button" data-act="ststicker" data-s="${sh}" aria-label="${t}"><svg viewBox="-30 -30 120 90" width="54" height="40" aria-hidden="true">${SHAPES[sh](0, 0, 60, 30, ST.color)}</svg><span>${t}</span></button>`).join("")}
-      <button type="button" data-act="ststicker" data-s="" aria-label="No shape"><span class="none">✕</span><span>None</span></button></div>`;
+      <button type="button" data-act="ststicker" data-s="" aria-label="No shape"><span class="none">✕</span><span>None</span></button></div>
+      <div class="stpaste" id="stpaste">
+        <div class="stpastebox" id="stpastebox" contenteditable="true" spellcheck="false" role="textbox" aria-label="Paste a sticker or photo, drop one here, or tap to choose" data-placeholder="Paste a sticker or photo, drop one here, or tap to choose"></div>
+        <label class="stpastechoose">Choose a photo<input type="file" accept="image/*" id="stpastefile" class="stpastefile"></label>
+      </div>${sizeRow()}${capRow(m)}`;
     if (ST.tool === "move") h += `<p class="sthelp">Drag a fact to where it makes sense to you. Its branch follows.</p>`;
-    if (ST.tool === "draw") h += `<p class="sthelp">Draw with your finger or mouse right on the page.</p>`;
+    if (ST.tool === "draw") h += `<p class="sthelp">Draw with your finger or mouse right on the page. Lift and continue as often as you like; tap Done when you are finished.</p>`;
     h += `<div class="stpaper builder tool-${ST.tool} ${ST.zoom ? "zoom" : ""}">${paperHtml(m)}</div>
-      <div class="strow"><button type="button" data-act="stzoom">${ST.zoom ? "Fit to screen" : "Zoom in"}</button><button type="button" data-act="stundo" ${PG.hist.length ? "" : "disabled"}>↶ Undo</button><button type="button" data-act="stclear">Clear</button></div>
+      <div class="strow"><button type="button" data-act="stzoom">${ST.zoom ? "Fit to screen" : "Zoom in"}</button><button type="button" data-act="stundo" ${PG.hist.length ? "" : "disabled"}>↶ Undo</button><button type="button" data-act="stclear">Clear</button><button type="button" class="stdone" data-act="stdone">Done</button></div>
       <p class="stprog"><span class="stbar"><i style="width:${n ? Math.round(100 * got / n) : 0}%"></i></span>${got} of ${n} facts have a picture${PG.done ? ' · <b>🏅 Page built!</b>' : ""}</p>
       <button type="button" class="stprint" data-act="stprint">${PRINTICON}<span>Print my page</span></button>
       <p class="sthelp">Saved on this device as you go. Ask about this topic again and your page comes back.</p></div>`;
@@ -631,38 +911,131 @@
     PG = keep; ST.k = kk;
     return svg.replace('class="recallsvg', 'class="recallsvg thumb');
   }
-  // Drawing and dragging on the page
-  let pen = null, drag = null;
+  // Drawing and dragging on the page. Pointer up only ends the current stroke — it must not re-render or navigate, or the leftover
+  // click lands on a control (often Back) after the page jumps to the top (Ken, t195u). Many strokes are expected. Done leaves.
+  let pen = null, drag = null, capDrag = null, pinDrag = null, skipClick = 0;
   const svgPt = (svg, e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const r = pt.matrixTransform(svg.getScreenCTM().inverse()); return [r.x, r.y]; };
   document.addEventListener("pointerdown", (e) => {
     const svg = e.target.closest && e.target.closest("svg.recallsvg.builder"); if (!svg || !PG) return;
+    e.stopPropagation();
     const p = svgPt(svg, e), fact = e.target.closest(".rfact"), fi = fact ? Number(fact.dataset.fi) : null;
+    const pin = e.target.closest && e.target.closest(".rpin"), cap = e.target.closest && e.target.closest(".rcap");
+    if ((ST.tool === "sticker" || ST.tool === "look") && (pin || cap)) {
+      e.preventDefault();
+      const host = pin || cap, fi2 = Number(host.dataset.cap);
+      if (fi2 >= 0 && PG.stickers[fi2]) {
+        const box = host.closest("[data-px]") || host;
+        const photo = { x: Number(box.dataset.px), y: Number(box.dataset.py), w: Number(box.dataset.pw), h: Number(box.dataset.ph) };
+        const start = { svg, i: fi2, p0: p, prev: Object.assign({}, PG.stickers[fi2]), photo, n: pin ? Number(pin.dataset.pin) : null };
+        if (pin) pinDrag = start; else capDrag = start;
+        ST.sel = fi2; ST.tool = "sticker";
+        try { svg.setPointerCapture(e.pointerId); } catch (x) {}
+        return;
+      }
+    }
     if (ST.tool === "draw") {
       e.preventDefault();
       const el = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      el.setAttribute("fill", "none"); el.setAttribute("stroke", ST.color); el.setAttribute("stroke-width", "2.6"); el.setAttribute("stroke-linecap", "round"); el.setAttribute("stroke-linejoin", "round");
+      el.setAttribute("class", "rink"); el.setAttribute("fill", "none"); el.setAttribute("stroke", ST.color); el.setAttribute("stroke-width", "2.6"); el.setAttribute("stroke-linecap", "round"); el.setAttribute("stroke-linejoin", "round");
       svg.appendChild(el); pen = { svg, el, k: { c: ST.color, w: 2.6, pts: [p] } };
       try { svg.setPointerCapture(e.pointerId); } catch (x) {}
     } else if (ST.tool === "move" && fi != null) {
       e.preventDefault(); drag = { svg, fact, i: fi, p0: p, m0: PG.moves[fi] || [0, 0] };
       try { svg.setPointerCapture(e.pointerId); } catch (x) {}
-    } else if ((ST.tool === "sticker" || ST.tool === "look") && fi != null) { ST.sel = fi; ST.tool = "sticker"; render(); }
+    } else if ((ST.tool === "sticker" || ST.tool === "look") && fi != null) { ST.sel = fi; ST.tool = "sticker"; ST.focus = fi; render(); }
   });
+  const photoFrac = (d, p) => {
+    const ph = d.photo, x = ph.w ? (p[0] - ph.x) / ph.w : 0.5, y = ph.h ? (p[1] - ph.y) / ph.h : 0.5;
+    return [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))];
+  };
   document.addEventListener("pointermove", (e) => {
     if (pen) { const p = svgPt(pen.svg, e), l = pen.k.pts[pen.k.pts.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) < 1.5) return;
       pen.k.pts.push(p); pen.el.setAttribute("d", "M" + pen.k.pts.map((q) => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L")); }
     else if (drag) { const p = svgPt(drag.svg, e); drag.d = [p[0] - drag.p0[0], p[1] - drag.p0[1]]; drag.fact.setAttribute("transform", `translate(${drag.d[0]} ${drag.d[1]})`); }
+    else if (capDrag) {
+      const fr = photoFrac(capDrag, svgPt(capDrag.svg, e));
+      PG.stickers[capDrag.i] = Object.assign({}, PG.stickers[capDrag.i], { tx: fr[0], ty: fr[1] });
+      capDrag.moved = true; refreshPaper();
+    } else if (pinDrag) {
+      const fr = photoFrac(pinDrag, svgPt(pinDrag.svg, e)), pins = (PG.stickers[pinDrag.i].pins || []).slice();
+      const side = fr[0] < 0.5 ? "L" : "R";
+      pins[pinDrag.n] = Object.assign({}, pins[pinDrag.n] || {}, { x: fr[0], y: fr[1], side });
+      PG.stickers[pinDrag.i] = Object.assign({}, PG.stickers[pinDrag.i], { pins });
+      pinDrag.moved = true; refreshPaper();
+    }
   });
-  const endPtr = () => {
-    if (pen) { const k = pen.k; pen = null; if (k.pts.length > 1) { PG.ink.push(k); PG.hist.push({ t: "ink" }); ST.msg = ""; savePage(); } render(); }
-    else if (drag) { const d = drag.d, i = drag.i, m0 = drag.m0; drag = null; if (d) { PG.hist.push({ t: "mv", i, prev: m0 }); PG.moves[i] = [m0[0] + d[0], m0[1] + d[1]]; savePage(); } render(); }
+  const endPtr = (e) => {
+    if (pen) {
+      const k = pen.k, el = pen.el; pen = null;
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      if (k.pts.length > 1) { PG.ink.push(k); PG.hist.push({ t: "ink" }); ST.msg = ""; savePage(); skipClick = 1; enableUndo(); }
+      else if (el && el.parentNode) el.parentNode.removeChild(el);
+    } else if (drag) {
+      const d = drag.d, i = drag.i, m0 = drag.m0; drag = null;
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      if (d) { PG.hist.push({ t: "mv", i, prev: m0 }); PG.moves[i] = [m0[0] + d[0], m0[1] + d[1]]; savePage(); skipClick = 1; refreshPaper(); enableUndo(); }
+    } else if (capDrag || pinDrag) {
+      const d = capDrag || pinDrag; capDrag = pinDrag = null;
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      if (d.moved) { PG.hist.push({ t: "st", i: d.i, prev: d.prev }); savePage(); skipClick = 1; enableUndo(); }
+    }
   };
   document.addEventListener("pointerup", endPtr); document.addEventListener("pointercancel", endPtr);
+  document.addEventListener("click", (e) => { if (!skipClick) return; skipClick = 0; e.preventDefault(); e.stopPropagation(); }, true);
 
+  // Paste, drop or choose a photo/sticker (Ken, t191u–t194u). iPhone keyboard stickers paste into the contenteditable box.
+  const imageFromClipboard = (e) => {
+    const cd = e.clipboardData || e.dataTransfer; if (!cd) return null;
+    const items = cd.items || [];
+    for (let i = 0; i < items.length; i++) { if (items[i].type && items[i].type.indexOf("image/") === 0) { const f = items[i].getAsFile(); if (f) return f; } }
+    const files = cd.files || [];
+    if (files.length && (!files[0].type || files[0].type.indexOf("image/") === 0)) return files[0];
+    return null;
+  };
+  document.addEventListener("paste", (e) => {
+    if (!document.getElementById("stpaste")) return;
+    const f = imageFromClipboard(e);
+    if (f) { e.preventDefault(); takeImage(f); return; }
+    const box = document.getElementById("stpastebox");
+    setTimeout(() => {
+      if (!box) return;
+      const img = box.querySelector("img");
+      if (img && (img.src || img.getAttribute("src"))) takeImage(img.src || img.getAttribute("src"));
+      box.innerHTML = "";
+    }, 0);
+  });
+  document.addEventListener("dragover", (e) => { if (e.target.closest && e.target.closest("#stpaste")) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; } });
+  document.addEventListener("drop", (e) => {
+    if (!(e.target.closest && e.target.closest("#stpaste"))) return;
+    e.preventDefault();
+    const f = imageFromClipboard(e); if (f) takeImage(f);
+  });
+  document.addEventListener("change", (e) => {
+    if (e.target && e.target.id === "stpastefile") { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) takeImage(f); }
+    else if (e.target && e.target.dataset && e.target.dataset.stscale && PG && ST.sel != null && PG.stickers[ST.sel]) {
+      const prev = PG.stickers[ST.sel];
+      PG.hist.push({ t: "st", i: ST.sel, prev });
+      PG.stickers[ST.sel] = Object.assign({}, prev, { scale: clampScale(Number(e.target.value) / 100) });
+      ST.focus = ST.sel; savePage(); enableUndo();
+    }
+  });
   // Typing a picture idea or a lyric: save as they type, update the tag and beat count, and redraw just the paper.
   let typeT = 0;
   document.addEventListener("input", (e) => {
-    const t = e.target; if (!PG || !t.dataset) return;
+    const t = e.target;
+    if (t && t.dataset && t.dataset.stscale && PG && ST.sel != null && PG.stickers[ST.sel]) {
+      const v = clampScale(Number(t.value) / 100);
+      const lab = t.parentNode && t.parentNode.querySelector(".stsizeval"); if (lab) lab.textContent = Math.round(v * 100) + "%";
+      PG.stickers[ST.sel] = Object.assign({}, PG.stickers[ST.sel], { scale: v });
+      savePage(); refreshPaper(); return;
+    }
+    if (t && t.dataset && t.dataset.stcap != null && PG) {
+      const i = Number(t.dataset.stcap);
+      if (!PG.stickers[i]) return;
+      PG.stickers[i] = Object.assign({}, PG.stickers[i], { cap: t.value });
+      savePage(); clearTimeout(typeT); typeT = setTimeout(refreshPaper, 200); return;
+    }
+    if (!PG || !t.dataset) return;
     const m0 = mdl();
     if (t.dataset.stpic != null) {
       const i = t.dataset.stpic, f = m0.facts[i], v = t.value;
@@ -708,9 +1081,22 @@
     stzoom: () => { ST.zoom = !ST.zoom; },
     ststicker: (b) => {
       if (ST.sel == null) { ST.msg = "Tap a fact on the page first, then pick its shape."; return; }
-      PG.hist.push({ t: "st", i: ST.sel, prev: PG.stickers[ST.sel] || null });
-      if (b.dataset.s) PG.stickers[ST.sel] = { shape: b.dataset.s, c: ST.color }; else delete PG.stickers[ST.sel];
-      ST.msg = b.dataset.s ? "Nice start! Now make it yours: switch to Draw and add your own details." : ""; savePage();
+      const prev = PG.stickers[ST.sel] || {};
+      setSticker(b.dataset.s ? { shape: b.dataset.s, c: ST.color, scale: prev.scale } : null);
+    },
+    stsize: (b) => {
+      if (ST.sel == null || !PG.stickers[ST.sel]) return false;
+      const prev = PG.stickers[ST.sel];
+      PG.hist.push({ t: "st", i: ST.sel, prev });
+      PG.stickers[ST.sel] = Object.assign({}, prev, { scale: clampScale(b.dataset.v) });
+      ST.focus = ST.sel; savePage();
+    },
+    stcapsnap: (b) => {
+      if (ST.sel == null || !PG.stickers[ST.sel]) return false;
+      const prev = PG.stickers[ST.sel];
+      PG.hist.push({ t: "st", i: ST.sel, prev });
+      PG.stickers[ST.sel] = Object.assign({}, prev, { tx: Number(b.dataset.x), ty: Number(b.dataset.y) });
+      ST.focus = ST.sel; savePage();
     },
     stundo: () => { const h = PG.hist.pop(); if (!h) return;
       if (h.t === "ink") PG.ink.pop(); else if (h.t === "st") { if (h.prev) PG.stickers[h.i] = h.prev; else delete PG.stickers[h.i]; }
@@ -730,5 +1116,5 @@
     stplay: () => { playTune(mdl().song.tune); return false; },
   });
 
-  W.OB_STUDY = Object.assign(API(), { open, screen, hasPage, listPages, thumb, preparePrint, state: ST });
+  W.OB_STUDY = Object.assign(API(), { open, screen, hasPage, listPages, thumb, preparePrint, state: ST, afterRender });
 })();

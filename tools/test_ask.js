@@ -178,6 +178,22 @@ function loadStudy(exam) {
   study("Why this works lists 5 sources with links", SB.WHY.refs.length === 5 && SB.WHY.refs.every((r) => /^https:\/\/doi\.org\//.test(r[1])), "sources");
   const C2 = loadStudy("CNA"), vit = C2.OB_STUDY.model("vitals", {});
   study("CNA vitals: no false severity colors", vit.facts.every((f) => !f.sev), vit.facts.map((f) => f.sev).join());
+  // Image maker: paste-in photos, size, caption in the picture, Wood pictorial callouts (Ken, t191u–t201u)
+  study("size is clamped to 25–100%", SB.clampScale(0.1) === 0.25 && SB.clampScale(2) === 1 && SB.clampScale(0.7) === 0.7, String(SB.clampScale(0.1)));
+  const photo = { shape: "photo", src: "data:image/png;base64,AAAA", w: 200, h: 100, scale: 0.5 };
+  SB.recallSvg(ahi, { custom: { stickers: { 0: photo } }, screen: true, builder: true });
+  const box0 = SB.last().boxes[0], pb = SB.photoBox(box0, photo);
+  study("a pasted photo stays inside its fact space at the chosen size", pb.w <= (box0.x2 - box0.x1) + 0.01 && pb.h <= (box0.y2 - box0.y1) + 0.01 && Math.abs(pb.w - 0.5 * (box0.x2 - box0.x1)) < 0.6, JSON.stringify(pb));
+  const capSvg = SB.recallSvg(ahi, { custom: { stickers: { 0: Object.assign({}, photo, { cap: "Normal AHI" }) } }, screen: true, builder: true });
+  study("plain text sits in a caption box on the photo, not as a stamp over the card", capSvg.includes('class="rcap"') && capSvg.includes("Normal AHI") && capSvg.includes('class="rphoto"') && !/rfact[\s\S]*Normal AHI[\s\S]*rphoto/.test(capSvg), "caption missing");
+  const listSt = { shape: "photo", src: "data:image/png;base64,AAAA", w: 200, h: 200, scale: 0.7, cap: "Normal under 5\nMild 5 to 15\nModerate 15 to 30\nSevere 30 or more" };
+  const listSvg = SB.recallSvg(ahi, { custom: { stickers: { 0: listSt } }, screen: true, builder: true });
+  const listBox = SB.last().boxes[0], listPh = SB.composePhoto(listBox, listSt, "list");
+  const items = SB.capItems(listSt, ahi.facts[0], listBox);
+  study("a bullet list becomes a pictorial recall: branches off the photo, keywords on horizontal lines, no text boxes", items.items.length >= 2 && listSvg.includes('class="rcallout"') && listSvg.includes('class="rrule"') && listSvg.includes('class="rpin"') && listSvg.includes('class="rkw"') && !listSvg.includes('class="rcapbg"') && listPh.w < (listBox.x2 - listBox.x1) - 40, "list=" + items.items.length);
+  study("keywords stay short (Wood: keywords, not sentences)", SB.keywords("The mild range of the AHI is 5 to 15 events per hour of sleep", 7).split(" ").length <= 7, SB.keywords("The mild range of the AHI is 5 to 15 events per hour of sleep", 7));
+  const nest = SB.capItems({ cap: "Airway\n  Tongue\n  Soft palate\nBreathing" }, {}, { label: ["OSA"], lines: [] });
+  study("nested bullets become sub-branches off the parent line", nest.items.length === 2 && nest.items[0].kids.length === 2 && nest.items[0].kids[0].text === "Tongue", JSON.stringify(nest.items));
 }
 const PAGES_HTML = ["index.html", "sds/index.html", "rpsgt/index.html", "cna/index.html"];
 const missingRecall = PAGES_HTML.filter((p) => !fs.readFileSync(path.join(ROOT, p), "utf8").includes("js/recall.js"));
@@ -186,6 +202,10 @@ study("all four apps load the picture ideas and jingles before the study sheet",
 study("all four apps load the study sheet", !missingRecall.length, missingRecall.join(", "));
 const vsrc = fs.readFileSync(path.join(ROOT, "js/voice.js"), "utf8");
 study("Ask offers Print study sheet and brings back Your study page", vsrc.includes("Print study sheet") && vsrc.includes("Your study page") && vsrc.includes("My study pages"), "button text missing");
+const rsrc = fs.readFileSync(path.join(ROOT, "js/recall.js"), "utf8");
+study("the image maker has paste/drop/choose, a size control, and Done", rsrc.includes("stpastebox") && rsrc.includes("Paste a sticker or photo, drop one here, or tap to choose") && rsrc.includes("data-stscale") && rsrc.includes('data-act="stdone"'), "ui missing");
+study("drawing a stroke does not re-render or navigate on pointer up", rsrc.includes("skipClick") && !/if \(pen\) \{ const k = pen\.k; pen = null; if \(k\.pts\.length > 1\)[\s\S]{0,180}render\(\)/.test(rsrc), "endPtr still calls render");
+study("Back and Done return to the Ask card, Memory Arcade, or Settings", vsrc.includes("returnFromStudy") && vsrc.includes('from === "bin"') && vsrc.includes('from === "settings"') && vsrc.includes("stdone"), "origin return missing");
 
 // ---------- Memory Arcade (study bin) and games (js/bin.js) ----------
 {
