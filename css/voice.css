@@ -270,8 +270,11 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
   .rcardstroke { stroke-width: 2.8px; }
   html.obprinting .rthumbadd, html.obprinting .rhandle, html.obprinting .rsz,
   html.obprinting .streplace, html.obprinting .stdrawslot,
+  html.obprinting .binflag, html.obprinting .binflags, html.obprinting .starcade,
   #obPrint .rthumbadd, #obPrint .rhandle, #obPrint .rsz,
-  #obPrint .streplace, #obPrint .stdrawslot { display: none !important; }
+  #obPrint .streplace, #obPrint .stdrawslot,
+  #obPrint .binflag, #obPrint .binflags, #obPrint .starcade { display: none !important; }
+  .binflag, .binflags, .starcade { display: none !important; }
 }
 
 
@@ -305,10 +308,15 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 /* ---------- Study bin and games (js/bin.js) ---------- */
 .way.binway { grid-column: 1 / -1; border-left-color: var(--buoy, #F5B83D); min-height: 64px; background: linear-gradient(90deg, #FFF8E6, #fff); }
 .binflags { display: grid; gap: 8px; margin: 10px 0 0; }
-.binflag { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 14px; border-radius: 14px; border: 2px dashed var(--buoy, #F5B83D); background: #FFFBF0;
+.binflag { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 100%; box-sizing: border-box; min-height: 52px; padding: 8px 14px; border-radius: 14px; border: 2px dashed var(--buoy, #F5B83D); background: #FFFBF0;
   color: var(--bay, #0A4A63); font: inherit; text-align: left; cursor: pointer; }
-.binflag > span:first-child { font-size: 24px; line-height: 1; color: #B07A00; }
-.binflag b { display: block; font-size: 16px; } .binflag small { display: block; font-size: 13px; color: #4F6B75; }
+.binflag > span:first-child { font-size: 24px; line-height: 1; color: #B07A00; flex-shrink: 0; }
+.binflag > span:last-child { min-width: 0; flex: 1; }
+.binflag b { display: block; font-size: 16px; overflow-wrap: anywhere; } .binflag small { display: block; font-size: 13px; color: #4F6B75; overflow-wrap: anywhere; }
+.sthead .starcade, .scaledlg .binflags { margin: 10px 0 0; }
+.binimport { background: #fff; border-radius: 16px; padding: 12px 14px; }
+.binimport summary { cursor: pointer; font-weight: 700; color: var(--bay, #0A4A63); }
+.binimport textarea { width: 100%; box-sizing: border-box; min-height: 56px; margin: 8px 0; padding: 8px 10px; border: 1.5px solid #D5DCE3; border-radius: 10px; font: inherit; font-size: 14px; }
 .binflag.on { border-style: solid; background: var(--buoy, #F5B83D); color: #3A2800; } .binflag.on small { color: #3A2800; } .binflag.on > span:first-child { color: #3A2800; animation: gpop .35s; }
 .binscroll { display: flex; flex-direction: column; gap: 12px; padding-bottom: 40px; }
 .bin .gsnd { min-width: 44px; min-height: 44px; border: 0; border-radius: 22px; background: #fff; font-size: 20px; cursor: pointer; box-shadow: 0 1px 4px rgba(4,34,48,.12); }

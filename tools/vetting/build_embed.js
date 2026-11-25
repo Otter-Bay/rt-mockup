@@ -25,6 +25,7 @@ window.CARD_META = ${J(win.CARD_META)};
 window.ACRONYMS = { norm: (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, ""), map: ${J(win.ACRONYMS.map)} };
 ${matcher}
 ${fs.readFileSync(path.join(__dirname, "ask_ui.js"), "utf8")}
+${fs.readFileSync(path.join(__dirname, "arcade_ui.js"), "utf8")}
 ${fs.readFileSync(path.join(__dirname, "nav_ui.js"), "utf8")}
 ${fs.readFileSync(path.join(ROOT, "js/scrollhint.js"), "utf8").replace('const SEL = ".content, .stats, .results, .obscroll, .dialog";', 'const SEL = ".content, .stats, .results, .obscroll, .dialog, .obaskdlg";')}`;
 fs.writeFileSync(process.argv[2], out.replace(/<\/script/gi, "<\\/script"));

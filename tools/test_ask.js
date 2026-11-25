@@ -394,6 +394,23 @@ study("Add to print page, Print pages tray, Print all, and swap-image are in the
   study("perfect score party: fires on a win with no misses, bubble says Yes, perfect score!!!, moonwalk still, confetti, streamers (some in front, none over the face), no balloons, reduced-motion still version, both otter cut-outs present", bsrc.includes("if (win && G.right > 0 && G.wrong === 0) celebrate();") && bsrc.includes('"Yes, perfect score!!!"') && bsrc.includes("otter-moonwalk.webp") && bsrc.includes('class="pstream"') && bsrc.includes("pstream-front") && !bsrc.includes('class="pball"') && !bsrc.includes("function balloons") && bsrc.includes('class="pconf"') && bsrc.includes("prefers-reduced-motion") && fs.existsSync(path.join(ROOT, "images/brand/otter-yes.webp")) && fs.existsSync(path.join(ROOT, "images/brand/otter-moonwalk.webp")), "party");
   study("renamed Memory Arcade: no \"study bin\" or \"Study this\" left in what the learner sees", !/study bin|Study this/i.test(bsrc.split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n")) && bsrc.includes(">Memory Arcade<") && bsrc.includes("Play to Learn") && bsrc.includes("Add to Arcade") && bsrc.includes("obBin:"), "old name in the UI");
   study("practice questions get the flag through scaleButtons, after the answer", /W\.scaleButtons = function \(q, c\)/.test(bsrc) && bsrc.includes("if (!c || !c.done) return h"), "wrap missing");
+  study("Add to Arcade on info sheets and study pages, hidden in print",
+    bsrc.includes("origSheet") && bsrc.includes("W.scaleSheet") && rsrc.includes("starcade") && rsrc.includes("OB_BIN.flag")
+    && vcss.includes("html.obprinting .starcade") && vcss.includes("#obPrint .binflag"), "info/study flag or print hide missing");
+  const SDS = exams.find((X) => X.EXAM === "SDS") || exams[1];
+  const parsed = SDS.OB_BIN.parseArcadeList("OBARC1:SDS:staging,staging,nonesuch,ahi", SDS.SCALES);
+  const bare = SDS.OB_BIN.parseArcadeList("  ahi , staging ", SDS.SCALES);
+  study("Arcade import keeps only known concept keys and de-duplicates, without changing the obBin key name",
+    JSON.stringify(parsed) === JSON.stringify(["staging", "ahi"]) && JSON.stringify(bare) === JSON.stringify(["ahi", "staging"])
+    && bsrc.includes("obBin:") && bsrc.includes("parseArcadeList") && !bsrc.includes("obBin2") && !bsrc.includes("obArcade:"),
+    JSON.stringify(parsed) + " / " + JSON.stringify(bare));
+  const asrc = fs.readFileSync(path.join(ROOT, "tools/vetting/ask_ui.js"), "utf8");
+  const arsrc = fs.readFileSync(path.join(ROOT, "tools/vetting/arcade_ui.js"), "utf8");
+  const embed = fs.readFileSync(path.join(ROOT, "tools/vetting/build_embed.js"), "utf8");
+  study("vetting pages get the same Add to Arcade flag and an export list, not question text",
+    asrc.includes("OB_VET_ARCADE.flag") && arsrc.includes("obBin:") && arsrc.includes("OBARC1:") && arsrc.includes("data-act=\"binflag\"")
+    && embed.includes("arcade_ui.js") && !arsrc.includes("questionId") && !arsrc.includes("EMBEDDED_QUESTIONS"),
+    "vetting arcade hook missing");
 }
 
 const total = CHECKS.length + ROW_CHECKS.length + UI_FILES.length + st;

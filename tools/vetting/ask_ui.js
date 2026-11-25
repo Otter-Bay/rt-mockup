@@ -96,7 +96,7 @@
     const links = (s.links || []).map(([t, u]) => `<li><a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join("");
     const rev = s.reviewed ? `Checked by ${esc(s.reviewed.by)} on ${fmtDate(s.reviewed.date)}` : "Expert review: pending";
     const body = (hit && typeof window.OB_ASK_MARK === "function") ? window.OB_ASK_MARK(s.body || "", hit) : (s.body || "");
-    return `<article class="obaskcard">${scope}<h3>${s.title}</h3>${s.intro ? `<p class="asksub">${s.intro}</p>` : ""}
+    return `<article class="obaskcard">${window.OB_VET_ARCADE && window.OB_VET_ARCADE.flag ? window.OB_VET_ARCADE.flag(k) : ""}${scope}<h3>${s.title}</h3>${s.intro ? `<p class="asksub">${s.intro}</p>` : ""}
       <div class="sctwrap">${body}</div>${s.note ? `<p class="scnote">${s.note}</p>` : ""}
       <details class="obasksrc"><summary>Source</summary><dl>
         <dt>Where it comes from</dt><dd>${s.src || "Otter Bay"}${links ? `<ul>${links}</ul>` : ""}</dd>

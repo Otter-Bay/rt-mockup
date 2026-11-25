@@ -1,7 +1,11 @@
 /* Memory Arcade ("Play to Learn"; first named the bin, until Ken renamed it, t136u to t140u) and its games (mockup).
    Code names (bin*, obBin storage keys) stay as they were so saved cards keep working.
-   - One tap "Add to Arcade" flag on a practice question's reference card (after the answer) and on Ask answers. The flag holds the
+   - One tap "Add to Arcade" flag on a practice question's reference card (after the answer), on Ask answers, on an info-card
+     sheet, and on a study page (including the recall-map image maker). The flag holds the
      concept (the Ask card), so every question about Apgar lands on the same card.
+   - FlutterFlow: flag() is the reusable ArcadeFlag widget, bound to a concept key (the info-card id, never a question id).
+     It toggles that key in the same document as today: obBin:{exam} → cards[key] = { added, step, checks, due, best, mastered }.
+     Do not invent a new storage key. A vetting-page list imports through the same addCard() path.
    - Memory Arcade: each card shows its step (1 Make it, 2 Recall it, 3 Use it, then quick checks) and ONE Continue button. A short
      session runs 2 or 3 cards and ends with a small win. "Pick a different game" opens the games gallery.
    - Ten games, all with the same controls (tap a choice; Check / Next), score, streak, quick rounds, optional sound.
@@ -221,7 +225,19 @@
   ];
   const gameName = (g, k) => g === "baby" ? (exKey(k) === "apgar" ? "Score the Baby" : exKey(k) === "gaslaws" ? "Which law is at work?" : "Calculate it") : (GAMES.find((x) => x[0] === g) || [, g])[1];
 
-  function API() { return { EX, ALIAS, GAMES, exKey, data, scenario, crossword, gameName }; }
+  // Arcade list from a vetting page or a pasted code. Keys only (never question text).
+  // Format: "OBARC1:SDS:ahi,staging" or a bare comma-separated list of card keys.
+  function parseArcadeList(s, scales) {
+    scales = scales || W.SCALES || {};
+    s = String(s == null ? "" : s).trim();
+    const m = s.match(/^OBARC1:([A-Za-z0-9]+):([\s\S]*)$/);
+    const body = m ? m[2] : s.replace(/^OBARC1:/, "");
+    const seen = {}, out = [];
+    body.split(/[\s,;]+/).forEach((k) => { k = k.trim(); if (k && scales[k] && !seen[k]) { seen[k] = 1; out.push(k); } });
+    return out;
+  }
+  function listCode(keys, exam) { return "OBARC1:" + (exam || EXAM) + ":" + keys.join(","); }
+  function API() { return { EX, ALIAS, GAMES, exKey, data, scenario, crossword, gameName, parseArcadeList, listCode }; }
   if (typeof document === "undefined") { W.OB_BIN = API(); return; }
 
   // ======================= Screen =======================
@@ -231,6 +247,19 @@
   const load = () => { try { return Object.assign({ cards: {}, streak: 0, lastDay: "", sound: true, badges: [], offset: 0 }, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { return { cards: {}, streak: 0, lastDay: "", sound: true, badges: [], offset: 0 }; } };
   let B = load();
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(B)); } catch (e) {} };
+  function importArcadeList(s) { const ks = parseArcadeList(s); ks.forEach(addCard); return ks; }
+  let IMPORTED = 0;
+  (function bootArcade() {
+    try {
+      const u = new URL(location.href);
+      const raw = u.searchParams.get("arcade");
+      if (!raw) return;
+      IMPORTED = importArcadeList(raw).length;
+      u.searchParams.delete("arcade");
+      const q = u.searchParams.toString();
+      history.replaceState({}, "", u.pathname + (q ? "?" + q : "") + u.hash);
+    } catch (e) {}
+  })();
   const now = () => Date.now() + (B.offset || 0) * DAY;
   const today = () => new Date(now()).toDateString();
   const inBin = (k) => !!B.cards[k] && !B.cards[k].mastered;
@@ -242,7 +271,7 @@
   const stepName = (c) => c.mastered ? "Mastered" : c.step === 1 ? "Make it" : c.step === 2 ? "Recall it" : c.step === 3 ? "Use it" : (c.due <= now() ? "Quick check due" : `Quick check in ${Math.max(1, Math.ceil((c.due - now()) / DAY))} day${Math.ceil((c.due - now()) / DAY) > 1 ? "s" : ""}`);
   const level = (k) => { const c = B.cards[k] || {}; return c.mastered ? 7 : (c.step || 1) + (c.checks || 0); };   // 1 to 7; table row blocks lose their words from 3 (Use it) up
 
-  // the flag: same control everywhere
+  // the flag: same control everywhere (Ask, reference cards, info sheets, study pages)
   function flag(k) {
     if (!W.SCALES[k]) return "";
     const on = inBin(k);
@@ -254,6 +283,15 @@
     const h = origScale(q, c); if (!c || !c.done) return h;
     const ks = (q.scales || []).filter((k) => W.SCALES[k]);
     return h + (ks.length ? `<div class="binflags">${ks.map(flag).join("")}</div>` : "");
+  };
+  // info-card sheet (opened from a scale / rule button): one flag for that concept
+  const origSheet = W.scaleSheet;
+  if (typeof origSheet === "function") W.scaleSheet = function () {
+    const h = origSheet.apply(this, arguments);
+    const k = S.scale;
+    if (!h || !k || k === "__ev" || !W.SCALES[k]) return h;
+    const btn = `<div class="binflags">${flag(k)}</div>`;
+    return h.replace('<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button>', btn + '<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button>');
   };
   // home: the Memory Arcade button
   const way = () => { const n = Object.values(B.cards).filter((c) => !c.mastered).length;
@@ -552,7 +590,7 @@
   function binView() {
     const cards = Object.entries(B.cards).filter(([, c]) => !c.mastered), done = Object.entries(B.cards).filter(([, c]) => c.mastered);
     let h = `<div class="archead"><div><h1 class="arch1">Play to Learn</h1><p>Memory Arcade</p></div><img class="archead-otter" src="${IMG}otter-arcade-icon.jpg" alt="" width="52" height="52"></div><div class="bintop"><p>🔥 <b>${B.streak}</b>-day streak</p><button type="button" class="gsnd" data-act="binsound" aria-label="Sound ${B.sound ? "on" : "off"}">${B.sound ? "🔊" : "🔇"}</button></div>`;
-    if (!cards.length) h += `<div class="binempty"><p><b>Your Memory Arcade is empty.</b> Tap <b>🕹 Add to Arcade</b> after you answer a question (or on an Ask answer) to put that topic here.</p>
+    if (!cards.length) h += `<div class="binempty"><p><b>Your Memory Arcade is empty.</b> Tap <b>🕹 Add to Arcade</b> after you answer a question, on an Ask answer, or on an info or study page to put that topic here.</p>
       <button type="button" class="gbig" data-act="binseed">Try the examples</button><p class="ghelp">Apgar (scoring grid), Gas laws (laws), Blood gas normals (numbers), and two sleep tables: AHI severity (order matters) and sleep stages (any order).</p></div>`;
     else {
       const sc = sessionCards().length;
@@ -569,6 +607,13 @@
       if (gk) h += `<p class="asklabel">Games</p><div class="gmini">${GAMES.filter(([g]) => !EX[exKey(gk)].games || EX[exKey(gk)].games.includes(g)).map(([g, n, ic]) => `<button type="button" data-act="binplay" data-g="${g}" data-k="${gk}"><i>${ic}</i><span>${esc(n === "Score the Baby" ? "Use it" : n)}</span></button>`).join("")}</div><p class="ghelp">Games use ${esc(W.SCALES[gk].title)}. Use <b>Pick a different game</b> on a card to choose for that card.</p>`;
     }
     if (done.length) h += `<p class="asklabel">Mastered</p><p class="ghelp">${done.map(([k]) => "🏅 " + esc(W.SCALES[k].title)).join("<br>")}</p>`;
+    const live = Object.keys(B.cards).filter((k) => W.SCALES[k] && !B.cards[k].mastered);
+    h += `<details class="binimport"><summary>Have a list from a vetting page?</summary>
+      <p class="ghelp">Paste the code (it starts with OBARC1:) or a list of topic keys, then tap Import. Topics already in your Arcade stay as they are.</p>
+      ${IMPORTED ? `<p class="ghelp" role="status">Added ${IMPORTED} topic${IMPORTED === 1 ? "" : "s"} from a link.</p>` : ""}
+      <textarea id="binimport" rows="2" placeholder="OBARC1:${EXAM}:…" aria-label="Arcade list to import"></textarea>
+      <div class="binrow"><button type="button" class="glink" data-act="binimport">Import</button>
+      ${live.length ? `<button type="button" class="glink" data-act="bincopy">Copy my list</button>` : ""}</div></details>`;
     return h;
   }
   function galleryView(k) {
@@ -614,6 +659,12 @@
   W.PAGES = Object.assign(W.PAGES || {}, { bin: page });
   W.PAGE_ACTIONS = Object.assign(W.PAGE_ACTIONS || {}, {
     binflag: (b) => { const k = b.dataset.k; if (inBin(k)) delete B.cards[k]; else addCard(k); save(); },
+    binimport: () => { const el = document.getElementById("binimport"); IMPORTED = importArcadeList(el ? el.value : "").length; },
+    bincopy: () => {
+      const code = listCode(Object.keys(B.cards).filter((k) => W.SCALES[k] && !B.cards[k].mastered));
+      const go = () => { const el = document.getElementById("binimport"); if (el) el.value = code; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(go).catch(go); else go();
+    },
     binopen: () => { B = load(); VIEW = "bin"; G = null; S.page = "bin"; S.settings = false; },
     binback: () => { if (G) clearTimeout(G.timer); if (VIEW === "game" || VIEW === "gallery" || VIEW === "win") { VIEW = "bin"; G = null; SESSION = null; } else S.page = "home"; },
     binhome: () => { VIEW = "bin"; SESSION = null; },
@@ -691,5 +742,5 @@
     for (let i = 0; i < w.w.length; i++) { const x = w.x + (w.dir === "a" ? i : 0), y = w.y + (w.dir === "a" ? 0 : i), el = document.querySelector(`[data-cell="${x},${y}"] span`); if (el) el.textContent = G.typed[wi][i] || ""; }
   });
 
-  W.OB_BIN = Object.assign(API(), { flag, way, inBin, celebrate, state: () => ({ B, G, VIEW }) });
+  W.OB_BIN = Object.assign(API(), { flag, way, inBin, celebrate, importArcadeList, state: () => ({ B, G, VIEW }) });
 })();

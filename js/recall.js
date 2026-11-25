@@ -1162,7 +1162,8 @@
     const m = mdl(); if (!m) return "";
     const backLabel = ST.from === "bin" ? "Back to Memory Arcade" : ST.from === "settings" ? "Back to Settings" : "Back to the answer";
     let h = `<section class="stsheet" id="askRes"><div class="sthead"><button type="button" class="stback" data-act="stback">‹ ${backLabel}</button>
-      <h2>Study sheet</h2><p class="stsub">Print the topic you asked about: <b>${esc(m.title)}</b></p></div>
+      <h2>Study sheet</h2><p class="stsub">Print the topic you asked about: <b>${esc(m.title)}</b></p>
+      ${window.OB_BIN && OB_BIN.flag && ST.k ? `<div class="binflags starcade">${OB_BIN.flag(ST.k)}</div>` : ""}</div>
       <div class="stpick"><p class="asklabel">Style</p>${seg("ststyle", ST.style, [["map", "Recall map"], ["trad", "Traditional"]])}`;
     if (ST.style === "map") h += seg("stmap", ST.map, [["hand", "Draw on paper"], ["build", "Build it here"]]);
     h += whyBox() + `</div>`;
