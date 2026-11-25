@@ -239,6 +239,24 @@
     if (w < 16) { h *= 16 / (w || 16); w = 16; }
     return { w, h, scale: sc };
   }
+  // Place a photo so its content (st.fit, or the full image) fills the dest box, keeping aspect ratio (Ken t230u).
+  // mode: "cover" fills the box (may crop); "contain" shows the whole picture; "auto" (default)
+  // contains when the picture is much wider than the box so side details are not cropped.
+  function photoCover(st, r, mode) {
+    const sw = st && st.w, sh = st && st.h;
+    const f = st && st.fit, has = f && f.w > 0 && f.h > 0;
+    const fx = has ? Math.max(0, Number(f.x) || 0) : 0, fy = has ? Math.max(0, Number(f.y) || 0) : 0;
+    const fw = has ? Math.min(1 - fx, Number(f.w) || 1) : 1, fh = has ? Math.min(1 - fy, Number(f.h) || 1) : 1;
+    if (!(sw > 0 && sh > 0)) return { x: r.x, y: r.y, w: r.w, h: r.h, slice: mode !== "contain" };
+    const trimW = Math.max(1, fw * sw), trimH = Math.max(1, fh * sh);
+    const coverScale = Math.max(r.w / trimW, r.h / trimH), meetScale = Math.min(r.w / trimW, r.h / trimH);
+    const destAR = r.w / (r.h || 1), srcAR = trimW / trimH;
+    let scale = coverScale;
+    if (mode === "contain" || (mode !== "cover" && srcAR > destAR * 1.22)) scale = meetScale;
+    const fullW = sw * scale, fullH = sh * scale;
+    const tx = r.x + (r.w - trimW * scale) / 2, ty = r.y + (r.h - trimH * scale) / 2;
+    return { x: tx - fx * fullW, y: ty - fy * fullH, w: fullW, h: fullH, slice: false };
+  }
   function branchThumbEl(th, cx, cy, color, fi, pin, builder) {
     if (!th || !(th.src || (th.shape && th.shape !== "photo" && typeof SHAPES !== "undefined" && SHAPES[th.shape]))) {
       if (!builder) return "";
@@ -353,11 +371,8 @@
       const titleH = fit.h + 4;
       const imgTop = pad + titleH + 2;
       const availH = Math.max(24, side - pad - imgTop);
-      const ar = (st && st.w > 0 && st.h > 0) ? st.h / st.w : 1;
-      let iw = innerW, ih = iw * ar;
-      if (ih > availH) { ih = availH; iw = ih / (ar || 1); }
-      if (iw > innerW) { iw = innerW; ih = iw * ar; }
-      return { side, rx, fit, titleH, pad, imgW: iw, imgH: ih, imgTop };
+      // Fill the well under the title; the photo keeps its aspect ratio by covering this box (Ken t230u).
+      return { side, rx, fit, titleH, pad, imgW: innerW, imgH: availH, imgTop };
     }
     let L = layout(side);
     while (side < maxSide && L.fit.fs < 11) { side += 6; L = layout(side); }
@@ -370,21 +385,38 @@
       x1: cx - L.side / 2, y1: cy - L.side / 2, x2: cx + L.side / 2, y2: cy + L.side / 2
     };
   }
+  function textColFits(textColW, item) {
+    const facts = factLines(item);
+    if (!facts.length) return true;
+    return facts.every((f, i) => {
+      const fs = i === 0 ? 10.5 : 9, bold = i === 0, cap = i === 0 ? 3 : 2;
+      const lines = wrap(String(f || ""), textColW, fs, bold);
+      return lines.length <= cap && lines.every((l) => textW(l, fs, bold) <= textColW + 0.5);
+    });
+  }
   function cardImgBox(th, cardW) {
     const sc = clampThumb(th && th.scale != null ? th.scale : 1);
     const col = Math.max(52, Math.round((cardW || 176) * 0.40));
     return { w: col, h: col, scale: sc, col };
   }
-  function cardGeom(cx, cy, side, item, th, maxW) {
+  function cardGeom(cx, cy, side, item, th, maxW, maxH) {
     const W = Math.min(280, Math.max(156, maxW || 200));
     const rx = CARD_RX, pad = 7, tabGutter = CARD_TAB.w + 3;
-    const imgBox = cardImgBox(th || { scale: 1 }, W);
-    const imgW = imgBox.w, img = imgW;
+    const available = W - pad * 2 - tabGutter;
+    const minText = 90, minImg = Math.max(52, Math.round(available * 0.40));
+    const maxImg = Math.max(minImg, available - minText);
+    const sc = clampThumb(th && th.scale != null ? th.scale : 1);
+    let imgW = Math.round(maxImg * (sc >= 1 ? 1 : sc));
+    if (sc > 1) imgW = Math.round(minImg + (maxImg - minImg) * Math.min(1, (sc - 1) / 0.5));
+    imgW = Math.max(minImg, Math.min(maxImg, imgW));
+    while (imgW > minImg && !textColFits(available - imgW, item)) imgW -= 2;
+    const imgBox = { w: imgW, h: imgW, scale: sc, col: imgW };
+    const img = imgW;
     const label = cardLabel(item);
     const facts = factLines(item);
     const headFit = fitLines(label, W - 16, 11, 7, 2, true);
     const headH = Math.max(22, headFit.h + 8);
-    const textColW = Math.max(48, W - pad * 2 - imgW - tabGutter);
+    const textColW = Math.max(48, available - imgW);
     const blocks = [];
     (facts.length ? facts : [""]).forEach((f, i) => {
       if (!f && facts.length) return;
@@ -394,7 +426,12 @@
     });
     if (!facts.length) blocks.length = 0;
     const textH = blocks.reduce((a, b) => a + b.lines.length * b.fs * 1.28 + 3, 0);
-    const bodyH = Math.max(imgW, textH + pad * 2, 64);
+    const minBody = Math.max(textH + pad * 2, 64);
+    let bodyH = Math.max(minBody, Math.round(imgW * 0.72));
+    if (maxH != null && maxH > 0) {
+      const cap = Math.max(minBody, maxH - headH);
+      bodyH = cap; // use the column's leftover height so pictures fill empty vertical space
+    }
     const imgH = bodyH;
     const H = headH + bodyH;
     return { shape: "card", cx, cy, w: W, h: H, rx, headH, headFit, blocks, img, imgW, imgH, imgBox, pad, tabGutter, side, textColW, label,
@@ -483,7 +520,9 @@
     function placeGroup(list, side) {
       const m = list.length;
       if (stacked) return;
-      const maxCardH = list.reduce((h, it) => Math.max(h, cardGeom(0, 0, side, it.item, thumbs[it.i], cardW).h), 70);
+      const gap = 8;
+      const budget = (sh - 16 - Math.max(0, m - 1) * gap) / Math.max(m, 1);
+      const maxCardH = list.reduce((h, it) => Math.max(h, cardGeom(0, 0, side, it.item, thumbs[it.i], cardW, budget).h), 70);
       const span = Math.max(sh - 16, maxCardH);
       const top = space.y1 + 8 + maxCardH / 2;
       const bot = space.y2 - 8 - maxCardH / 2;
@@ -493,7 +532,7 @@
         const t = m === 1 ? 0.5 : k / Math.max(m - 1, 1);
         let cy = pin.y != null && pin.y >= 0 && pin.y <= 1 ? space.y1 + pin.y * sh : top + t * use;
         const cx = side === "L" ? space.x1 + cardW / 2 + 4 : space.x2 - cardW / 2 - 4;
-        const card = cardGeom(cx, cy, side, it.item, thumbs[it.i], cardW);
+        const card = cardGeom(cx, cy, side, it.item, thumbs[it.i], cardW, budget);
         if (card.y1 < space.y1 + 2) { card.cy += (space.y1 + 2 - card.y1); card.y1 = card.cy - card.h / 2; card.y2 = card.cy + card.h / 2; }
         if (card.y2 > space.y2 - 2) { card.cy -= (card.y2 - (space.y2 - 2)); card.y1 = card.cy - card.h / 2; card.y2 = card.cy + card.h / 2; }
         const defaultY = card.cy;
@@ -548,8 +587,10 @@
   }
   function photoElAt(st, r, clipId, cover) {
     const src = esc(st.src || "");
-    const fit = cover ? "xMidYMid slice" : "xMidYMid meet";
-    return `<image class="rphoto" href="${src}" xlink:href="${src}" x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w.toFixed(1)}" height="${r.h.toFixed(1)}" preserveAspectRatio="${fit}" clip-path="url(#${clipId})" data-px="${r.x.toFixed(1)}" data-py="${r.y.toFixed(1)}" data-pw="${r.w.toFixed(1)}" data-ph="${r.h.toFixed(1)}"/>`;
+    const mode = cover === "contain" || cover === false ? "contain" : (cover === "cover" || cover === true ? "auto" : (cover || "auto"));
+    const box = photoCover(st, r, mode);
+    const fit = box.slice ? (mode === "contain" ? "xMidYMid meet" : "xMidYMid slice") : "xMidYMid meet";
+    return `<image class="rphoto" href="${src}" xlink:href="${src}" x="${box.x.toFixed(1)}" y="${box.y.toFixed(1)}" width="${box.w.toFixed(1)}" height="${box.h.toFixed(1)}" preserveAspectRatio="${fit}" clip-path="url(#${clipId})" data-px="${r.x.toFixed(1)}" data-py="${r.y.toFixed(1)}" data-pw="${r.w.toFixed(1)}" data-ph="${r.h.toFixed(1)}"/>`;
   }
   function capEl(st, photo, text, i, practice) {
     const L = capLayout(photo, st, text || "");
@@ -594,7 +635,9 @@
     if (th && (th.src || (th.shape && th.shape !== "photo" && SHAPES[th.shape]))) {
       if (th.shape === "photo" && th.src) {
         const src = esc(th.src);
-        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clip})"/></g>`;
+        const box = photoCover(th, { x: imgX, y: imgY, w: colW, h: colH }, "auto");
+        const fit = box.slice ? "xMidYMid slice" : "xMidYMid meet";
+        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${box.x.toFixed(1)}" y="${box.y.toFixed(1)}" width="${box.w.toFixed(1)}" height="${box.h.toFixed(1)}" preserveAspectRatio="${fit}" clip-path="url(#${clip})"/></g>`;
       } else {
         g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${SHAPES[th.shape](imgX, imgY + 4, colW, Math.max(12, colH * 0.7), th.c || color)}</g>`;
       }
@@ -616,7 +659,7 @@
     g += `<clipPath id="${cid}hubIn"><rect x="${(hub.x1 + inset).toFixed(1)}" y="${(hub.y1 + inset).toFixed(1)}" width="${(hub.w - sw).toFixed(1)}" height="${(hub.h - sw).toFixed(1)}" rx="${Math.max(0, hub.rx - inset).toFixed(1)}"/></clipPath>`;
     g += `<g class="rhub rhubpic" data-cap="${fi}">`;
     g += `<rect class="rhubfill" x="${hub.x1.toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${hub.w.toFixed(1)}" height="${hub.h.toFixed(1)}" rx="${hub.rx.toFixed(1)}" fill="#fff" stroke="none"/>`;
-    if (st && st.src) g += photoElAt(st, hub.img, cid + "hubIn", true);
+    if (st && st.src) g += photoElAt(st, hub.img, cid + "hubIn", "contain");
     if (tree.label && !practice) {
       const bandH = hub.fit.h + 8;
       const bandY = hub.y1 + inset;
@@ -1012,7 +1055,7 @@
     return hits;
   }
 
-  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
+  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, photoCover, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }
@@ -1219,14 +1262,46 @@
     if (ST.focusPaste) { ST.focusPaste = false; setTimeout(() => { const box = document.getElementById("streplacebox") || document.getElementById("stpastebox"); if (box) box.focus(); }, 0); }
   }
   function enableUndo() { const b = document.querySelector('[data-act="stundo"]'); if (b) b.disabled = !(PG && PG.hist.length); }
+  function trimLightBox(ctx, w, h) {
+    let data;
+    try { data = ctx.getImageData(0, 0, w, h).data; } catch (e) { return null; }
+    const at = (x, y) => { const i = (y * w + x) * 4; return [data[i], data[i + 1], data[i + 2], data[i + 3]]; };
+    const corners = [at(0, 0), at(w - 1, 0), at(0, h - 1), at(w - 1, h - 1)];
+    const bg = [0, 1, 2, 3].map((i) => Math.round(corners.reduce((s, p) => s + p[i], 0) / 4));
+    const spread = Math.max.apply(null, corners.map((c) => Math.hypot(c[0] - bg[0], c[1] - bg[1], c[2] - bg[2])));
+    if (spread > 40) return null;
+    const lum = (bg[0] + bg[1] + bg[2]) / 3;
+    if (bg[3] > 8 && lum < 242) return null;
+    let minx = w, miny = h, maxx = -1, maxy = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4, a = data[i + 3];
+      if (a < 8) continue;
+      if (Math.hypot(data[i] - bg[0], data[i + 1] - bg[1], data[i + 2] - bg[2]) > 28) {
+        if (x < minx) minx = x; if (y < miny) miny = y; if (x > maxx) maxx = x; if (y > maxy) maxy = y;
+      }
+    }
+    if (maxx < 0) return null;
+    const padX = Math.max(4, Math.round((maxx - minx + 1) * 0.06)), padY = Math.max(4, Math.round((maxy - miny + 1) * 0.06));
+    minx = Math.max(0, minx - padX); miny = Math.max(0, miny - padY);
+    maxx = Math.min(w - 1, maxx + padX); maxy = Math.min(h - 1, maxy + padY);
+    const tw = maxx - minx + 1, th = maxy - miny + 1;
+    if (tw * th > 0.88 * w * h) return null;
+    return { x: minx, y: miny, w: tw, h: th };
+  }
   function shrinkImage(src, cb) {
     const im = new Image();
     im.onload = () => {
       let w = im.naturalWidth || im.width, h = im.naturalHeight || im.height; if (!w || !h) return;
       const max = 512, z = Math.min(1, max / Math.max(w, h));
       w = Math.max(1, Math.round(w * z)); h = Math.max(1, Math.round(h * z));
-      const c = document.createElement("canvas"); c.width = w; c.height = h;
-      c.getContext("2d").drawImage(im, 0, 0, w, h);
+      let c = document.createElement("canvas"); c.width = w; c.height = h;
+      const ctx = c.getContext("2d"); ctx.drawImage(im, 0, 0, w, h);
+      const trim = trimLightBox(ctx, w, h);
+      if (trim) {
+        const cropped = document.createElement("canvas"); cropped.width = trim.w; cropped.height = trim.h;
+        cropped.getContext("2d").drawImage(c, trim.x, trim.y, trim.w, trim.h, 0, 0, trim.w, trim.h);
+        c = cropped; w = trim.w; h = trim.h;
+      }
       let url = "";
       try { url = c.toDataURL("image/webp", 0.82); } catch (e) {}
       if (!url || url.indexOf("image/webp") < 0) { try { url = c.toDataURL("image/png"); } catch (e) { url = src; } }

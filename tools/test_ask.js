@@ -224,7 +224,13 @@ function loadStudy(exam) {
   const fillBox = SB.last().boxes[0], fillH = SB.last().H;
   const fillL = SB.calloutLayout(fillBox, SB.composePhoto(fillBox, fillSt, "list"), fillSt, SB.capItems(fillSt, oneMap.facts[0], fillBox), true);
   const card = fillL.nodes[0].card;
-  study("card pictures fill about 40% of the card width and the body height", card.imgW / card.w >= 0.35 && card.imgW / card.w <= 0.45 && card.imgH >= card.h - card.headH - 1 && fillSvg.includes('preserveAspectRatio="xMidYMid slice"'), "imgW=" + card.imgW + " W=" + card.w + " imgH=" + card.imgH);
+  study("card pictures use leftover width after the fact text (at least 40%) and the body height", card.imgW / card.w >= 0.40 && card.imgW / card.w <= 0.68 && card.textColW >= 72 && card.imgH >= card.h - card.headH - 1 && (fillSvg.includes('preserveAspectRatio="xMidYMid slice"') || fillSvg.includes('class="rthumbimg"')), "imgW=" + card.imgW + " W=" + card.w + " text=" + card.textColW + " imgH=" + card.imgH);
+  const hubInner = fillL.hub.w - 2 * fillL.hub.pad;
+  study("the hub picture fills the well under the title", fillL.hub.img && Math.abs(fillL.hub.img.w - hubInner) < 1 && fillL.hub.img.h >= 24 && fillL.hub.img.y >= fillL.hub.y1 + fillL.hub.pad, "hub img " + JSON.stringify(fillL.hub.img));
+  const cov = SB.photoCover({ w: 100, h: 50, fit: { x: 0.2, y: 0.1, w: 0.5, h: 0.8 } }, { x: 0, y: 0, w: 40, h: 40 }, "cover");
+  study("a photo with empty margins is zoomed to its content and still covers the slot", cov.w > 40 && cov.h > 40 && cov.x < 0, JSON.stringify(cov));
+  const wide = SB.photoCover({ w: 200, h: 80 }, { x: 0, y: 0, w: 80, h: 80 }, "auto");
+  study("a wide fact picture stays complete instead of cropping its sides", wide.w <= 80.1 && wide.h < 80, JSON.stringify(wide));
   study("the card tab sits in a gutter and does not cover the picture", card.tabGutter >= 4 && card.imgW + card.tabGutter <= card.w - 4, JSON.stringify({ w: card.w, imgW: card.imgW, gutter: card.tabGutter }));
   const ends = fillL.nodes.map((n) => {
     const pts = (n.leader.match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
