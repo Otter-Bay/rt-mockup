@@ -368,11 +368,11 @@
     function layout(side) {
       const rx = side * HUB_RX_RATIO, innerW = Math.max(40, side - 2 * pad);
       const fit = fitLines(title || "", innerW, Math.min(16, side * 0.09), 8, 3, true);
-      const titleH = fit.h + 4;
-      const imgTop = pad + titleH + 2;
-      const availH = Math.max(24, side - pad - imgTop);
-      // Fill the well under the title; the photo keeps its aspect ratio by covering this box (Ken t230u).
-      return { side, rx, fit, titleH, pad, imgW: innerW, imgH: availH, imgTop };
+      const titlePad = 8, titleH = fit.h + 2, gap = 4, bottomPad = 8;
+      const imgTop = titlePad + titleH + gap;
+      const availH = Math.max(24, side - bottomPad - imgTop);
+      // Tight title-to-figure gap so the well (and the figure) read as filled, arms kept complete (Ken t230u, t237u).
+      return { side, rx, fit, titleH, titlePad, pad, imgW: innerW, imgH: availH, imgTop, bottomPad };
     }
     let L = layout(side);
     while (side < maxSide && L.fit.fs < 11) { side += 6; L = layout(side); }
@@ -380,7 +380,7 @@
     const cy = stacked ? space.y1 + 10 + L.side / 2 : (space.y1 + space.y2) / 2;
     return {
       shape: "squircle", cx, cy, w: L.side, h: L.side, rx: L.rx, pad: L.pad, fit: L.fit,
-      titleY: cy - L.side / 2 + L.pad, stroke: Math.max(3.2, L.side * 0.018),
+      titlePad: L.titlePad, titleY: cy - L.side / 2 + L.titlePad, stroke: Math.max(3.2, L.side * 0.018),
       img: { x: cx - L.imgW / 2, y: cy - L.side / 2 + L.imgTop, w: L.imgW, h: L.imgH },
       x1: cx - L.side / 2, y1: cy - L.side / 2, x2: cx + L.side / 2, y2: cy + L.side / 2
     };
@@ -394,6 +394,35 @@
       return lines.length <= cap && lines.every((l) => textW(l, fs, bold) <= textColW + 0.5);
     });
   }
+  function factBlocks(item, colW) {
+    const facts = factLines(item), blocks = [];
+    (facts.length ? facts : [""]).forEach((f, i) => {
+      if (!f && facts.length) return;
+      const fs = i === 0 ? 10.5 : 9, bold = i === 0, cap = i === 0 ? 3 : 2;
+      blocks.push({ lines: wrap(String(f || ""), colW, fs, bold).slice(0, cap), fs, bold });
+    });
+    if (!facts.length) return [];
+    return blocks;
+  }
+  function blocksH(blocks) {
+    return blocks.reduce((a, b) => a + b.lines.length * b.fs * 1.28 + 3, 0);
+  }
+  function isShortFacts(item, bandW) {
+    const facts = factLines(item);
+    if (facts.length === 0) return true;
+    if (facts.length > 2) return false;
+    return blocksH(factBlocks(item, bandW)) <= 10.5 * 1.28 * 2 + 6;
+  }
+  function containArea(srcW, srcH, slotW, slotH) {
+    if (!(slotW > 0 && slotH > 0)) return 0;
+    if (!(srcW > 0 && srcH > 0)) return slotW * slotH;
+    const z = Math.min(slotW / srcW, slotH / srcH);
+    return srcW * z * srcH * z;
+  }
+  function srcSize(th) {
+    if (th && th.w > 0 && th.h > 0) return { w: th.w, h: th.h };
+    return { w: 0, h: 0 };
+  }
   function cardImgBox(th, cardW) {
     const sc = clampThumb(th && th.scale != null ? th.scale : 1);
     const col = Math.max(52, Math.round((cardW || 176) * 0.40));
@@ -403,38 +432,49 @@
     const W = Math.min(280, Math.max(156, maxW || 200));
     const rx = CARD_RX, pad = 7, tabGutter = CARD_TAB.w + 3;
     const available = W - pad * 2 - tabGutter;
-    const minText = 90, minImg = Math.max(52, Math.round(available * 0.40));
-    const maxImg = Math.max(minImg, available - minText);
     const sc = clampThumb(th && th.scale != null ? th.scale : 1);
-    let imgW = Math.round(maxImg * (sc >= 1 ? 1 : sc));
-    if (sc > 1) imgW = Math.round(minImg + (maxImg - minImg) * Math.min(1, (sc - 1) / 0.5));
-    imgW = Math.max(minImg, Math.min(maxImg, imgW));
-    while (imgW > minImg && !textColFits(available - imgW, item)) imgW -= 2;
-    const imgBox = { w: imgW, h: imgW, scale: sc, col: imgW };
-    const img = imgW;
     const label = cardLabel(item);
     const facts = factLines(item);
     const headFit = fitLines(label, W - 16, 11, 7, 2, true);
     const headH = Math.max(22, headFit.h + 8);
-    const textColW = Math.max(48, available - imgW);
-    const blocks = [];
-    (facts.length ? facts : [""]).forEach((f, i) => {
-      if (!f && facts.length) return;
-      const fs = i === 0 ? 10.5 : 9, bold = i === 0;
-      const lines = wrap(String(f || ""), textColW, fs, bold);
-      blocks.push({ lines: lines.slice(0, i === 0 ? 3 : 2), fs, bold });
-    });
-    if (!facts.length) blocks.length = 0;
-    const textH = blocks.reduce((a, b) => a + b.lines.length * b.fs * 1.28 + 3, 0);
-    const minBody = Math.max(textH + pad * 2, 64);
-    let bodyH = Math.max(minBody, Math.round(imgW * 0.72));
-    if (maxH != null && maxH > 0) {
-      const cap = Math.max(minBody, maxH - headH);
-      bodyH = cap; // use the column's leftover height so pictures fill empty vertical space
-    }
-    const imgH = bodyH;
+    const src = srcSize(th);
+    const short = isShortFacts(item, W - 2 * pad);
+    // Side column (default): leftover width after a readable fact column (keep at least 90px so short phrases don't wrap awkwardly).
+    const minText = 90, minImg = Math.max(52, Math.round(available * 0.40));
+    const maxImg = Math.max(minImg, available - minText);
+    let sideImgW = Math.round(maxImg * (sc >= 1 ? 1 : sc));
+    if (sc > 1) sideImgW = Math.round(minImg + (maxImg - minImg) * Math.min(1, (sc - 1) / 0.5));
+    sideImgW = Math.max(minImg, Math.min(maxImg, sideImgW));
+    while (sideImgW > minImg && !textColFits(available - sideImgW, item)) sideImgW -= 2;
+    const sideTextW = Math.max(48, available - sideImgW);
+    const sideBlocks = factBlocks(item, sideTextW);
+    const sideTextH = blocksH(sideBlocks);
+    const minBody = Math.max(sideTextH + pad * 2, 64);
+    let bodyH = Math.max(minBody, Math.round(sideImgW * 0.72));
+    if (maxH != null && maxH > 0) bodyH = Math.max(minBody, maxH - headH);
+    // Top band for short text, especially wide pictures: facts in a compact strip (one line when they fit), picture gets the rest (Ken t230u).
+    const bandW = W - 2 * pad;
+    const joined = facts.join("  ·  ");
+    const oneLine = short && facts.length && textW(joined, 10.5, true) <= bandW;
+    const bandBlocks = oneLine ? [{ lines: [joined], fs: 10.5, bold: true }] : factBlocks(item, bandW);
+    const bandH = short ? Math.max(16, blocksH(bandBlocks) + 6) : 0;
+    const bandImgW = W - pad - tabGutter;
+    const bandImgH = Math.max(24, bodyH - bandH);
+    const sideArea = containArea(src.w, src.h, sideImgW, bodyH);
+    const bandArea = containArea(src.w, src.h, bandImgW, bandImgH);
+    const srcAR = (src.w > 0 && src.h > 0) ? src.w / src.h : 1;
+    // Prefer a top band for short text on wide/square-ish art so the left side of the card isn't a mostly empty column.
+    const useBand = short && (src.w === 0 || srcAR >= 1.15 || bandArea >= sideArea * 0.95);
+    const textLayout = useBand ? "band" : "side";
+    const blocks = useBand ? bandBlocks : sideBlocks;
+    const textColW = useBand ? (W - 2 * pad) : sideTextW;
+    const imgW = useBand ? bandImgW : sideImgW;
+    const imgH = useBand ? bandImgH : bodyH;
+    const imgBox = { w: imgW, h: imgH, scale: sc, col: imgW };
+    const img = imgW;
     const H = headH + bodyH;
     return { shape: "card", cx, cy, w: W, h: H, rx, headH, headFit, blocks, img, imgW, imgH, imgBox, pad, tabGutter, side, textColW, label,
+      textLayout, bandH: useBand ? bandH : 0,
       x1: cx - W / 2, y1: cy - H / 2, x2: cx + W / 2, y2: cy + H / 2 };
   }
   function pillGeom(cx, cy, item) {
@@ -602,12 +642,14 @@
   function cardFace(card, th, color, fi, pin, practice, builder) {
     const { x1, y1, w, h, rx, headH, headFit, blocks, pad, side } = card;
     const colW = card.imgW != null ? card.imgW : card.img;
-    const colH = card.imgH != null ? card.imgH : (h - headH);
     const gutter = card.tabGutter != null ? card.tabGutter : CARD_TAB.w + 3;
     const picOnRight = side === "L"; // nearest the hub
-    const imgX = picOnRight ? x1 + w - gutter - colW : x1 + gutter;
-    const imgY = y1 + headH;
-    const textX = picOnRight ? x1 + pad : imgX + colW + pad;
+    const band = card.textLayout === "band";
+    const bandH = band ? (card.bandH || 0) : 0;
+    const colH = card.imgH != null ? card.imgH : (h - headH - bandH);
+    const imgX = picOnRight ? x1 + w - gutter - colW : x1 + (band ? pad : gutter);
+    const imgY = y1 + headH + bandH;
+    const textX = band ? x1 + pad : (picOnRight ? x1 + pad : imgX + colW + pad);
     const img = colW;
     let g = `<g class="rcard" data-cap="${fi}" data-pin="${pin}">`;
     const cardClip = `rcardclip${fi}p${pin}`;
@@ -619,8 +661,8 @@
       headFit.lines.forEach((ln, j) => {
         g += `<text class="rkw" x="${(x1 + w / 2).toFixed(1)}" y="${(y1 + 5 + headFit.fs * 0.85 + j * headFit.fs * 1.18).toFixed(1)}" text-anchor="middle" font-size="${headFit.fs.toFixed(1)}" font-weight="700" fill="#fff">${esc(ln)}</text>`;
       });
-      let ty = y1 + headH + pad + (blocks[0] ? blocks[0].fs * 0.9 : 0);
-      const textBottom = y1 + h - pad;
+      let ty = y1 + headH + (band ? 4 : pad) + (blocks[0] ? blocks[0].fs * 0.9 : 0);
+      const textBottom = band ? y1 + headH + bandH - 2 : y1 + h - pad;
       blocks.forEach((b) => {
         b.lines.forEach((ln) => {
           if (ty > textBottom) return;
@@ -635,7 +677,10 @@
     if (th && (th.src || (th.shape && th.shape !== "photo" && SHAPES[th.shape]))) {
       if (th.shape === "photo" && th.src) {
         const src = esc(th.src);
-        const box = photoCover(th, { x: imgX, y: imgY, w: colW, h: colH }, "auto");
+        const bodyArea = w * Math.max(1, h - headH);
+        const cArea = containArea(th.w, th.h, colW, colH);
+        const mode = (band || (th.w > 0 && cArea / bodyArea >= 0.58)) ? "contain" : "auto";
+        const box = photoCover(th, { x: imgX, y: imgY, w: colW, h: colH }, mode);
         const fit = box.slice ? "xMidYMid slice" : "xMidYMid meet";
         g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${box.x.toFixed(1)}" y="${box.y.toFixed(1)}" width="${box.w.toFixed(1)}" height="${box.h.toFixed(1)}" preserveAspectRatio="${fit}" clip-path="url(#${clip})"/></g>`;
       } else {
@@ -661,9 +706,9 @@
     g += `<rect class="rhubfill" x="${hub.x1.toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${hub.w.toFixed(1)}" height="${hub.h.toFixed(1)}" rx="${hub.rx.toFixed(1)}" fill="#fff" stroke="none"/>`;
     if (st && st.src) g += photoElAt(st, hub.img, cid + "hubIn", "contain");
     if (tree.label && !practice) {
-      const bandH = hub.fit.h + 8;
       const bandY = hub.y1 + inset;
-      g += `<rect class="rhubband" x="${(hub.x1 + inset).toFixed(1)}" y="${bandY.toFixed(1)}" width="${(hub.w - sw).toFixed(1)}" height="${(hub.pad + bandH - inset).toFixed(1)}" fill="#fff" clip-path="url(#${cid}hubIn)"/>`;
+      const bandHt = Math.max(0, hub.img.y - bandY);
+      g += `<rect class="rhubband" x="${(hub.x1 + inset).toFixed(1)}" y="${bandY.toFixed(1)}" width="${(hub.w - sw).toFixed(1)}" height="${bandHt.toFixed(1)}" fill="#fff" clip-path="url(#${cid}hubIn)"/>`;
       hub.fit.lines.forEach((ln, j) => {
         g += `<text class="rhubtitle" x="${hub.cx.toFixed(1)}" y="${(hub.titleY + hub.fit.fs * 0.9 + j * hub.fit.fs * 1.18).toFixed(1)}" text-anchor="middle" font-size="${hub.fit.fs.toFixed(1)}" font-weight="700" fill="#14222C">${esc(ln)}</text>`;
       });
@@ -1281,7 +1326,7 @@
       }
     }
     if (maxx < 0) return null;
-    const padX = Math.max(4, Math.round((maxx - minx + 1) * 0.06)), padY = Math.max(4, Math.round((maxy - miny + 1) * 0.06));
+    const padX = Math.max(2, Math.round((maxx - minx + 1) * 0.03)), padY = Math.max(2, Math.round((maxy - miny + 1) * 0.03));
     minx = Math.max(0, minx - padX); miny = Math.max(0, miny - padY);
     maxx = Math.min(w - 1, maxx + padX); maxy = Math.min(h - 1, maxy + padY);
     const tw = maxx - minx + 1, th = maxy - miny + 1;
