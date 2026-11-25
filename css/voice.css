@@ -186,6 +186,9 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .stcaplab textarea { width: 100%; box-sizing: border-box; border: 2px solid #C9D6DB; border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 15px; font-weight: 400; line-height: 1.4; color: #14222C; }
 .stpaper.builder .rfact.just .rspace { stroke: var(--bay, #0A4A63); stroke-width: 3; stroke-dasharray: none; }
 .stpaper.builder .rpin { cursor: grab; }
+.stpaper.builder .rthumb, .stpaper.builder .rthumbadd, .stpaper.builder .rcallout { cursor: pointer; }
+.stpaper.builder .rcallout.sel .rrule, .stpaper.builder .rcallout.just .rrule { stroke-width: 2.4; }
+.stpaper.builder .rthumbadd { opacity: .85; }
 .stpaper.builder .rcap { cursor: grab; }
 .stpaper.builder.tool-draw .recallsvg, .stpaper.builder.tool-move .recallsvg { user-select: none; -webkit-user-select: none; }
 .stprog { margin: 0; font-size: 14px; color: #3B4A55; display: flex; flex-direction: column; gap: 6px; }

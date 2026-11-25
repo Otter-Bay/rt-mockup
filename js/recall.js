@@ -229,6 +229,27 @@
     if (w > bw - 2) { w = Math.max(1, bw - 2); h = w * ar; }
     return { x: b.x1 + (bw - w) / 2, y: b.y1 + (bh - h) / 2, w, h, scale };
   }
+  const clampThumb = (v) => Math.min(1.5, Math.max(0.5, Number(v) || 1));
+  function thumbBox(th) {
+    const sc = clampThumb(th && th.scale), base = 28;
+    let w = base * sc, h = w;
+    if (th && th.w > 0 && th.h > 0) h = w * (th.h / th.w);
+    if (w > 48) { h *= 48 / w; w = 48; }
+    if (h > 48) { w *= 48 / h; h = 48; }
+    if (w < 16) { h *= 16 / (w || 16); w = 16; }
+    return { w, h, scale: sc };
+  }
+  function branchThumbEl(th, cx, cy, color, fi, pin, builder) {
+    if (!th || !(th.src || (th.shape && th.shape !== "photo" && typeof SHAPES !== "undefined" && SHAPES[th.shape]))) {
+      if (!builder) return "";
+      return `<g class="rthumbadd" data-cap="${fi}" data-pin="${pin}" transform="translate(${cx.toFixed(1)} ${cy.toFixed(1)})"><circle r="9" fill="#fff" fill-opacity=".95" stroke="${color}" stroke-width="1.2" stroke-dasharray="2 2"/><path d="M-4 0h8M0-4v8" fill="none" stroke="${color}" stroke-width="1.2" stroke-linecap="round"/></g>`;
+    }
+    const T = thumbBox(th), x = cx - T.w / 2, y = cy - T.h / 2;
+    const inner = (th.shape === "photo" && th.src)
+      ? `<image class="rthumbimg" href="${esc(th.src)}" xlink:href="${esc(th.src)}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${T.w.toFixed(1)}" height="${T.h.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/>`
+      : `<g>${SHAPES[th.shape](x, y, T.w, Math.max(10, T.h * 0.7), th.c || color)}</g>`;
+    return `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${inner}</g>`;
+  }
   function photoEl(st, b, clipId) {
     const r = photoBox(b, st), src = esc(st.src || "");
     return `<image class="rphoto" href="${src}" xlink:href="${src}" x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w.toFixed(1)}" height="${r.h.toFixed(1)}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clipId})"/>`;
@@ -355,15 +376,20 @@
     return `<g class="rcap" data-cap="${i}" data-px="${photo.x.toFixed(1)}" data-py="${photo.y.toFixed(1)}" data-pw="${photo.w.toFixed(1)}" data-ph="${photo.h.toFixed(1)}">
       <rect class="rcapbg" x="${L.x.toFixed(1)}" y="${L.y.toFixed(1)}" width="${L.w.toFixed(1)}" height="${L.h.toFixed(1)}" rx="6" fill="#fff" fill-opacity=".82"/>${body}</g>`;
   }
-  function calloutEl(space, photo, st, tree, fi, practice) {
+  function calloutEl(space, photo, st, tree, fi, practice, builder, selPin) {
     const L = calloutLayout(space, photo, st, tree);
+    const thumbs = (st && st.thumbs) || {};
     const draw = (node) => {
-      const mid = node.hy;
+      const mid = node.hy, th = thumbs[node.i], T = thumbBox(th || { scale: 1 });
+      const tcx = node.side === "L" ? node.tx + Math.min(8, T.w / 2) : node.tx + (node.tw || 0) - Math.min(8, T.w / 2);
+      const tcy = mid - 3 - T.h / 2;
       const text = practice ? "" : `<text class="rkw" x="${node.tx.toFixed(1)}" y="${(mid - 2).toFixed(1)}" font-size="${node.fs.toFixed(1)}" font-weight="700" fill="${node.color}">${esc(node.text)}</text>`;
-      return `<g class="rcallout" data-cap="${fi}" data-pin="${node.i}">
+      const thumb = practice ? "" : branchThumbEl(th, tcx, tcy, node.color, fi, node.i, builder);
+      const on = selPin === node.i ? " sel" : "";
+      return `<g class="rcallout${on}" data-cap="${fi}" data-pin="${node.i}">
         <path class="rleader" d="${node.leader}" fill="none" stroke="${node.color}" stroke-width="${node.depth ? 1.1 : 1.4}" stroke-linecap="round" stroke-linejoin="round"/>
         <line class="rrule" x1="${node.hx1.toFixed(1)}" y1="${mid.toFixed(1)}" x2="${node.hx2.toFixed(1)}" y2="${mid.toFixed(1)}" stroke="${node.color}" stroke-width="1.3" stroke-linecap="round"/>
-        ${text}
+        ${text}${thumb}
         <circle class="rpin" data-cap="${fi}" data-pin="${node.i}" cx="${node.axp.toFixed(1)}" cy="${node.ayp.toFixed(1)}" r="6" fill="#fff" stroke="${node.color}" stroke-width="2"/>
       </g>` + (node.kids || []).map(draw).join("");
     };
@@ -473,7 +499,7 @@
       if (st && st.shape === "photo" && st.src) {
         const ph = composePhoto(b, st, listed ? "list" : "cap");
         g += photoElAt(st, ph, uid + "c" + i);
-        if (listed) g += calloutEl(b, ph, st, tree, i, practice);
+        if (listed) g += calloutEl(b, ph, st, tree, i, practice, opts.builder, opts.branch);
         else g += capEl(st, ph, (tree.items[0] && tree.items[0].text) || tree.label, i, practice);
       } else if (st && SHAPES[st.shape]) g += `<g clip-path="url(#${uid}c${i})">${SHAPES[st.shape](...scaledHr(hr, b, st), st.c || col).replace(/stroke-width="1.6"/g, 'stroke-width="2.4"')}</g>`;
       else if (opts.ideas) g += `<g opacity=".55" clip-path="url(#${uid}c${i})">${SHAPES[f.idea.shape](...hr, col)}</g>`;
@@ -642,7 +668,7 @@
     </article>`;
   }
 
-  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto }; }
+  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }
@@ -651,7 +677,7 @@
   const sv = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} };
   const pref = ld(STYLE_KEY, {});
   const ST = { k: null, q: "", answer: "", related: [], hit: null, style: pref.style || "map", map: pref.map || "hand", mode: "filled", ideas: false,
-    tool: "draw", color: "#C62828", sel: null, zoom: false, celebrate: false, msg: "", panel: "", songPop: false, from: "ask", fromK: "", focus: null };
+    tool: "draw", color: "#C62828", sel: null, zoom: false, celebrate: false, msg: "", panel: "", songPop: false, from: "ask", fromK: "", focus: null, branch: null, focusBranch: null };
   const savePref = () => sv(STYLE_KEY, { style: ST.style, map: ST.map });
   const getPage = (k) => ld(PAGE_KEY(k), null);
   const blankPage = () => ({ ink: [], stickers: {}, moves: {}, hist: [], done: false, at: Date.now(), pics: {}, song: { tune: "", lines: {}, print: false, asked: false } });
@@ -676,7 +702,7 @@
     o = o || {};
     ST.k = k; ST.q = o.q || ""; ST.answer = o.answer || ""; ST.related = o.related || []; ST.hit = o.hit || null;
     ST.sel = null; ST.mode = "filled"; ST.ideas = false; ST.celebrate = false; ST.msg = ""; ST.zoom = false; ST.panel = o.panel || ""; ST.songPop = false;
-    ST.from = o.from || "ask"; ST.fromK = o.fromK || k; ST.focus = null;
+    ST.from = o.from || "ask"; ST.fromK = o.fromK || k; ST.focus = null; ST.branch = null; ST.focusBranch = null;
     if (o.build) { ST.style = "map"; ST.map = "build"; }
     PG = fixPage(getPage(k)) || blankPage();
   }
@@ -711,7 +737,7 @@
   }
   // What the paper on screen shows (also redrawn in place while the learner types, so the keyboard stays up)
   function paperHtml(m) {
-    if (ST.style === "map" && ST.map === "build") return recallSvg(m, { custom: PG, builder: true, screen: true, noSong: true, sel: ST.tool === "sticker" ? ST.sel : null }).replace('class="recallsvg', 'class="recallsvg builder');
+    if (ST.style === "map" && ST.map === "build") return recallSvg(m, { custom: PG, builder: true, screen: true, noSong: true, sel: ST.tool === "sticker" ? ST.sel : null, branch: ST.branch }).replace('class="recallsvg', 'class="recallsvg builder');
     return ST.style === "map" ? recallSvg(m, { mode: ST.mode, ideas: ST.ideas, screen: true }) : traditionalHtml(m, { mode: ST.mode });
   }
   function refreshPaper() { const el = document.querySelector(".stsheet .stpaper"); if (el && ST.k) el.innerHTML = paperHtml(mdl()); }
@@ -749,6 +775,15 @@
   // Size slider/buttons for the selected photo or shape (Ken, t193u).
   function sizeRow() {
     const st = ST.sel != null ? (PG.stickers || {})[ST.sel] : null; if (!st) return "";
+    if (ST.branch != null) {
+      const th = (st.thumbs || {})[ST.branch]; if (!th) return "";
+      const sc = Math.round(clampThumb(th.scale) * 100);
+      return `<div class="stsize"><span>Fact picture size</span>
+        <button type="button" data-act="stsize" data-v="0.5" aria-pressed="${sc <= 70}">S</button>
+        <button type="button" data-act="stsize" data-v="1" aria-pressed="${sc > 70 && sc < 130}">M</button>
+        <button type="button" data-act="stsize" data-v="1.5" aria-pressed="${sc >= 130}">L</button>
+        <label class="stsizerange"><input type="range" min="50" max="150" step="5" value="${sc}" data-stscale="thumb" aria-label="Fact picture size"><span class="stsizeval">${sc}%</span></label></div>`;
+    }
     const sc = Math.round(clampScale(st.scale == null ? (st.shape === "photo" ? 0.7 : 1) : st.scale) * 100);
     return `<div class="stsize"><span>Size</span>
       <button type="button" data-act="stsize" data-v="0.25" aria-pressed="${sc <= 33}">S</button>
@@ -773,7 +808,7 @@
     const snaps = [["Top left", 0.18, 0.16], ["Top", 0.5, 0.16], ["Top right", 0.82, 0.16], ["Middle left", 0.18, 0.5], ["Middle", 0.5, 0.5], ["Middle right", 0.82, 0.5], ["Bottom left", 0.18, 0.84], ["Bottom", 0.5, 0.84], ["Bottom right", 0.82, 0.84]];
     const tx = st.tx == null ? 0.5 : st.tx, ty = st.ty == null ? 0.84 : st.ty;
     let h = `<div class="stcap">`;
-    if (list) h += `<p class="sthelp">This is a recall picture: each fact sits on its own line beside the image, like Evelyn Wood’s pictorial notes. Drag a dot to point a line at the right part of the picture.</p>`;
+    if (list) h += `<p class="sthelp">The big picture should show this topic itself (a person in distress for “Signs of Respiratory Distress,” not a decoration). Tap a line, then paste or pick a small picture for that fact — blue lips for cyanosis, a lean-forward pose for tripod. Drag a dot to point the line at the right part of the picture.</p>`;
     else {
       h += `<p class="sthelp">Drag the words to a clear spot in the picture, or snap them. They sit in the image, not as a stamp over the card.</p><div class="stsnaps" role="group" aria-label="Text position">`;
       snaps.forEach(([lab, x, y]) => {
@@ -785,15 +820,27 @@
     h += `<label class="stcaplab">Words in the picture<textarea data-stcap="${ST.sel}" rows="${list ? 4 : 3}">${esc(val)}</textarea></label></div>`;
     return h;
   }
-  function setSticker(next) {
-    if (ST.sel == null) { ST.msg = "Tap a fact on the page first, then pick its shape."; return false; }
-    PG.hist.push({ t: "st", i: ST.sel, prev: PG.stickers[ST.sel] || null });
-    if (next) PG.stickers[ST.sel] = next; else delete PG.stickers[ST.sel];
-    ST.focus = ST.sel; ST.msg = next && next.shape === "photo" ? "" : (next ? "Nice start! Now make it yours: switch to Draw and add your own details." : "");
+  function setBranchThumb(next) {
+    if (ST.sel == null) { ST.msg = "Tap a fact on the page first, then pick its picture."; return false; }
+    const prev = PG.stickers[ST.sel] || {};
+    if (ST.branch == null) {
+      PG.hist.push({ t: "st", i: ST.sel, prev: PG.stickers[ST.sel] || null });
+      if (next) PG.stickers[ST.sel] = Object.assign({}, prev, next); else delete PG.stickers[ST.sel];
+      ST.focus = ST.sel; ST.focusBranch = null;
+      ST.msg = next && next.shape === "photo" ? "" : (next ? "Nice start! Now make it yours: switch to Draw and add your own details." : "");
+      savePage(); return true;
+    }
+    const thumbs = Object.assign({}, prev.thumbs || {});
+    PG.hist.push({ t: "st", i: ST.sel, prev });
+    if (next) thumbs[ST.branch] = next; else delete thumbs[ST.branch];
+    PG.stickers[ST.sel] = Object.assign({}, prev, { thumbs });
+    ST.focus = ST.sel; ST.focusBranch = ST.branch; ST.msg = "";
     savePage(); return true;
   }
-  function showFact(i) {
-    const el = document.querySelector(`.rfact[data-fi="${i}"]`), sc = document.querySelector(".askscroll");
+  function setSticker(next) { return setBranchThumb(next); }
+  function showFact(i, br) {
+    const el = (br != null ? document.querySelector(`.rcallout[data-cap="${i}"][data-pin="${br}"]`) : null) || document.querySelector(`.rfact[data-fi="${i}"]`);
+    const sc = document.querySelector(".askscroll");
     if (el) el.classList.add("just");
     if (el && sc) {
       const er = el.getBoundingClientRect(), sr = sc.getBoundingClientRect();
@@ -805,7 +852,7 @@
       if (er.top < pr.top || er.bottom > pr.bottom) paper.scrollTop += er.top - pr.top - 12;
     }
   }
-  function afterRender() { if (ST.focus != null) { const i = ST.focus; ST.focus = null; setTimeout(() => showFact(i), 0); } }
+  function afterRender() { if (ST.focus != null) { const i = ST.focus, br = ST.focusBranch; ST.focus = null; ST.focusBranch = null; setTimeout(() => showFact(i, br), 0); } }
   function enableUndo() { const b = document.querySelector('[data-act="stundo"]'); if (b) b.disabled = !(PG && PG.hist.length); }
   function shrinkImage(src, cb) {
     const im = new Image();
@@ -826,9 +873,10 @@
   }
   function applyPhoto(data) {
     if (!data || !data.src) return;
-    if (ST.sel == null) { ST.msg = "Tap a fact on the page first, then paste or choose its picture."; render(); return; }
-    const prev = PG.stickers[ST.sel] || {};
-    setSticker({ shape: "photo", src: data.src, w: data.w, h: data.h, scale: prev.scale != null ? prev.scale : 0.7 });
+    if (ST.sel == null) { ST.msg = "Tap a fact, or a line, then paste or choose its picture."; render(); return; }
+    const prev = (ST.branch != null ? ((PG.stickers[ST.sel] || {}).thumbs || {})[ST.branch] : PG.stickers[ST.sel]) || {};
+    const scale = ST.branch != null ? (prev.scale != null ? prev.scale : 1) : (prev.scale != null ? prev.scale : 0.7);
+    setBranchThumb({ shape: "photo", src: data.src, w: data.w, h: data.h, scale });
     const box = document.getElementById("stpastebox"); if (box) box.innerHTML = "";
     render();
   }
@@ -848,13 +896,19 @@
     let h = `<div class="stbuild"><p class="stprompt" aria-live="polite">${esc(prompt)}</p>
       <div class="sttools">${seg("sttool", ST.tool, tools)}</div>
       <div class="stcolors" role="group" aria-label="Color">${COLORS.map(([c, t]) => `<button type="button" data-act="stcolor" data-c="${c}" aria-label="${t}" aria-pressed="${ST.color === c}" class="${ST.color === c ? "on" : ""}" style="--c:${c}"></button>`).join("")}</div>`;
-    if (ST.tool === "sticker") h += `<p class="sthelp">${ST.sel == null ? "Tap a fact on the page, then pick a starter shape or paste a picture for it." : `Pick a shape or paste a picture for “${esc(m.facts[ST.sel].label)}”.`}</p>
+    if (ST.tool === "sticker") {
+      const factLab = ST.sel != null && m.facts[ST.sel] ? m.facts[ST.sel].label : "";
+      const branchLab = ST.branch != null && ST.sel != null ? ((capItems((PG.stickers || {})[ST.sel], m.facts[ST.sel], ((LAST && LAST.boxes) || [])[ST.sel] || {}).items || [])[ST.branch] || {}).text : "";
+      const help = ST.sel == null ? "Tap a fact for its topic picture, or tap a line to add a small picture for that fact."
+        : ST.branch != null ? `Picture for “${esc(branchLab || "this fact")}”. It should show that fact, not a decoration.`
+        : `Topic picture for “${esc(factLab)}”. It should show this topic itself, not a decoration. Tap a line to add a picture for one fact.`;
+      h += `<p class="sthelp">${help}</p>
       <div class="ststickers">${STICKERS.map(([sh, t]) => `<button type="button" data-act="ststicker" data-s="${sh}" aria-label="${t}"><svg viewBox="-30 -30 120 90" width="54" height="40" aria-hidden="true">${SHAPES[sh](0, 0, 60, 30, ST.color)}</svg><span>${t}</span></button>`).join("")}
       <button type="button" data-act="ststicker" data-s="" aria-label="No shape"><span class="none">✕</span><span>None</span></button></div>
       <div class="stpaste" id="stpaste">
         <div class="stpastebox" id="stpastebox" contenteditable="true" spellcheck="false" role="textbox" aria-label="Paste a sticker or photo, drop one here, or tap to choose" data-placeholder="Paste a sticker or photo, drop one here, or tap to choose"></div>
         <label class="stpastechoose">Choose a photo<input type="file" accept="image/*" id="stpastefile" class="stpastefile"></label>
-      </div>${sizeRow()}${capRow(m)}`;
+      </div>${sizeRow()}${capRow(m)}`; }
     if (ST.tool === "move") h += `<p class="sthelp">Drag a fact to where it makes sense to you. Its branch follows.</p>`;
     if (ST.tool === "draw") h += `<p class="sthelp">Draw with your finger or mouse right on the page. Lift and continue as often as you like; tap Done when you are finished.</p>`;
     h += `<div class="stpaper builder tool-${ST.tool} ${ST.zoom ? "zoom" : ""}">${paperHtml(m)}</div>
@@ -942,7 +996,13 @@
     } else if (ST.tool === "move" && fi != null) {
       e.preventDefault(); drag = { svg, fact, i: fi, p0: p, m0: PG.moves[fi] || [0, 0] };
       try { svg.setPointerCapture(e.pointerId); } catch (x) {}
-    } else if ((ST.tool === "sticker" || ST.tool === "look") && fi != null) { ST.sel = fi; ST.tool = "sticker"; ST.focus = fi; render(); }
+    } else if (ST.tool === "sticker" || ST.tool === "look") {
+      const call = e.target.closest && e.target.closest(".rcallout, .rthumb, .rthumbadd");
+      if (call && call.dataset.cap != null) {
+        ST.sel = Number(call.dataset.cap); ST.branch = Number(call.dataset.pin); ST.tool = "sticker"; ST.focus = ST.sel; ST.focusBranch = ST.branch; render(); return;
+      }
+      if (fi != null) { ST.sel = fi; ST.branch = null; ST.tool = "sticker"; ST.focus = fi; render(); }
+    }
   });
   const photoFrac = (d, p) => {
     const ph = d.photo, x = ph.w ? (p[0] - ph.x) / ph.w : 0.5, y = ph.h ? (p[1] - ph.y) / ph.h : 0.5;
@@ -1013,9 +1073,14 @@
   document.addEventListener("change", (e) => {
     if (e.target && e.target.id === "stpastefile") { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) takeImage(f); }
     else if (e.target && e.target.dataset && e.target.dataset.stscale && PG && ST.sel != null && PG.stickers[ST.sel]) {
-      const prev = PG.stickers[ST.sel];
+      const prev = PG.stickers[ST.sel], thumb = e.target.dataset.stscale === "thumb";
       PG.hist.push({ t: "st", i: ST.sel, prev });
-      PG.stickers[ST.sel] = Object.assign({}, prev, { scale: clampScale(Number(e.target.value) / 100) });
+      if (thumb && ST.branch != null) {
+        const thumbs = Object.assign({}, prev.thumbs || {}), th = thumbs[ST.branch]; if (!th) return;
+        thumbs[ST.branch] = Object.assign({}, th, { scale: clampThumb(Number(e.target.value) / 100) });
+        PG.stickers[ST.sel] = Object.assign({}, prev, { thumbs });
+        ST.focusBranch = ST.branch;
+      } else PG.stickers[ST.sel] = Object.assign({}, prev, { scale: clampScale(Number(e.target.value) / 100) });
       ST.focus = ST.sel; savePage(); enableUndo();
     }
   });
@@ -1024,9 +1089,14 @@
   document.addEventListener("input", (e) => {
     const t = e.target;
     if (t && t.dataset && t.dataset.stscale && PG && ST.sel != null && PG.stickers[ST.sel]) {
-      const v = clampScale(Number(t.value) / 100);
+      const thumb = t.dataset.stscale === "thumb", v = thumb ? clampThumb(Number(t.value) / 100) : clampScale(Number(t.value) / 100);
       const lab = t.parentNode && t.parentNode.querySelector(".stsizeval"); if (lab) lab.textContent = Math.round(v * 100) + "%";
-      PG.stickers[ST.sel] = Object.assign({}, PG.stickers[ST.sel], { scale: v });
+      const prev = PG.stickers[ST.sel];
+      if (thumb && ST.branch != null) {
+        const thumbs = Object.assign({}, prev.thumbs || {}), th = thumbs[ST.branch]; if (!th) return;
+        thumbs[ST.branch] = Object.assign({}, th, { scale: v });
+        PG.stickers[ST.sel] = Object.assign({}, prev, { thumbs });
+      } else PG.stickers[ST.sel] = Object.assign({}, prev, { scale: v });
       savePage(); refreshPaper(); return;
     }
     if (t && t.dataset && t.dataset.stcap != null && PG) {
@@ -1080,13 +1150,20 @@
     stcolor: (b) => { ST.color = b.dataset.c; },
     stzoom: () => { ST.zoom = !ST.zoom; },
     ststicker: (b) => {
-      if (ST.sel == null) { ST.msg = "Tap a fact on the page first, then pick its shape."; return; }
-      const prev = PG.stickers[ST.sel] || {};
-      setSticker(b.dataset.s ? { shape: b.dataset.s, c: ST.color, scale: prev.scale } : null);
+      if (ST.sel == null) { ST.msg = "Tap a fact, or a line, then pick its shape."; return; }
+      const prev = (ST.branch != null ? ((PG.stickers[ST.sel] || {}).thumbs || {})[ST.branch] : PG.stickers[ST.sel]) || {};
+      setBranchThumb(b.dataset.s ? { shape: b.dataset.s, c: ST.color, scale: prev.scale } : null);
     },
     stsize: (b) => {
       if (ST.sel == null || !PG.stickers[ST.sel]) return false;
       const prev = PG.stickers[ST.sel];
+      if (ST.branch != null) {
+        const thumbs = Object.assign({}, prev.thumbs || {}), th = thumbs[ST.branch]; if (!th) return false;
+        PG.hist.push({ t: "st", i: ST.sel, prev });
+        thumbs[ST.branch] = Object.assign({}, th, { scale: clampThumb(b.dataset.v) });
+        PG.stickers[ST.sel] = Object.assign({}, prev, { thumbs });
+        ST.focus = ST.sel; ST.focusBranch = ST.branch; savePage(); return;
+      }
       PG.hist.push({ t: "st", i: ST.sel, prev });
       PG.stickers[ST.sel] = Object.assign({}, prev, { scale: clampScale(b.dataset.v) });
       ST.focus = ST.sel; savePage();

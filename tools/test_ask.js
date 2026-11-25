@@ -194,6 +194,11 @@ function loadStudy(exam) {
   study("keywords stay short (Wood: keywords, not sentences)", SB.keywords("The mild range of the AHI is 5 to 15 events per hour of sleep", 7).split(" ").length <= 7, SB.keywords("The mild range of the AHI is 5 to 15 events per hour of sleep", 7));
   const nest = SB.capItems({ cap: "Airway\n  Tongue\n  Soft palate\nBreathing" }, {}, { label: ["OSA"], lines: [] });
   study("nested bullets become sub-branches off the parent line", nest.items.length === 2 && nest.items[0].kids.length === 2 && nest.items[0].kids[0].text === "Tongue", JSON.stringify(nest.items));
+  const withThumb = Object.assign({}, listSt, { thumbs: { 0: { shape: "photo", src: "data:image/png;base64,BBBB", w: 40, h: 40, scale: 1 } } });
+  const thSvg = SB.recallSvg(ahi, { custom: { stickers: { 0: withThumb } }, screen: true, builder: true });
+  study("each branch can show a small fact picture next to its line, without replacing the topic photo", thSvg.includes('class="rthumb"') && thSvg.includes('class="rphoto"') && thSvg.includes('class="rthumbadd"') && (thSvg.match(/class="rthumbadd"/g) || []).length >= 1, "thumb or topic photo missing");
+  const tb = SB.thumbBox({ w: 200, h: 200, scale: 3 }), tbMin = SB.thumbBox({ scale: 0.2 });
+  study("branch thumbnails stay small (16–48 px)", tb.w <= 48 && tb.h <= 48 && tbMin.w >= 16, JSON.stringify({ tb, tbMin }));
 }
 const PAGES_HTML = ["index.html", "sds/index.html", "rpsgt/index.html", "cna/index.html"];
 const missingRecall = PAGES_HTML.filter((p) => !fs.readFileSync(path.join(ROOT, p), "utf8").includes("js/recall.js"));
