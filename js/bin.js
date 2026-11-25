@@ -259,41 +259,21 @@
   const saveTip = () => { try { localStorage.setItem(TIP_KEY, JSON.stringify(TIP)); } catch (e) {} };
   const STYLES = [["picture", "Picture"], ["jingle", "Jingle"], ["flash", "Flashcard"], ["game", "Game"]];
   const styleName = (s) => (STYLES.find((x) => x[0] === s) || [s, s])[1];
-  function fromQuestion(q) {
-    if (!q) return null;
-    const task = q.sec || "";
-    if (!task && !q.domain && !q.tgroup) return null;
-    return { domain: q.domain || (task.split("-")[0] || ""), task, topic: q.tgroup || q.topic || "",
-      taskName: q.secName || task, domainName: q.domName || "", topicName: q.tgroup || q.topic || "" };
-  }
   function inferTaxonomy(k) {
-    try {
-      if (typeof Q === "function" && S && S.page === "quiz") {
-        const q = Q();
-        if (q && (q.scales || []).includes(k)) { const t = fromQuestion(q); if (t) return t; }
-      }
-    } catch (e) {}
-    try {
-      if (typeof QS !== "undefined" && QS && QS.length) {
-        const hits = QS.filter((q) => (q.scales || []).includes(k));
-        if (hits.length) {
-          const tally = {};
-          hits.forEach((q) => { const t = q.sec || ""; if (t) tally[t] = (tally[t] || 0) + 1; });
-          const top = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0];
-          const q = hits.find((x) => x.sec === top) || hits[0];
-          const t = fromQuestion(q); if (t) return t;
-        }
-      }
-    } catch (e) {}
-    return { domain: "", task: "", topic: "", taskName: "", domainName: "", topicName: "" };
+    // The card's own outline (or the exam blueprint) wins. Never use the current question,
+    // the stats-page focus, or a leftover tag from another topic.
+    const fn = W.taxonomyForScale;
+    const tax = fn ? fn(k, { exam: EXAM, scales: W.SCALES, qs: (typeof QS !== "undefined" ? QS : null) })
+      : { domain: "", task: "", topic: "", taskName: "Other", domainName: "", topicName: "", other: true };
+    return tax || { domain: "", task: "", topic: "", taskName: "Other", domainName: "", topicName: "", other: true };
   }
   function tagItem(k, extra) {
     const cur = STY[k] || {}, tax = inferTaxonomy(k);
-    STY[k] = Object.assign({}, cur, tax, extra || {});
-    if (cur.last && !STY[k].last) STY[k].last = cur.last;
-    if (cur.at && !STY[k].at) STY[k].at = cur.at;
-    // keep an earlier task if this save has no taxonomy
-    if (!tax.task && cur.task) { STY[k].task = cur.task; STY[k].taskName = cur.taskName; STY[k].domain = cur.domain; STY[k].domainName = cur.domainName; STY[k].topic = cur.topic; STY[k].topicName = cur.topicName; }
+    const keep = { last: (extra && extra.last) || cur.last, at: (extra && extra.at) || cur.at };
+    STY[k] = Object.assign({}, tax, keep);
+    if (tax.other || !tax.task) {
+      STY[k].task = ""; STY[k].taskName = "Other"; STY[k].other = true;
+    }
     saveStyle();
   }
   function rememberStyle(k, style) {
@@ -310,9 +290,12 @@
     return [];
   }
   const currentFocusTask = () => currentFocusTasks()[0] || "";
-  function isFocusItem(k) { const t = (STY[k] || {}).task; return t && currentFocusTasks().indexOf(t) >= 0; }
+  function isFocusItem(k) {
+    const m = STY[k] || {};
+    return !!(m.task && !m.other && m.task !== "Other" && currentFocusTasks().indexOf(m.task) >= 0);
+  }
   function ensureTags() {
-    Object.keys(B.cards).forEach((k) => { if (W.SCALES[k] && !(STY[k] && STY[k].task)) tagItem(k); });
+    Object.keys(B.cards).forEach((k) => { if (W.SCALES[k]) tagItem(k); });
   }
   importArcadeList = function (s) { const ks = parseArcadeList(s); ks.forEach((k) => { addCard(k); tagItem(k); }); return ks; };
   let LIST_FLAT = false;
@@ -680,7 +663,7 @@
     const grouped = (entries) => {
       const groups = [], seen = {};
       entries.forEach(([k]) => {
-        const t = (STY[k] || {}).task || "", name = (STY[k] || {}).taskName || t || "Other topics";
+        const t = (STY[k] || {}).task || "", name = (STY[k] || {}).other || t === "" ? "Other" : ((STY[k] || {}).taskName || t || "Other");
         if (!seen[t]) { seen[t] = { name, keys: [] }; groups.push(seen[t]); }
         seen[t].keys.push(k);
       });
@@ -691,15 +674,21 @@
     if (!cards.length) h += `<div class="binempty"><p><b>Your Study List is empty.</b> Tap <b>Add to Study List</b> after you answer a question, on an Ask answer, or on an info or study page. You’ll choose how to study it here — a picture, a jingle, flashcards, or a game.</p>
       <button type="button" class="gbig" data-act="binseed">Try a few examples</button><p class="ghelp">Apgar, Gas laws, Blood gas normals, AHI severity, and sleep stages.</p></div>`;
     else {
-      const hasFocus = !!(focusIds.length && inFocus.length);
-      h += `<p class="ghelp">All of your saved items are listed. Choose a style on any item.${hasFocus && !LIST_FLAT ? ` Your stats-page focus (<b>${esc(focusName)}</b>) is shown first — nothing else is hidden.` : ""}</p>`;
-      if (hasFocus && !LIST_FLAT) {
-        h += `<p class="binviewswitch"><button type="button" class="glink" data-act="binall">All items</button></p>`;
-        h += `<p class="binsec">Your focus</p><ul class="binlist">${inFocus.map(([k]) => itemCard(k, true)).join("")}</ul>`;
+      const hasFocusSet = !!focusIds.length;
+      const tabs = hasFocusSet ? `<div class="bintabs" role="tablist" aria-label="Study List view">
+        <button type="button" class="bintab${!LIST_FLAT ? " on" : ""}" role="tab" data-act="binfocusfirst" aria-selected="${!LIST_FLAT}">Your focus</button>
+        <button type="button" class="bintab${LIST_FLAT ? " on" : ""}" role="tab" data-act="binall" aria-selected="${LIST_FLAT}">All items</button>
+      </div>` : "";
+      h += tabs;
+      h += `<p class="ghelp">Choose a style on any item.${hasFocusSet && !LIST_FLAT ? ` Your stats-page focus (<b>${esc(focusName || focusIds.join(", "))}</b>) is shown first — nothing else is hidden.` : hasFocusSet ? " Every saved item is listed." : ""}</p>`;
+      if (hasFocusSet && !LIST_FLAT) {
+        h += `<p class="binsec">Your focus</p>`;
+        h += inFocus.length ? `<ul class="binlist">${inFocus.map(([k]) => itemCard(k, true)).join("")}</ul>`
+          : `<p class="ghelp">None of your saved items are in this Task yet. The rest of your list is still below.</p>`;
         if (rest.length) h += `<p class="binsec">More in your list</p>${grouped(rest)}`;
       } else {
-        if (hasFocus) h += `<p class="binviewswitch"><button type="button" class="glink" data-act="binfocusfirst">Show my focus first</button></p>`;
-        h += `<p class="binsec">All items</p>` + grouped(cards);
+        if (hasFocusSet) h += `<p class="binsec">All items</p>`;
+        h += grouped(cards);
       }
     }
     if (done.length) h += `<p class="asklabel">Mastered</p><p class="ghelp">${done.map(([k]) => "🏅 " + esc(W.SCALES[k].title)).join("<br>")}</p>`;

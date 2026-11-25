@@ -58,7 +58,7 @@ const ROW_CHECKS = [
 function load(exam) {
   const ctx = vm.createContext({ console }); ctx.window = ctx; ctx.EXAM = exam;
   ctx.localStorage = { getItem: () => null, setItem() {} };
-  for (const f of ["js/scales.js", "js/sleep_scales.js", "js/cna_scales.js", "js/acronyms.js", "js/card_meta.js"])
+  for (const f of ["js/scales.js", "js/sleep_scales.js", "js/cna_scales.js", "js/acronyms.js", "js/card_meta.js", "js/scale_outline.js"])
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), ctx, { filename: f });
   const v = fs.readFileSync(path.join(ROOT, "js/voice.js"), "utf8").split("\n");
   const a = v.findIndex((l) => l.startsWith("(function () {")), b = v.findIndex((l) => l.includes("window.OB_ASK_MATCH ="));
@@ -108,7 +108,7 @@ let st = 0;
 const study = (name, ok, why) => { st++; if (!ok) bad++; console.log(`${ok ? "ok  " : "FAIL"} [study] ${name}${ok ? "" : "  <- " + why}`); };
 function loadStudy(exam) {
   const ctx = vm.createContext({ console }); ctx.window = ctx; ctx.EXAM = exam;
-  for (const f of ["js/scales.js", "js/sleep_scales.js", "js/cna_scales.js", "js/acronyms.js", "js/memory_ideas.js", "js/recall.js"])
+  for (const f of ["js/scales.js", "js/sleep_scales.js", "js/cna_scales.js", "js/acronyms.js", "js/scale_outline.js", "js/memory_ideas.js", "js/recall.js"])
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), ctx, { filename: f });
   return ctx;
 }
@@ -396,7 +396,22 @@ study("Add to print page, Print pages tray, Print all, and swap-image are in the
   const learnerBin = bsrc.split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n");
   study("Study List: learner-facing names, same obBin key, new style and tip keys", !/study bin|Study this|Add to Arcade|In your Memory Arcade|Play to Learn/i.test(learnerBin) && bsrc.includes("Add to Study List") && bsrc.includes("Saved to Study List") && bsrc.includes("obBin:") && bsrc.includes("obStudyStyle:") && bsrc.includes("obStudyTip:") && !bsrc.includes("obBin2") && !bsrc.includes("obArcade:"), "study list names/keys");
   study("each saved item offers Picture, Jingle, Flashcard, and Game, with last style remembered", bsrc.includes('["picture", "Picture"]') && bsrc.includes('["jingle", "Jingle"]') && bsrc.includes('["flash", "Flashcard"]') && bsrc.includes('["game", "Game"]') && bsrc.includes("data-act=\"binstyle\"") && bsrc.includes("rememberStyle") && /TIP\.shown < 2/.test(bsrc) && bsrc.includes("You can pick how to study it"), "style picker or tip missing");
-  study("stats-page Task only sorts or highlights the list, never hides items, and All items is always available", bsrc.includes("Your focus") && bsrc.includes("More in your list") && bsrc.includes("All items") && bsrc.includes("data-act=\"binall\"") && bsrc.includes("nothing else is hidden") && bsrc.includes("currentFocusTasks") && !/VIEW = \"bin\".*filter.*focus/.test(bsrc), "focus hide/sort missing");
+  study("stats-page Task only sorts or highlights the list, never hides items, and All items is a tab", bsrc.includes("Your focus") && bsrc.includes("More in your list") && bsrc.includes("All items") && bsrc.includes("data-act=\"binall\"") && bsrc.includes('class="bintabs"') && bsrc.includes('role="tablist"') && !bsrc.includes('glink" data-act="binall"') && bsrc.includes("nothing else is hidden") && bsrc.includes("currentFocusTasks") && !/VIEW = \"bin\".*filter.*focus/.test(bsrc), "focus hide/sort missing");
+  study("all four apps load the card outline before the Study List", !PAGES_HTML.filter((f) => { const h = fs.readFileSync(path.join(ROOT, f), "utf8"); const a = h.indexOf("js/scale_outline.js"), b = h.indexOf("js/bin.js"); return a < 0 || a > b; }).length, "scale_outline.js missing or after bin.js");
+  {
+    const T = (function () {
+      const ctx = vm.createContext({ console, EXAM: "SDS" }); ctx.window = ctx;
+      vm.runInContext(fs.readFileSync(path.join(ROOT, "js/scale_outline.js"), "utf8"), ctx, { filename: "js/scale_outline.js" });
+      return ctx.taxonomyForScale;
+    })();
+    const ahi = T("ahi", { exam: "SDS" }), hsat = T("hsat", { exam: "SDS" }), st = T("staging", { exam: "SDS" });
+    const gas = T("gaslaws", { exam: "SDS" }), otherFocus = T("nosuch", { exam: "SDS" });
+    const polluted = T("ahi", { exam: "SDS", qs: [{ sec: "III-B", secName: "Sleep Staging", tgroup: "Sleep staging", scales: ["ahi", "staging"] }] });
+    study("AHI and HSAT keep their own Tasks, not Sleep Staging", ahi.task === "III-D" && ahi.taskName === "Sleep Event Reporting" && hsat.task === "I-A" && hsat.topic === "Home sleep testing" && st.task === "III-B" && polluted.task === "III-D", JSON.stringify({ ahi, hsat, st, polluted }));
+    study("a card with no outline falls back to Other and never matches a focus Task", gas.other === true && gas.task === "" && gas.taskName === "Other" && otherFocus.other === true && otherFocus.task !== "III-B", JSON.stringify({ gas, otherFocus }));
+    const infer = (bsrc.split("function inferTaxonomy")[1] || "").split("function tagItem")[0];
+    study("Study List tagging uses the card outline, not the current question or the stats-page focus", bsrc.includes("taxonomyForScale") && infer.includes("taxonomyForScale") && !infer.includes("Q()") && !infer.includes("S.build") && !infer.includes("currentFocus"), infer.slice(0, 200) || "inferTaxonomy missing");
+  }
   study("practice questions get the flag through scaleButtons, after the answer", /W\.scaleButtons = function \(q, c\)/.test(bsrc) && bsrc.includes("if (!c || !c.done) return h"), "wrap missing");
   study("Add to Study List on info sheets and study pages, hidden in print",
     bsrc.includes("origSheet") && bsrc.includes("W.scaleSheet") && rsrc.includes("starcade") && rsrc.includes("OB_BIN.flag")

@@ -325,6 +325,10 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .binsec { margin: 14px 0 6px; font-family: "Fredoka", var(--font); font-weight: 600; font-size: 16px; color: var(--bay, #0A4A63); }
 .binsec.sub { margin: 10px 0 4px; font-size: 14px; font-weight: 500; }
 .binviewswitch { margin: 2px 0 0; }
+.bintabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 8px; }
+.bintab { box-sizing: border-box; min-height: 44px; padding: 8px 12px; border-radius: 12px; border: 2px solid var(--bay, #0A4A63); background: #fff; color: var(--bay, #0A4A63); font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; text-align: center; }
+.bintab.on { background: var(--bay, #0A4A63); color: #fff; }
+.bintab:focus-visible { outline: 3px solid #8CC4FF; outline-offset: 2px; }
 .binmsg, .bintip { margin: 10px 0 0; padding: 12px 14px; border-radius: 14px; background: #FFF6D8; border: 1.5px solid #E8B13A; color: #3A2800; font-size: 14px; line-height: 1.4; }
 .bintip { display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; width: 100%; max-width: 100%; }
 .bintip p { margin: 0; overflow-wrap: anywhere; }
