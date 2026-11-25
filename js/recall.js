@@ -385,11 +385,12 @@
       x1: cx - L.side / 2, y1: cy - L.side / 2, x2: cx + L.side / 2, y2: cy + L.side / 2
     };
   }
+  const FACT_FS = 10.5, FACT_FS_SUB = 9; // fact text never shrinks to make room for a picture (Ken t243u)
   function textColFits(textColW, item) {
     const facts = factLines(item);
     if (!facts.length) return true;
     return facts.every((f, i) => {
-      const fs = i === 0 ? 10.5 : 9, bold = i === 0, cap = i === 0 ? 3 : 2;
+      const fs = i === 0 ? FACT_FS : FACT_FS_SUB, bold = i === 0, cap = i === 0 ? 3 : 2;
       const lines = wrap(String(f || ""), textColW, fs, bold);
       return lines.length <= cap && lines.every((l) => textW(l, fs, bold) <= textColW + 0.5);
     });
@@ -398,7 +399,7 @@
     const facts = factLines(item), blocks = [];
     (facts.length ? facts : [""]).forEach((f, i) => {
       if (!f && facts.length) return;
-      const fs = i === 0 ? 10.5 : 9, bold = i === 0, cap = i === 0 ? 3 : 2;
+      const fs = i === 0 ? FACT_FS : FACT_FS_SUB, bold = i === 0, cap = i === 0 ? 3 : 2;
       blocks.push({ lines: wrap(String(f || ""), colW, fs, bold).slice(0, cap), fs, bold });
     });
     if (!facts.length) return [];
@@ -411,13 +412,23 @@
     const facts = factLines(item);
     if (facts.length === 0) return true;
     if (facts.length > 2) return false;
-    return blocksH(factBlocks(item, bandW)) <= 10.5 * 1.28 * 2 + 6;
+    return blocksH(factBlocks(item, bandW)) <= FACT_FS * 1.28 * 2 + 6;
   }
   function containArea(srcW, srcH, slotW, slotH) {
     if (!(slotW > 0 && slotH > 0)) return 0;
     if (!(srcW > 0 && srcH > 0)) return slotW * slotH;
     const z = Math.min(slotW / srcW, slotH / srcH);
     return srcW * z * srcH * z;
+  }
+  // Cover on a tall photo in a short slot crops the head or the feet. Use contain so both stay visible (Ken, trip/cyano).
+  function photoFitMode(th, colW, colH, band, bodyW, bodyH) {
+    if (band) return "contain";
+    if (!(th && th.w > 0 && th.h > 0 && colW > 0 && colH > 0)) return "auto";
+    const cover = Math.max(colW / th.w, colH / th.h);
+    if (th.h * cover > colH + 1) return "contain";
+    const bodyArea = Math.max(1, (bodyW || colW) * (bodyH || colH));
+    if (containArea(th.w, th.h, colW, colH) / bodyArea >= 0.58) return "contain";
+    return "auto";
   }
   function srcSize(th) {
     if (th && th.w > 0 && th.h > 0) return { w: th.w, h: th.h };
@@ -455,8 +466,8 @@
     // Top band for short text, especially wide pictures: facts in a compact strip (one line when they fit), picture gets the rest (Ken t230u).
     const bandW = W - 2 * pad;
     const joined = facts.join("  ·  ");
-    const oneLine = short && facts.length && textW(joined, 10.5, true) <= bandW;
-    const bandBlocks = oneLine ? [{ lines: [joined], fs: 10.5, bold: true }] : factBlocks(item, bandW);
+    const oneLine = short && facts.length && textW(joined, FACT_FS, true) <= bandW;
+    const bandBlocks = oneLine ? [{ lines: [joined], fs: FACT_FS, bold: true }] : factBlocks(item, bandW);
     const bandH = short ? Math.max(16, blocksH(bandBlocks) + 6) : 0;
     const bandImgW = W - pad - tabGutter;
     const bandImgH = Math.max(24, bodyH - bandH);
@@ -677,9 +688,7 @@
     if (th && (th.src || (th.shape && th.shape !== "photo" && SHAPES[th.shape]))) {
       if (th.shape === "photo" && th.src) {
         const src = esc(th.src);
-        const bodyArea = w * Math.max(1, h - headH);
-        const cArea = containArea(th.w, th.h, colW, colH);
-        const mode = (band || (th.w > 0 && cArea / bodyArea >= 0.58)) ? "contain" : "auto";
+        const mode = photoFitMode(th, colW, colH, band, w, h - headH);
         const box = photoCover(th, { x: imgX, y: imgY, w: colW, h: colH }, mode);
         const fit = box.slice ? "xMidYMid slice" : "xMidYMid meet";
         g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${box.x.toFixed(1)}" y="${box.y.toFixed(1)}" width="${box.w.toFixed(1)}" height="${box.h.toFixed(1)}" preserveAspectRatio="${fit}" clip-path="url(#${clip})"/></g>`;
@@ -1100,7 +1109,7 @@
     return hits;
   }
 
-  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, photoCover, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
+  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, photoCover, photoFitMode, FACT_FS, FACT_FS_SUB, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }
@@ -1307,6 +1316,37 @@
     if (ST.focusPaste) { ST.focusPaste = false; setTimeout(() => { const box = document.getElementById("streplacebox") || document.getElementById("stpastebox"); if (box) box.focus(); }, 0); }
   }
   function enableUndo() { const b = document.querySelector('[data-act="stundo"]'); if (b) b.disabled = !(PG && PG.hist.length); }
+  function isLightMat(r, g, b, a) {
+    if (a < 8) return true;
+    const lum = (r + g + b) / 3, ch = Math.max(r, g, b) - Math.min(r, g, b);
+    return ch <= 12 && lum >= 218;
+  }
+  function flattenLightMat(ctx, w, h) {
+    let img;
+    try { img = ctx.getImageData(0, 0, w, h); } catch (e) { return 0; }
+    const d = img.data;
+    const seen = new Uint8Array(w * h);
+    const qx = [], qy = [];
+    const push = (x, y) => {
+      if (x < 0 || y < 0 || x >= w || y >= h) return;
+      const k = y * w + x;
+      if (seen[k]) return;
+      const i = k * 4;
+      if (!isLightMat(d[i], d[i + 1], d[i + 2], d[i + 3])) return;
+      seen[k] = 1; qx.push(x); qy.push(y);
+    };
+    for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+    for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+    let n = 0, qi = 0;
+    while (qi < qx.length) {
+      const x = qx[qi], y = qy[qi++];
+      const i = (y * w + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = 255; n++;
+      push(x - 1, y); push(x + 1, y); push(x, y - 1); push(x, y + 1);
+    }
+    if (n) ctx.putImageData(img, 0, 0);
+    return n;
+  }
   function trimLightBox(ctx, w, h) {
     let data;
     try { data = ctx.getImageData(0, 0, w, h).data; } catch (e) { return null; }
@@ -1316,7 +1356,7 @@
     const spread = Math.max.apply(null, corners.map((c) => Math.hypot(c[0] - bg[0], c[1] - bg[1], c[2] - bg[2])));
     if (spread > 40) return null;
     const lum = (bg[0] + bg[1] + bg[2]) / 3;
-    if (bg[3] > 8 && lum < 242) return null;
+    if (bg[3] > 8 && lum < 218) return null;
     let minx = w, miny = h, maxx = -1, maxy = -1;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4, a = data[i + 3];
@@ -1341,6 +1381,7 @@
       w = Math.max(1, Math.round(w * z)); h = Math.max(1, Math.round(h * z));
       let c = document.createElement("canvas"); c.width = w; c.height = h;
       const ctx = c.getContext("2d"); ctx.drawImage(im, 0, 0, w, h);
+      flattenLightMat(ctx, w, h);
       const trim = trimLightBox(ctx, w, h);
       if (trim) {
         const cropped = document.createElement("canvas"); cropped.width = trim.w; cropped.height = trim.h;

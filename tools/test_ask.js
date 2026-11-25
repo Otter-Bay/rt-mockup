@@ -241,6 +241,17 @@ function loadStudy(exam) {
   study("a photo with empty margins is zoomed to its content and still covers the slot", cov.w > 40 && cov.h > 40 && cov.x < 0, JSON.stringify(cov));
   const wide = SB.photoCover({ w: 200, h: 80 }, { x: 0, y: 0, w: 80, h: 80 }, "auto");
   study("a wide fact picture stays complete instead of cropping its sides", wide.w <= 80.1 && wide.h < 80, JSON.stringify(wide));
+  study("fact text uses a fixed 10.5/9 pt size that is never reduced to make room for a picture", SB.FACT_FS === 10.5 && SB.FACT_FS_SUB === 9, "FACT_FS=" + SB.FACT_FS + " SUB=" + SB.FACT_FS_SUB);
+  const longFacts = { text: "Alveolar gas equation", facts: ["The alveolar gas equation estimates PAO2 from PIO2, PaCO2 and the respiratory exchange ratio, and it is used at the bedside", "A second supporting detail that is also fairly long so the text column has to keep its size"] };
+  const shortFacts = { text: "Tachypnea", facts: ["RR > 20/min", "Earliest sign"] };
+  const longCard = SB.cardGeom(200, 200, "R", longFacts, { w: 400, h: 400 }, 280, 200);
+  const shortPic = SB.cardGeom(200, 200, "R", shortFacts, { w: 400, h: 400 }, 280, 200);
+  const longFs = (longCard.blocks || []).map((b) => b.fs);
+  const shortFs = (shortPic.blocks || []).map((b) => b.fs);
+  const fsOk = (arr) => arr.length && arr.every((fs, i) => fs === (i === 0 ? SB.FACT_FS : SB.FACT_FS_SUB));
+  study("a long-text card keeps 10.5/9 pt fact text and shrinks the picture instead", fsOk(longFs) && fsOk(shortFs) && longCard.imgW < shortPic.imgW && longCard.textColW > shortPic.textColW, JSON.stringify({ longFs, shortFs, longImg: longCard.imgW, shortImg: shortPic.imgW, longText: longCard.textColW, shortText: shortPic.textColW }));
+  const tallTh = { w: 275, h: 512 };
+  study("a tall photo in a short slot uses contain so the head and feet stay visible", SB.photoFitMode(tallTh, 166, 165, false, 277, 165) === "contain", SB.photoFitMode(tallTh, 166, 165, false, 277, 165));
   study("the card tab sits in a gutter and does not cover the picture", card.tabGutter >= 4 && card.imgW + card.tabGutter <= card.w - 4, JSON.stringify({ w: card.w, imgW: card.imgW, gutter: card.tabGutter }));
   const ends = fillL.nodes.map((n) => {
     const pts = (n.leader.match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
@@ -272,6 +283,7 @@ const vsrc = fs.readFileSync(path.join(ROOT, "js/voice.js"), "utf8");
 study("Ask offers Print study sheet and brings back Your study page", vsrc.includes("Print study sheet") && vsrc.includes("Your study page") && vsrc.includes("My study pages"), "button text missing");
 const rsrc = fs.readFileSync(path.join(ROOT, "js/recall.js"), "utf8");
 study("the image maker has paste/drop/choose, a size control, and Done", rsrc.includes("stpastebox") && rsrc.includes("Paste a sticker or photo, drop one here, or tap to choose") && rsrc.includes("data-stscale") && rsrc.includes('data-act="stdone"'), "ui missing");
+study("fact text size is a constant, not a shrinking fit", rsrc.includes("const FACT_FS = 10.5, FACT_FS_SUB = 9") && !/factBlocks[\s\S]{0,200}fitLines\(/.test(rsrc) && /function textColFits[\s\S]{0,400}FACT_FS/.test(rsrc), "FACT_FS missing or fact text uses a shrinking fitter");
 study("drawing a stroke does not re-render or navigate on pointer up", rsrc.includes("skipClick") && !/if \(pen\) \{ const k = pen\.k; pen = null; if \(k\.pts\.length > 1\)[\s\S]{0,180}render\(\)/.test(rsrc), "endPtr still calls render");
 study("Back and Done return to the Ask card, Memory Arcade, or Settings", vsrc.includes("returnFromStudy") && vsrc.includes('from === "bin"') && vsrc.includes('from === "settings"') && vsrc.includes("stdone"), "origin return missing");
 
