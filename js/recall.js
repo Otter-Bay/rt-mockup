@@ -338,7 +338,7 @@
     return [];
   }
   // Level shapes are fixed app-wide (Ken t209u, t216u): 0 = squircle, 1 = index card (rx 6), 2 = pill.
-  const HUB_RX_RATIO = 0.22, CARD_RX = 6, HUB_TAB = { w: 18, h: 26 }, CARD_TAB = { w: 18, h: 26, rx: 5 };
+  const HUB_RX_RATIO = 0.22, CARD_RX = 6, HUB_TAB = { w: 8, h: 14 }, CARD_TAB = { w: 8, h: 14, rx: 3 };
   function hubGeom(space, st, title, stacked) {
     const sw = space.x2 - space.x1, sh = space.y2 - space.y1;
     const reserve = stacked ? 12 : Math.max(86, Math.min(300, sw * 0.28));
@@ -415,15 +415,31 @@
     // side L means the card sits on the left; the edge nearest the hub is the right edge
     return card.side === "L" ? card.x2 : card.x1;
   }
-  function rectTabEl(edgeX, edgeY, dir, color, cls, attrs, tab) {
-    // dir: R/L/U/D = the direction the tab extends (into the shape)
+  function tabRect(edgeX, edgeY, dir, tab) {
+    // dir: R/L/U/D = the direction the tab extends (into the shape). Center is the line's endpoint.
     const deep = tab.w, along = tab.h, rx = tab.rx != null ? tab.rx : deep / 2;
     let x, y, w, h;
     if (dir === "R") { x = edgeX; y = edgeY - along / 2; w = deep; h = along; }
     else if (dir === "L") { x = edgeX - deep; y = edgeY - along / 2; w = deep; h = along; }
     else if (dir === "U") { x = edgeX - along / 2; y = edgeY - deep; w = along; h = deep; }
     else { x = edgeX - along / 2; y = edgeY; w = along; h = deep; }
-    return `<rect class="${cls}" ${attrs || ""} x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w}" height="${h}" rx="${rx}" fill="${color}"/>`;
+    return { x, y, w, h, rx, cx: x + w / 2, cy: y + h / 2, dir };
+  }
+  function rectTabEl(edgeX, edgeY, dir, color, cls, attrs, tab) {
+    const r = (tab && tab.cx != null && tab.dir === dir) ? tab : tabRect(edgeX, edgeY, dir, tab);
+    return `<rect class="${cls}" ${attrs || ""} x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w}" height="${r.h}" rx="${r.rx}" fill="${color}"/>`;
+  }
+  function tabElAt(r, color, cls, attrs) {
+    return `<rect class="${cls}" ${attrs || ""} x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w}" height="${r.h}" rx="${r.rx}" fill="${color}"/>`;
+  }
+  function elbowLeader(hubTab, cardTab, side) {
+    // Elbow lives in the gap between hub and card, never inside either shape, so corner
+    // cards are not cut across. Both ends are the rendered tab centers.
+    const gapLo = side === "L" ? cardTab.cx : hubTab.cx;
+    const gapHi = side === "L" ? hubTab.cx : cardTab.cx;
+    const elbowX = (gapLo + gapHi) / 2;
+    const d = `M${hubTab.cx.toFixed(1)} ${hubTab.cy.toFixed(1)}L${elbowX.toFixed(1)} ${hubTab.cy.toFixed(1)}L${elbowX.toFixed(1)} ${cardTab.cy.toFixed(1)}L${cardTab.cx.toFixed(1)} ${cardTab.cy.toFixed(1)}`;
+    return { d, elbowX, hx1: Math.min(elbowX, cardTab.cx), hx2: Math.max(elbowX, cardTab.cx), hy: cardTab.cy };
   }
   function composePhoto(b, st, mode) {
     if (mode === "list") {
@@ -484,9 +500,11 @@
         const hy = pin.y != null && pin.ang == null ? squircleAnchor(hub, side, space.y1 + (pin.y) * sh).y : squircleAnchor(hub, side, defaultY).y;
         const hA = squircleAnchor(hub, side, hy);
         const bA = { x: cardInnerEdge(card), y: card.cy, side };
-        const elbowX = side === "L" ? Math.min(bA.x - 16, Math.max(hub.x1 - 10, (hA.x + bA.x) / 2 + (hA.x - bA.x) * 0.08))
-          : Math.max(bA.x + 16, Math.min(hub.x2 + 10, (hA.x + bA.x) / 2 + (hA.x - bA.x) * 0.08));
-        const leader = `M${hA.x.toFixed(1)} ${hA.y.toFixed(1)}L${elbowX.toFixed(1)} ${bA.y.toFixed(1)}L${bA.x.toFixed(1)} ${bA.y.toFixed(1)}`;
+        const hubDir = side === "L" ? "R" : "L";
+        const cardDir = side === "L" ? "L" : "R";
+        const hubTab = tabRect(hA.x, hA.y, hubDir, HUB_TAB);
+        const cardTab = tabRect(bA.x, bA.y, cardDir, CARD_TAB);
+        const route = elbowLeader(hubTab, cardTab, side);
         const color = BRANCH[it.i % BRANCH.length];
         const kids = [];
         const deep = (it.item.kids || []).filter((k) => k.kids && k.kids.length);
@@ -496,7 +514,7 @@
           const pill = pillGeom(px, py, k);
           kids.push({ pill, item: k, color, leader: `M${card.cx.toFixed(1)} ${card.y2.toFixed(1)}L${pill.cx.toFixed(1)} ${pill.y1.toFixed(1)}` });
         });
-        nodes.push({ i: it.i, item: it.item, side, color, leader, card, hA, bA, elbowX, kids, depth: 0, hx1: Math.min(elbowX, bA.x), hx2: Math.max(elbowX, bA.x), hy: bA.y });
+        nodes.push({ i: it.i, item: it.item, side, color, leader: route.d, card, hA, bA, elbowX: route.elbowX, hubTab, cardTab, hubDir, cardDir, kids, depth: 0, hx1: route.hx1, hx2: route.hx2, hy: route.hy });
       });
     }
     if (stacked) {
@@ -514,10 +532,12 @@
         const bx = hub.cx - hub.w * 0.18 + frac * hub.w * 0.2;
         const hB = { x: Math.min(hub.x2 - hub.rx, Math.max(hub.x1 + hub.rx, bx)), y: hub.y2, side: "B" };
         const bA = { x: card.x1, y: card.cy, side: "L" };
-        const elbowX = Math.min(bA.x - 8, hB.x);
-        const leader = `M${hB.x.toFixed(1)} ${hB.y.toFixed(1)}L${hB.x.toFixed(1)} ${bA.y.toFixed(1)}L${bA.x.toFixed(1)} ${bA.y.toFixed(1)}`;
+        const hubTab = tabRect(hB.x, hB.y, "U", HUB_TAB);
+        const cardTab = tabRect(bA.x, bA.y, "R", CARD_TAB);
+        const elbowX = hubTab.cx;
+        const leader = `M${hubTab.cx.toFixed(1)} ${hubTab.cy.toFixed(1)}L${hubTab.cx.toFixed(1)} ${cardTab.cy.toFixed(1)}L${cardTab.cx.toFixed(1)} ${cardTab.cy.toFixed(1)}`;
         const color = BRANCH[i % BRANCH.length];
-        nodes.push({ i, item, side: "L", color, leader, card, hA: hB, bA, elbowX: hB.x, kids: [], depth: 0, hx1: hB.x, hx2: bA.x, hy: bA.y, stacked: true });
+        nodes.push({ i, item, side: "L", color, leader, card, hA: hB, bA, elbowX, hubTab, cardTab, hubDir: "U", cardDir: "R", kids: [], depth: 0, hx1: Math.min(hubTab.cx, cardTab.cx), hx2: Math.max(hubTab.cx, cardTab.cx), hy: cardTab.cy, stacked: true });
         y = card.y2 + 10;
       });
     } else {
@@ -548,8 +568,11 @@
     const textX = picOnRight ? x1 + pad : imgX + colW + pad;
     const img = colW;
     let g = `<g class="rcard" data-cap="${fi}" data-pin="${pin}">`;
-    g += `<rect class="rcardbg" x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" fill="#fff" stroke="${color}" stroke-width="2.6"/>`;
-    g += `<path class="rcardhead" d="M${(x1 + rx).toFixed(1)} ${y1.toFixed(1)}h${(w - 2 * rx).toFixed(1)}a${rx} ${rx} 0 0 1 ${rx} ${rx}v${(headH - rx).toFixed(1)}h${(-w).toFixed(1)}v${(-(headH - rx)).toFixed(1)}a${rx} ${rx} 0 0 0 ${rx} ${-rx}z" fill="${color}"/>`;
+    const cardClip = `rcardclip${fi}p${pin}`;
+    g += `<clipPath id="${cardClip}"><rect x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}"/></clipPath>`;
+    g += `<g class="rcardface" clip-path="url(#${cardClip})">`;
+    g += `<rect class="rcardbg" x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" fill="#fff"/>`;
+    g += `<rect class="rcardhead" x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${w.toFixed(1)}" height="${headH.toFixed(1)}" fill="${color}"/>`;
     if (!practice) {
       headFit.lines.forEach((ln, j) => {
         g += `<text class="rkw" x="${(x1 + w / 2).toFixed(1)}" y="${(y1 + 5 + headFit.fs * 0.85 + j * headFit.fs * 1.18).toFixed(1)}" text-anchor="middle" font-size="${headFit.fs.toFixed(1)}" font-weight="700" fill="#fff">${esc(ln)}</text>`;
@@ -577,6 +600,8 @@
     } else if (builder) {
       g += `<g class="rthumbadd" data-cap="${fi}" data-pin="${pin}" transform="translate(${(imgX + colW / 2).toFixed(1)} ${(imgY + colH / 2).toFixed(1)})"><rect x="${(-colW / 2).toFixed(1)}" y="${(-colH / 2).toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" rx="4" fill="#F4F7F8" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 2"/><path d="M-6 0h12M0-6v12" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/></g>`;
     }
+    g += `</g>`;
+    g += `<rect class="rcardstroke" x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" fill="none" stroke="${color}" stroke-width="2.6"/>`;
     g += `</g>`;
     return g;
   }
@@ -615,11 +640,10 @@
     });
     // Tabs on top of the outlines, just inside both ends (Ken t210u, t216u)
     L.nodes.forEach((node) => {
-      const pillTab = { w: HUB_TAB.w, h: HUB_TAB.h, rx: HUB_TAB.w / 2 };
-      const hubDir = node.hA.side === "B" ? "U" : node.hA.side === "T" ? "D" : (node.hA.x <= hub.cx ? "R" : "L");
-      g += `<g class="rpin" data-cap="${fi}" data-pin="${node.i}">${rectTabEl(node.hA.x, node.hA.y, hubDir, node.color, "rtab rtab-hub", "", pillTab)}</g>`;
-      const cardDir = node.bA.x >= node.card.cx ? "L" : "R";
-      g += rectTabEl(node.bA.x, node.bA.y, cardDir, node.color, "rtab rclip", `data-cap="${fi}" data-pin="${node.i}"`, CARD_TAB);
+      const hubTab = node.hubTab || tabRect(node.hA.x, node.hA.y, node.hubDir || (node.hA.side === "B" ? "U" : (node.hA.x <= hub.cx ? "R" : "L")), Object.assign({ rx: HUB_TAB.w / 2 }, HUB_TAB));
+      const cardTab = node.cardTab || tabRect(node.bA.x, node.bA.y, node.cardDir || (node.bA.x >= node.card.cx ? "L" : "R"), CARD_TAB);
+      g += `<g class="rpin" data-cap="${fi}" data-pin="${node.i}">${tabElAt(hubTab, node.color, "rtab rtab-hub", "")}</g>`;
+      g += tabElAt(cardTab, node.color, "rtab rclip", `data-cap="${fi}" data-pin="${node.i}"`);
     });
     g += `</g>`;
     return g;
@@ -983,7 +1007,7 @@
     return hits;
   }
 
-  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom }; }
+  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }

@@ -194,11 +194,12 @@ function loadStudy(exam) {
   study("a bullet list becomes index-card recall notes: facts live in the cards, not on the lines", items.items.length >= 2 && listSvg.includes('class="rcallout"') && listSvg.includes('class="rcard"') && listSvg.includes('class="rcardhead"') && listSvg.includes('class="rkw"') && listSvg.includes('class="rpin"') && listSvg.includes('class="rrule"') && listSvg.includes('class="rhub"') && !listSvg.includes('class="rcapbg"') && listPh.w < (listBox.x2 - listBox.x1) - 40, "list=" + items.items.length);
   study("the center is a squircle (extra-rounded square) with the title inside", listSvg.includes('class="rhub"') && listSvg.includes('class="rhubtitle"') && L.hub && L.hub.rx / L.hub.w > 0.18 && L.hub.rx / L.hub.w < 0.28, L.hub ? "rx=" + L.hub.rx + " side=" + L.hub.w : "no hub");
   study("index cards have sharp corners (rx about 6) to contrast with the squircle", listSvg.includes('rx="6"') || /class="rcardbg"[^>]*rx="6"/.test(listSvg), "card rx missing");
-  study("connector tabs sit just inside both ends, pill-shaped on the hub", listSvg.includes('rtab-hub') && listSvg.includes('rclip') && /rtab-hub"[^>]*rx="9"/.test(listSvg), "tabs missing");
+  study("connector tabs sit just inside both ends, pill-shaped on the hub", listSvg.includes('rtab-hub') && listSvg.includes('rclip') && /rtab rtab-hub"/.test(listSvg), "tabs missing");
   study("on a narrow screen the topic sits above stacked cards", L.stacked === true, "expected stacked on a phone-width fact space");
   const landSvg = SB.recallSvg(ahi, { custom: { stickers: { 0: listSt } }, landscape: true, print: true, builder: true });
   const landL = SB.calloutLayout(SB.last().boxes[0], listPh, listSt, items, true);
   study("print uses a wide landscape layout, not the stacked phone fallback", landSvg.includes('viewBox="0 0 1008') && landL.stacked === false, "print layout " + (SB.last().Wd || "?") + " stacked=" + landL.stacked);
+  study("print-scale tabs are about 8×14 with a pill hub end", /class="rtab rtab-hub"[^>]*width="8"[^>]*height="14"[^>]*rx="4"/.test(landSvg) && /class="rtab rclip"[^>]*width="8"[^>]*height="14"/.test(landSvg), "print tabs not 8x14");
   study("keywords stay short (Wood: keywords, not sentences)", SB.keywords("The mild range of the AHI is 5 to 15 events per hour of sleep", 7).split(" ").length <= 7, SB.keywords("The mild range of the AHI is 5 to 15 events per hour of sleep", 7));
   const nest = SB.capItems({ cap: "Airway\n  Tongue\n  Soft palate\nBreathing" }, {}, { label: ["OSA"], lines: [] });
   study("nested bullets become sub-branches off the parent line", nest.items.length === 2 && nest.items[0].kids.length === 2 && nest.items[0].kids[0].text === "Tongue", JSON.stringify(nest.items));
@@ -224,7 +225,15 @@ function loadStudy(exam) {
   const fillL = SB.calloutLayout(fillBox, SB.composePhoto(fillBox, fillSt, "list"), fillSt, SB.capItems(fillSt, oneMap.facts[0], fillBox), true);
   const card = fillL.nodes[0].card;
   study("card pictures fill about 40% of the card width and the body height", card.imgW / card.w >= 0.35 && card.imgW / card.w <= 0.45 && card.imgH >= card.h - card.headH - 1 && fillSvg.includes('preserveAspectRatio="xMidYMid slice"'), "imgW=" + card.imgW + " W=" + card.w + " imgH=" + card.imgH);
-  study("the card tab sits in a gutter and does not cover the picture", card.tabGutter >= 18 && card.imgW + card.tabGutter <= card.w - 4, JSON.stringify({ w: card.w, imgW: card.imgW, gutter: card.tabGutter }));
+  study("the card tab sits in a gutter and does not cover the picture", card.tabGutter >= 8 && card.imgW + card.tabGutter <= card.w - 4, JSON.stringify({ w: card.w, imgW: card.imgW, gutter: card.tabGutter }));
+  const ends = fillL.nodes.map((n) => {
+    const pts = (n.leader.match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+    const sx = pts[0], sy = pts[1], ex = pts[pts.length - 2], ey = pts[pts.length - 1];
+    const ok = n.hubTab && n.cardTab && Math.abs(sx - n.hubTab.cx) < 0.2 && Math.abs(sy - n.hubTab.cy) < 0.2 && Math.abs(ex - n.cardTab.cx) < 0.2 && Math.abs(ey - n.cardTab.cy) < 0.2;
+    return ok;
+  });
+  study("every connector starts at the hub tab center and ends at the card tab center", ends.length === fillL.nodes.length && ends.every(Boolean), JSON.stringify(fillL.nodes.map((n) => ({ i: n.i, leader: n.leader, hub: n.hubTab && [n.hubTab.cx, n.hubTab.cy], card: n.cardTab && [n.cardTab.cx, n.cardTab.cy] }))));
+  study("card header and picture are clipped to the rounded card", fillSvg.includes("rcardclip") && fillSvg.includes('class="rcardface"') && fillSvg.includes('class="rcardstroke"'), "card clip missing");
   study("the landscape map fills the page above the footer", fillBox.x2 - fillBox.x1 >= 900 && (fillBox.y2 - fillBox.y1) >= 0.72 * (fillH - fillBox.y1 - 16), "box=" + [fillBox.x1, fillBox.y1, fillBox.x2, fillBox.y2].map(Math.round).join(",") + " H=" + fillH);
   const retitled = Object.assign({}, ahi, { title: "Signs of Respiratory Distress", intro: "", facts: [{ label: "Signs of Respiratory Distress", details: [], sev: null, idea: { shape: "lungs" } }] });
   const rdSvg = SB.recallSvg(retitled, { landscape: true, print: true, noSong: true, noPics: true });
@@ -246,7 +255,9 @@ study("the image maker has paste/drop/choose, a size control, and Done", rsrc.in
 study("drawing a stroke does not re-render or navigate on pointer up", rsrc.includes("skipClick") && !/if \(pen\) \{ const k = pen\.k; pen = null; if \(k\.pts\.length > 1\)[\s\S]{0,180}render\(\)/.test(rsrc), "endPtr still calls render");
 study("Back and Done return to the Ask card, Memory Arcade, or Settings", vsrc.includes("returnFromStudy") && vsrc.includes('from === "bin"') && vsrc.includes('from === "settings"') && vsrc.includes("stdone"), "origin return missing");
 
-study("print maps go on a landscape letter page, in color, with the app chrome hidden", rsrc.includes("landscape: true") && fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8").includes("@page { size: letter landscape; margin: 0.4in; }") && fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8").includes("print-color-adjust: exact") && fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8").includes("body > *:not(#obPrint)"), "print css missing");
+const vcss = fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8");
+study("print maps go on a landscape letter page, in color, with the app chrome hidden", rsrc.includes("landscape: true") && vcss.includes("@page { size: letter landscape; margin: 0.4in; }") && vcss.includes("print-color-adjust: exact") && vcss.includes("body > *:not(#obPrint)"), "print css missing");
+study("print hides edit and resize handles", vcss.includes("html.obprinting .rthumbadd") && vcss.includes("display: none !important") && vcss.includes(".rhandle"), "print handle hide missing");
 study("Add to print page, Print pages tray, Print all, and swap-image are in the study sheet", rsrc.includes("staddprint") && rsrc.includes("stprinttray") && rsrc.includes("stprintall") && rsrc.includes("stprintswap") && rsrc.includes("obPrintPages:"), "print pages ui missing");
 
 // ---------- Memory Arcade (study bin) and games (js/bin.js) ----------

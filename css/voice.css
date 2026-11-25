@@ -266,8 +266,10 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
   .ppage.layout-4 { grid-template: 1fr 1fr / 1fr 1fr; }
   .pslot { overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 0; background: #fff; }
   .pslot .recallsvg, .pslot .tsheet { max-width: 100%; max-height: 100%; width: auto; height: auto; }
-  .rhubfill, .rcardbg, .rcardhead, .rtab, .rpin, .rpill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .rcardbg { stroke-width: 2.8px; }
+  .rhubfill, .rcardbg, .rcardhead, .rcardstroke, .rtab, .rpin, .rpill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rcardbg, .rcardstroke { stroke-width: 2.8px; }
+  html.obprinting .rthumbadd, html.obprinting .rhandle, html.obprinting .rsz,
+  #obPrint .rthumbadd, #obPrint .rhandle, #obPrint .rsz { display: none !important; }
 }
 
 /* Print pages tray and add-to-page buttons */
