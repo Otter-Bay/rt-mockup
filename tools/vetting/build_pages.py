@@ -19,8 +19,8 @@ for f in sys.argv[3:]:
     p = pathlib.Path(f); s = p.read_text(encoding="utf-8")
     s = re.sub(re.escape(START) + r".*?" + re.escape(END), "", s, flags=re.S)
     s = re.sub(r"<script>\n/\* Ask in the vetting pages\..*?</script>\n", "", s, flags=re.S)   # older form of the Ask addition
-    if COUNT in s: s = s.replace(COUNT, COUNT_BTN, 1)
-    if CHART in s: s = s.replace(CHART, CHART_VET, 1)
+    if COUNT in s and 'data-act="backquiz" aria-label="Back to question' not in s: s = s.replace(COUNT, COUNT_BTN, 1)   # once only, so re-runs don't nest it
+    if CHART in s and CHART_VET not in s: s = s.replace(CHART, CHART_VET, 1)
     if "obGotoBox" not in s: s = s.replace(CHIPS, '${window.obGotoBox ? window.obGotoBox() : ""}' + CHIPS, 1)
     s = s.replace('\n    <div class="row"><button type="button" class="btn grey" data-act="backquiz">Back to questions</button></div>', "")   # replaced by the top-bar button
     # Image viewer: open sideways only when the screen is upright; a sideways phone or a computer shows it straight (Ken, Nov 22)

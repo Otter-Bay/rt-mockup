@@ -32,7 +32,7 @@
     if (!W.SCALES || !W.SCALES[k]) return "";
     const on = inBin(k);
     const btn = `<button type="button" class="binflag${on ? " on" : ""}" data-act="binflag" data-k="${k}" aria-pressed="${on}"><span aria-hidden="true">${on ? "★" : "☆"}</span><span><b>${on ? "Saved to Study List" : "Add to Study List"}</b><small>${esc(W.SCALES[k].title)}</small></span></button>`;
-    return (JUST_TIP && JUST_KEY === k) ? `<div class="binflagwrap">${btn}${tipBanner()}</div>` : btn;
+    return btn;
   }
   function keysFor(q) {
     const out = [], seen = {};
@@ -57,7 +57,7 @@
   function bar() {
     const n = liveKeys().length;
     return `<div class="obarcbar"><p><b>Study List:</b> ${n ? n + " topic" + (n === 1 ? "" : "s") + " saved on this page." : "tap Add to Study List to save this topic."}</p>
-      ${n ? `<div class="obarcacts"><button type="button" class="obarcbtn" data-act="obarccopy">${copied ? "Copied" : "Copy list"}</button>
+      ${n ? `<div class="obarcacts"><button type="button" class="obarcbtn" data-act="obarcopen">See Study List</button><button type="button" class="obarcbtn" data-act="obarccopy">${copied ? "Copied" : "Copy list"}</button>
         <a class="obarcbtn" href="${esc(appHref())}" target="_blank" rel="noopener">Open in ${esc(APP_NAME)}</a></div>
         <p class="obarcnote">A Claude artifact or a file on your computer can't share saved cards with the app automatically. Copy the list or open the link. The list is an OBARC1 code of topic keys only. If the link does not add them, use Import on the Study List screen.</p>`
         : `<p class="obarcnote">This page can't share storage with the app. After you add topics, Copy list and Open in ${esc(APP_NAME)} will appear here.</p>`}
@@ -84,7 +84,18 @@
 .obaskcard .binflag{margin:0 0 8px}
 .binflagwrap{display:flex;flex-direction:column;gap:8px;width:100%;max-width:100%;box-sizing:border-box}
 .bintip{margin:0;padding:12px 14px;border-radius:14px;background:#FFF6D8;border:1.5px solid #E8B13A;color:#3A2800;font-size:14px;line-height:1.4}
-.bintip p{margin:0;overflow-wrap:anywhere}`;
+.bintip p{margin:0;overflow-wrap:anywhere}
+.obarcpop{position:fixed;inset:0;z-index:1000;background:rgba(18,32,46,.5);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;font-family:var(--font,Arial,sans-serif)}
+.obarcdlg{background:#fff;color:#12202E;width:100%;max-width:480px;max-height:100%;overflow-y:auto;border-radius:20px;padding:18px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.obarchead{display:flex;align-items:flex-start;gap:10px}.obarchead h2{margin:0;font-size:20px;flex:1}
+.obarcx{width:44px;height:44px;border-radius:22px;border:0;background:#EEF1F4;color:#24313E;font-size:18px;cursor:pointer;flex-shrink:0}
+.obarcsub{margin:0;font-size:14px;color:#4A5663}
+.obarclist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.obarclist li{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1.5px solid #E3E7EB;background:#fff}
+.obarclist li.new{border:2px solid #F5B83D;background:#FFFBF0}
+.obarclist .t{flex:1;min-width:0;font-size:15px}.obarclist .t b{display:block;overflow-wrap:anywhere}.obarclist .t small{display:block;font-size:12px;font-weight:700;color:#8A5A00}
+.obarcrm{min-height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #C9D2DC;background:#fff;color:#4A5663;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.obarcback{width:100%}`;
   document.head.appendChild(css);
 
   const origScale = W.scaleButtons;
@@ -102,23 +113,61 @@
     return h.replace('<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button>', btn + '<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button>');
   };
 
-  W.PAGE_ACTIONS = Object.assign(W.PAGE_ACTIONS || {}, {
-    binflag: (b) => {
-      const k = b && b.dataset && b.dataset.k;
-      const was = k && inBin(k);
-      toggle(k);
-      copied = false;
-      if (k && !was && inBin(k) && !TIP.picked && TIP.shown < 2) { TIP.shown += 1; saveTip(); JUST_TIP = true; JUST_KEY = k; }
-      else { JUST_TIP = false; JUST_KEY = ""; }
-    },
-    obarccopy: () => {
-      const code = listCode();
-      copied = true;
-      const done = () => { const el = document.querySelector("[data-act=obarccopy]"); if (el) el.textContent = "Copied"; };
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done).catch(done); else done();
-      return false;  // keep the page from a full re-render so "Copied" stays visible
+  /* Clicks (Ken, Nov 25): the vetting page's own click handler doesn't know these buttons, so this file handles them.
+     Saving a topic opens a pop-up with the whole Study List, so it's clear it was saved; "Back to the question"
+     closes it and leaves the page exactly where it was (nothing behind the pop-up is redrawn except the button itself). */
+  let pop = null, popKey = "", popMsg = "";
+  function refresh() {
+    document.querySelectorAll(".binflag[data-k]").forEach((el) => { el.outerHTML = flag(el.dataset.k); });
+    document.querySelectorAll(".obarcbar").forEach((el) => { el.outerHTML = bar(); });
+  }
+  function drawPop() {
+    if (!pop) return;
+    const ks = liveKeys().sort((a, b) => B.cards[b].added - B.cards[a].added);
+    const items = ks.map((k) => `<li class="${k === popKey ? "new" : ""}"><span class="t"><b>${esc(W.SCALES[k].title)}</b>${k === popKey ? "<small>Just added</small>" : ""}</span>
+      <button type="button" class="obarcrm" data-obarc="rm" data-k="${k}" aria-label="Remove ${esc(W.SCALES[k].title)}">Remove</button></li>`).join("");
+    pop.innerHTML = `<div class="obarcdlg" role="dialog" aria-modal="true" aria-labelledby="obarcT">
+      <div class="obarchead"><h2 id="obarcT">${popMsg ? esc(popMsg) : "Your Study List"}</h2>
+        <button type="button" class="obarcx" data-obarc="close" aria-label="Close">✕</button></div>
+      ${ks.length ? `<p class="obarcsub">${ks.length} topic${ks.length === 1 ? "" : "s"} saved from this page.</p><ul class="obarclist">${items}</ul>
+        <div class="obarcacts"><button type="button" class="obarcbtn" data-obarc="copy">${copied ? "Copied" : "Copy list"}</button>
+          <a class="obarcbtn" href="${esc(appHref())}" target="_blank" rel="noopener">Open in ${esc(APP_NAME)}</a></div>
+        <p class="obarcnote">To study them, Open in ${esc(APP_NAME)} (or Copy list and use Import on the app's Study List screen). This page can't share storage with the app.</p>`
+        : `<p class="obarcsub">Nothing saved yet. Tap Add to Study List under a question's reference card.</p>`}
+      <button type="button" class="btn obarcback" data-obarc="close">Back to the question</button></div>`;
+  }
+  function openPop(k, msg) {
+    popKey = k || ""; popMsg = msg || "";
+    if (!pop) { pop = document.createElement("div"); pop.className = "obarcpop"; document.body.appendChild(pop); }
+    drawPop();
+    const b = pop.querySelector(".obarcback"); if (b) b.focus();
+  }
+  function closePop() { if (pop) pop.remove(); pop = null; popKey = ""; popMsg = ""; }
+  function copyList(el) {
+    const code = listCode(); copied = true;
+    const done = () => { document.querySelectorAll('[data-obarc="copy"],[data-act="obarccopy"]').forEach((x) => { x.textContent = "Copied"; }); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done).catch(done); else done();
+  }
+  document.addEventListener("click", (e) => {
+    const f = e.target.closest('[data-act="binflag"]');
+    if (f) {
+      e.preventDefault(); e.stopPropagation();
+      const k = f.dataset.k, was = inBin(k);
+      toggle(k); copied = false; refresh();
+      if (!was && inBin(k)) openPop(k, "Saved to your Study List");
+      return;
     }
-  });
+    if (e.target.closest('[data-act="obarccopy"]')) { e.preventDefault(); e.stopPropagation(); copyList(); return; }
+    if (e.target.closest('[data-act="obarcopen"]')) { e.preventDefault(); e.stopPropagation(); openPop("", ""); return; }
+    const b = e.target.closest("[data-obarc]");
+    if (!b) { if (pop && e.target === pop) closePop(); return; }
+    e.preventDefault(); e.stopPropagation();
+    const a = b.dataset.obarc;
+    if (a === "close") closePop();
+    else if (a === "copy") copyList();
+    else if (a === "rm") { delete B.cards[b.dataset.k]; save(); copied = false; if (popKey === b.dataset.k) { popKey = ""; popMsg = ""; } refresh(); drawPop(); }
+  }, true);
+  document.addEventListener("keydown", (e) => { if (pop && e.key === "Escape") { e.stopPropagation(); closePop(); } }, true);
 
   W.OB_VET_ARCADE = { flag, keysFor, listCode, inBin, toggle };
 })();
