@@ -215,6 +215,22 @@ function loadStudy(exam) {
   const conf = SB.findImageConflicts([{ id: idA, where: "a" }], [{ ids: [idA], label: "Page 2" }]);
   study("a repeated image on another print page is flagged", conf.length === 1 && conf[0].other === "Page 2", JSON.stringify(conf));
   study("print pages use a new storage key", SB.printPageKey() === "obPrintPages:SDS", SB.printPageKey());
+  const thumbs = {};
+  for (let i = 0; i < 4; i++) thumbs[i] = { shape: "photo", src: "data:image/png;base64,BBBB", w: 200, h: 200, scale: 1 };
+  const fillSt = Object.assign({}, listSt, { thumbs });
+  const oneMap = Object.assign({}, ahi, { title: "Signs of Respiratory Distress", intro: "", note: "", src: "", abbrs: [], related: [], facts: [{ label: "Signs of Respiratory Distress", details: [], sev: null, idea: { shape: "lungs" } }] });
+  const fillSvg = SB.recallSvg(oneMap, { custom: { stickers: { 0: fillSt } }, landscape: true, print: true, builder: true, noPics: true, noSong: true });
+  const fillBox = SB.last().boxes[0], fillH = SB.last().H;
+  const fillL = SB.calloutLayout(fillBox, SB.composePhoto(fillBox, fillSt, "list"), fillSt, SB.capItems(fillSt, oneMap.facts[0], fillBox), true);
+  const card = fillL.nodes[0].card;
+  study("card pictures fill about 40% of the card width and the body height", card.imgW / card.w >= 0.35 && card.imgW / card.w <= 0.45 && card.imgH >= card.h - card.headH - 1 && fillSvg.includes('preserveAspectRatio="xMidYMid slice"'), "imgW=" + card.imgW + " W=" + card.w + " imgH=" + card.imgH);
+  study("the card tab sits in a gutter and does not cover the picture", card.tabGutter >= 18 && card.imgW + card.tabGutter <= card.w - 4, JSON.stringify({ w: card.w, imgW: card.imgW, gutter: card.tabGutter }));
+  study("the landscape map fills the page above the footer", fillBox.x2 - fillBox.x1 >= 900 && (fillBox.y2 - fillBox.y1) >= 0.72 * (fillH - fillBox.y1 - 16), "box=" + [fillBox.x1, fillBox.y1, fillBox.x2, fillBox.y2].map(Math.round).join(",") + " H=" + fillH);
+  const retitled = Object.assign({}, ahi, { title: "Signs of Respiratory Distress", intro: "", facts: [{ label: "Signs of Respiratory Distress", details: [], sev: null, idea: { shape: "lungs" } }] });
+  const rdSvg = SB.recallSvg(retitled, { landscape: true, print: true, noSong: true, noPics: true });
+  const ahiSvg = SB.recallSvg(ahi, { landscape: true, print: true, noSong: true, noPics: true });
+  study("a retitled map does not keep another topic's footer", !/Apnea-hypopnea|American Academy of Sleep Medicine|Children use lower cutoffs/.test(rdSvg) && rdSvg.includes("Source: Otter Bay"), "leak in custom map footer");
+  study("a topic's own footer still prints when the title matches", ahiSvg.includes("Apnea-hypopnea") && ahiSvg.includes("American Academy of Sleep Medicine"), "AHI footer missing");
 }
 
 

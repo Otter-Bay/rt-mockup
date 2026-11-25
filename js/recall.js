@@ -341,10 +341,10 @@
   const HUB_RX_RATIO = 0.22, CARD_RX = 6, HUB_TAB = { w: 18, h: 26 }, CARD_TAB = { w: 18, h: 26, rx: 5 };
   function hubGeom(space, st, title, stacked) {
     const sw = space.x2 - space.x1, sh = space.y2 - space.y1;
-    const reserve = stacked ? 12 : 78;
-    const maxSide = Math.min(sw - 2 * reserve, stacked ? sh * 0.48 : sh - 20, 240);
+    const reserve = stacked ? 12 : Math.max(86, Math.min(300, sw * 0.28));
+    const maxSide = Math.min(sw - 2 * reserve, stacked ? sh * 0.48 : sh * 0.82, stacked ? 200 : 420);
     const minSide = 108;
-    const sc = clampScale(st && st.scale != null ? st.scale : 0.7);
+    const sc = clampScale(st && st.scale != null ? st.scale : (stacked ? 0.7 : 0.85));
     let side = Math.max(minSide, Math.min(maxSide, minSide + (maxSide - minSide) * ((sc - 0.25) / 0.75)));
     const pad = Math.max(8, side * 0.06);
     function layout(side) {
@@ -370,24 +370,21 @@
       x1: cx - L.side / 2, y1: cy - L.side / 2, x2: cx + L.side / 2, y2: cy + L.side / 2
     };
   }
-  function cardImgBox(th) {
+  function cardImgBox(th, cardW) {
     const sc = clampThumb(th && th.scale != null ? th.scale : 1);
-    let w = 52 * sc, h = w;
-    if (th && th.w > 0 && th.h > 0) h = w * (th.h / th.w);
-    if (w > 72) { h *= 72 / w; w = 72; }
-    if (h > 72) { w *= 72 / h; h = 72; }
-    if (w < 28) { h *= 28 / (w || 28); w = 28; }
-    return { w, h, scale: sc };
+    const col = Math.max(52, Math.round((cardW || 176) * 0.40));
+    return { w: col, h: col, scale: sc, col };
   }
   function cardGeom(cx, cy, side, item, th, maxW) {
-    const W = Math.min(210, Math.max(148, maxW || 176));
-    const rx = CARD_RX, pad = 7, imgBox = cardImgBox(th || { scale: 1 });
-    const img = Math.min(64, Math.max(40, imgBox.w, imgBox.h));
+    const W = Math.min(280, Math.max(156, maxW || 200));
+    const rx = CARD_RX, pad = 7, tabGutter = CARD_TAB.w + 3;
+    const imgBox = cardImgBox(th || { scale: 1 }, W);
+    const imgW = imgBox.w, img = imgW;
     const label = cardLabel(item);
     const facts = factLines(item);
     const headFit = fitLines(label, W - 16, 11, 7, 2, true);
     const headH = Math.max(22, headFit.h + 8);
-    const textColW = Math.max(48, W - pad * 3 - img);
+    const textColW = Math.max(48, W - pad * 2 - imgW - tabGutter);
     const blocks = [];
     (facts.length ? facts : [""]).forEach((f, i) => {
       if (!f && facts.length) return;
@@ -397,9 +394,10 @@
     });
     if (!facts.length) blocks.length = 0;
     const textH = blocks.reduce((a, b) => a + b.lines.length * b.fs * 1.28 + 3, 0);
-    const bodyH = Math.max(img + pad * 2, textH + pad * 2, 52);
+    const bodyH = Math.max(imgW, textH + pad * 2, 64);
+    const imgH = bodyH;
     const H = headH + bodyH;
-    return { shape: "card", cx, cy, w: W, h: H, rx, headH, headFit, blocks, img, imgBox, pad, side, textColW, label,
+    return { shape: "card", cx, cy, w: W, h: H, rx, headH, headFit, blocks, img, imgW, imgH, imgBox, pad, tabGutter, side, textColW, label,
       x1: cx - W / 2, y1: cy - H / 2, x2: cx + W / 2, y2: cy + H / 2 };
   }
   function pillGeom(cx, cy, item) {
@@ -465,7 +463,7 @@
     const left = [], right = [];
     items.forEach((item, i) => { (assignSide(i) === "L" ? left : right).push({ item, i }); });
     const nodes = [];
-    const cardW = stacked ? Math.min(sw - 36, 280) : Math.min(200, Math.max(150, (sw - hub.w - 48) / 2));
+    const cardW = stacked ? Math.min(sw - 36, 280) : Math.min(280, Math.max(168, (sw - hub.w - 56) / 2));
     function placeGroup(list, side) {
       const m = list.length;
       if (stacked) return;
@@ -540,11 +538,15 @@
       <rect class="rcapbg" x="${L.x.toFixed(1)}" y="${L.y.toFixed(1)}" width="${L.w.toFixed(1)}" height="${L.h.toFixed(1)}" rx="6" fill="#fff" fill-opacity=".86"/>${body}</g>`;
   }
   function cardFace(card, th, color, fi, pin, practice, builder) {
-    const { x1, y1, w, h, rx, headH, headFit, blocks, img, pad, side } = card;
+    const { x1, y1, w, h, rx, headH, headFit, blocks, pad, side } = card;
+    const colW = card.imgW != null ? card.imgW : card.img;
+    const colH = card.imgH != null ? card.imgH : (h - headH);
+    const gutter = card.tabGutter != null ? card.tabGutter : CARD_TAB.w + 3;
     const picOnRight = side === "L"; // nearest the hub
-    const imgX = picOnRight ? x1 + w - pad - img : x1 + pad;
-    const imgY = y1 + headH + (h - headH - img) / 2;
-    const textX = picOnRight ? x1 + pad : x1 + pad * 2 + img;
+    const imgX = picOnRight ? x1 + w - gutter - colW : x1 + gutter;
+    const imgY = y1 + headH;
+    const textX = picOnRight ? x1 + pad : imgX + colW + pad;
+    const img = colW;
     let g = `<g class="rcard" data-cap="${fi}" data-pin="${pin}">`;
     g += `<rect class="rcardbg" x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" fill="#fff" stroke="${color}" stroke-width="2.6"/>`;
     g += `<path class="rcardhead" d="M${(x1 + rx).toFixed(1)} ${y1.toFixed(1)}h${(w - 2 * rx).toFixed(1)}a${rx} ${rx} 0 0 1 ${rx} ${rx}v${(headH - rx).toFixed(1)}h${(-w).toFixed(1)}v${(-(headH - rx)).toFixed(1)}a${rx} ${rx} 0 0 0 ${rx} ${-rx}z" fill="${color}"/>`;
@@ -564,16 +566,16 @@
       });
     }
     const clip = `rcimg${fi}p${pin}`;
-    g += `<clipPath id="${clip}"><rect x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${img.toFixed(1)}" height="${img.toFixed(1)}" rx="4"/></clipPath>`;
+    g += `<clipPath id="${clip}"><rect x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" rx="4"/></clipPath>`;
     if (th && (th.src || (th.shape && th.shape !== "photo" && SHAPES[th.shape]))) {
       if (th.shape === "photo" && th.src) {
         const src = esc(th.src);
-        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${img.toFixed(1)}" height="${img.toFixed(1)}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clip})"/></g>`;
+        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clip})"/></g>`;
       } else {
-        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${SHAPES[th.shape](imgX, imgY + 4, img, Math.max(12, img * 0.7), th.c || color)}</g>`;
+        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${SHAPES[th.shape](imgX, imgY + 4, colW, Math.max(12, colH * 0.7), th.c || color)}</g>`;
       }
     } else if (builder) {
-      g += `<g class="rthumbadd" data-cap="${fi}" data-pin="${pin}" transform="translate(${(imgX + img / 2).toFixed(1)} ${(imgY + img / 2).toFixed(1)})"><rect x="${(-img / 2).toFixed(1)}" y="${(-img / 2).toFixed(1)}" width="${img.toFixed(1)}" height="${img.toFixed(1)}" rx="4" fill="#F4F7F8" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 2"/><path d="M-6 0h12M0-6v12" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/></g>`;
+      g += `<g class="rthumbadd" data-cap="${fi}" data-pin="${pin}" transform="translate(${(imgX + colW / 2).toFixed(1)} ${(imgY + colH / 2).toFixed(1)})"><rect x="${(-colW / 2).toFixed(1)}" y="${(-colH / 2).toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" rx="4" fill="#F4F7F8" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 2"/><path d="M-6 0h12M0-6v12" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/></g>`;
     }
     g += `</g>`;
     return g;
@@ -651,6 +653,14 @@
     lh = lh || fs * 1.25;
     return { h: ls.length * lh, svg: ls.map((l, i) => `<text x="${x}" y="${y + i * lh}" font-size="${fs}" ${attrs || ""}>${esc(l)}</text>`).join("") };
   }
+  function topicMeta(m) {
+    const card = (W.SCALES || {})[m && m.k];
+    const cardTitle = card ? plain(card.title) : "";
+    const title = (m && m.title) || "";
+    const same = !card || !title || !cardTitle || title === cardTitle || cardTitle.indexOf(title) === 0 || title.indexOf(cardTitle) === 0;
+    if (!same) return { abbrs: [], related: [], note: "", src: "" };
+    return { abbrs: (m && m.abbrs) || [], related: (m && m.related) || [], note: (m && m.note) || "", src: (m && m.src) || "" };
+  }
   function recallSvg(m, opts) {
     opts = opts || {};
     const practice = opts.mode === "practice", scr = !!opts.screen, land = !scr && !!(opts.landscape || opts.print);
@@ -666,15 +676,16 @@
     const head = hy + 20;
     hd += `<line x1="${M}" y1="${head - 6}" x2="${Wd - M}" y2="${head - 6}" stroke="#D5DDE2"/>`;
     // footer rows (measured first, drawn after the layout)
+    const meta = topicMeta(m);
     const FW = Wd - 2 * M, rows = [];
-    const links = [...m.abbrs.map((a) => `${a.abbr} = ${a.meaning}`), ...m.related.map((t) => "See also: " + t)];
+    const links = [...meta.abbrs.map((a) => `${a.abbr} = ${a.meaning}`), ...meta.related.map((t) => "See also: " + t)];
     if (links.length) rows.push({ h: 20 * (scr ? 2 : 1), links: true });
-    if (m.note) { const t = lines(0, 0, (practice ? "⚠ Remember:" : "⚠ Remember: " + m.note), 9, FW, "", 11.5); rows.push({ h: t.h + 5, text: practice ? "⚠ Remember:" : "⚠ Remember: " + m.note, fs: 9, fill: "#24313E", line: practice }); }
+    if (meta.note) { const t = lines(0, 0, (practice ? "⚠ Remember:" : "⚠ Remember: " + meta.note), 9, FW, "", 11.5); rows.push({ h: t.h + 5, text: practice ? "⚠ Remember:" : "⚠ Remember: " + meta.note, fs: 9, fill: "#24313E", line: practice }); }
     const used = [...new Set(m.facts.map((f) => f.sev).filter(Boolean))];
     if (used.length) rows.push({ h: 16, key: true });
     const steps = "How to use: 1) Draw your own picture around each fact (odd or funny sticks best). 2) Later, print Practice and fill it in from memory. 3) Check it against Filled and add what you missed in another color.";
     const why = "Why it works: drawing and making your own notes, then recalling them, help memory (Wammes et al. 2016; Slamecka & Graf 1978; Roediger & Karpicke 2006).";
-    const src = "Source: " + (m.src || "Otter Bay") + ". Written by Otter Bay in our own words. For learning only; follow your facility's protocols.";
+    const src = "Source: " + (meta.src || "Otter Bay") + ". Written by Otter Bay in our own words. For learning only; follow your facility's protocols.";
     const song = m.song && m.song.print && !opts.noSong ? songItems(m, practice) : null;
     if (song) { const cols = Wd >= 600 ? (Math.max(...song.map((t) => textW(t, 8.4))) < (FW - 28) / 3 ? 3 : 2) : 1, cw = (FW - (cols - 1) * 14) / cols, per = Math.ceil(song.length / cols);
       const colsL = Array.from({ length: cols }, (_, c) => song.slice(c * per, (c + 1) * per).map((t) => wrap(t, cw - 4, 8.4)));
@@ -729,7 +740,9 @@
       g += `<g class="rfact${opts.sel === i ? " sel" : ""}" data-fi="${i}">`;
       // the draw-your-own space
       g += `<clipPath id="${uid}c${i}"><rect x="${b.x1}" y="${b.y1}" width="${b.x2 - b.x1}" height="${b.y2 - b.y1}" rx="12"/></clipPath>`;
+      if (!(listed0 && land && !scr)) {
       g += `<rect class="rspace" x="${b.x1}" y="${b.y1}" width="${b.x2 - b.x1}" height="${b.y2 - b.y1}" rx="12" fill="${opts.builder ? "#fff" : "none"}" fill-opacity="${opts.builder ? ".01" : "0"}" stroke="${opts.sel === i ? BAY : "#A9B4BD"}" stroke-width="${opts.sel === i ? 2 : 1}" stroke-dasharray="4 4"/>`;
+      }
       const ix = (b.cx1 - b.x1) * 0.45, iy = (b.cy1 - b.y1) * 0.4;
       const hr = [b.cx1 - ix, b.cy1 - iy, b.cx2 - b.cx1 + 2 * ix, b.cy2 - b.cy1 + 2 * iy];
       const tree = (st && st.shape === "photo" && st.src) ? capItems(st, f, b) : null;
@@ -827,7 +840,7 @@
     const obst = [];
     for (let d = 10; d < titleLen + 20; d += 14) { const px = x0 + ux * d, py = y0 + uy * d; obst.push([px - 9, py - title.fs - 8, px + 9, py + 2]); }
     const placed = [];
-    const hits = (r) => r[0] < M || r[2] > Wd - M || r[1] < top || r[3] > bot || placed.concat(obst).some((o) => r[0] < o[2] + 5 && r[2] > o[0] - 5 && r[1] < o[3] + 5 && r[3] > o[1] - 5);
+    const hits = (r, ignoreObst) => r[0] < M || r[2] > Wd - M || r[1] < top || r[3] > bot || (ignoreObst ? placed : placed.concat(obst)).some((o) => r[0] < o[2] + 5 && r[2] > o[0] - 5 && r[1] < o[3] + 5 && r[3] > o[1] - 5);
     const boxes = [];
     let t = 0.02, pref = "down";
     const stMap = (opts.custom && opts.custom.stickers) || {};
@@ -858,8 +871,11 @@
         const sb = opts.builder ? 7 * s + 3 * pfs * 1.22 + 5 * s : pic ? 7 * s + pic.length * pfs * 1.22 + 5 * s : spB;
         if (listedF) {
           const n = treeF.items.length, stacked = bw < 520;
-          const hubD = stacked ? Math.min(160, bw - 16) : Math.min(200, bw - 300);
-          const h = (stacked ? hubD + 18 + n * 108 + 16 : Math.max(hubD + 24, Math.ceil(n / 2) * 120 + 24)) + (sb || 0);
+          const fillH = Math.max(0, bot - top - 8);
+          const hubD = stacked ? Math.min(160, bw - 16) : Math.min(360, Math.max(220, bw * 0.34));
+          let h = stacked ? hubD + 18 + n * 108 + 16 : Math.max(hubD + 24, Math.ceil(n / 2) * 150 + 28);
+          if (!stacked && m.facts.length === 1 && fillH > h) h = fillH;
+          else h = h + (sb || 0);
           return { bw, label, lines, ch, pic, sb, h };
         }
         return { bw, label, lines, ch, pic, sb, h: ch + spT + sb };
@@ -868,7 +884,7 @@
         const z = sizes[0];
         for (let y = top; y + z.h <= bot + 0.5 && !done; y += 6) {
           const r = [M, y, M + z.bw, y + z.h];
-          if (!hits(r)) { done = { r, z, side: "down", ax: slashX(y + z.h / 2), ay: y + z.h / 2, tt: t }; break; }
+          if (!hits(r, z.bw >= 520)) { done = { r, z, side: "down", ax: slashX(y + z.h / 2), ay: y + z.h / 2, tt: t }; break; }
         }
       }
       for (let tt = t; tt <= 1.0001 && !done; tt += 0.006) {
@@ -919,12 +935,12 @@
       <h1>${esc(m.title)}</h1>${m.intro ? `<p class="ts-intro">${esc(m.intro)}</p>` : ""}
       ${m.answer && !practice ? `<p class="ts-ans"><b>You asked:</b> “${esc(m.q)}”<br><b>Answer:</b> ${esc(m.answer)}</p>` : ""}
       <div class="tbody">${body}</div>
-      ${m.note ? `<p class="ts-note"><b>Remember:</b> ${practice ? '<span class="ts-blankline"></span>' : esc(m.note)}</p>` : ""}
-      ${m.abbrs.length ? `<p class="ts-abbrs"><b>Abbreviations:</b> ${m.abbrs.map((a) => `${esc(a.abbr)} = ${esc(a.meaning)}`).join("; ")}</p>` : ""}
+      ${topicMeta(m).note ? `<p class="ts-note"><b>Remember:</b> ${practice ? '<span class="ts-blankline"></span>' : esc(topicMeta(m).note)}</p>` : ""}
+      ${topicMeta(m).abbrs.length ? `<p class="ts-abbrs"><b>Abbreviations:</b> ${topicMeta(m).abbrs.map((a) => `${esc(a.abbr)} = ${esc(a.meaning)}`).join("; ")}</p>` : ""}
       ${m.facts.some((f) => f.picMine) ? `<div class="ts-pics"><b>My pictures</b><ul>${m.facts.filter((f) => f.pic).map((f) => `<li><b>${esc(f.label)}:</b> ${esc(f.pic)}</li>`).join("")}</ul></div>` : ""}
       ${m.song && m.song.print ? `<div class="ts-song"><b>♪ ${m.song.lines.some((l) => l.mine) ? "My jingle" : "Our starter jingle"}</b> <span>(tune: ${esc(m.song.tuneName)})</span><ol>${songItems(m, practice).map((t) => `<li>${esc(t)}</li>`).join("")}</ol></div>` : ""}
       <div class="ts-mynotes"><b>My notes</b>${"<span></span>".repeat(long || (m.song && m.song.print) ? 2 : 5)}</div>
-      <footer>Source: ${esc(m.src || "Otter Bay")}. Written by Otter Bay in our own words. For learning only; follow your facility's protocols.</footer>
+      <footer>Source: ${esc(topicMeta(m).src || "Otter Bay")}. Written by Otter Bay in our own words. For learning only; follow your facility's protocols.</footer>
     </article>`;
   }
 
@@ -967,7 +983,7 @@
     return hits;
   }
 
-  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, imageId, collectImageIds, printPageKey, findImageConflicts }; }
+  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }
