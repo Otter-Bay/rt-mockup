@@ -338,7 +338,7 @@
     return [];
   }
   // Level shapes are fixed app-wide (Ken t209u, t216u): 0 = squircle, 1 = index card (rx 6), 2 = pill.
-  const HUB_RX_RATIO = 0.22, CARD_RX = 6, HUB_TAB = { w: 8, h: 14 }, CARD_TAB = { w: 8, h: 14, rx: 3 };
+  const HUB_RX_RATIO = 0.22, CARD_RX = 6, HUB_TAB = { w: 4, h: 8 }, CARD_TAB = { w: 4, h: 8, rx: 2 };
   function hubGeom(space, st, title, stacked) {
     const sw = space.x2 - space.x1, sh = space.y2 - space.y1;
     const reserve = stacked ? 12 : Math.max(86, Math.min(300, sw * 0.28));
@@ -546,9 +546,10 @@
     }
     return { photo: hub.img, label: tree.label, nodes, both, stacked, hub };
   }
-  function photoElAt(st, r, clipId) {
+  function photoElAt(st, r, clipId, cover) {
     const src = esc(st.src || "");
-    return `<image class="rphoto" href="${src}" xlink:href="${src}" x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w.toFixed(1)}" height="${r.h.toFixed(1)}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clipId})" data-px="${r.x.toFixed(1)}" data-py="${r.y.toFixed(1)}" data-pw="${r.w.toFixed(1)}" data-ph="${r.h.toFixed(1)}"/>`;
+    const fit = cover ? "xMidYMid slice" : "xMidYMid meet";
+    return `<image class="rphoto" href="${src}" xlink:href="${src}" x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w.toFixed(1)}" height="${r.h.toFixed(1)}" preserveAspectRatio="${fit}" clip-path="url(#${clipId})" data-px="${r.x.toFixed(1)}" data-py="${r.y.toFixed(1)}" data-pw="${r.w.toFixed(1)}" data-ph="${r.h.toFixed(1)}"/>`;
   }
   function capEl(st, photo, text, i, practice) {
     const L = capLayout(photo, st, text || "");
@@ -610,17 +611,21 @@
     const cid = "rc" + SVGN + "f" + fi;
     const hub = L.hub, thumbs = (st && st.thumbs) || {};
     let g = `<g class="rdiagram" data-cap="${fi}" data-px="${hub.x1.toFixed(1)}" data-py="${hub.y1.toFixed(1)}" data-pw="${hub.w.toFixed(1)}" data-ph="${hub.h.toFixed(1)}" data-cx="${hub.cx.toFixed(1)}" data-cy="${hub.cy.toFixed(1)}" data-w="${hub.w.toFixed(1)}" data-h="${hub.h.toFixed(1)}" data-rx="${hub.rx.toFixed(1)}">`;
+    const sw = hub.stroke, inset = sw / 2;
     g += `<clipPath id="${cid}hub"><rect x="${hub.x1.toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${hub.w.toFixed(1)}" height="${hub.h.toFixed(1)}" rx="${hub.rx.toFixed(1)}"/></clipPath>`;
-    g += `<g class="rhub">`;
-    g += `<rect class="rhubfill" x="${hub.x1.toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${hub.w.toFixed(1)}" height="${hub.h.toFixed(1)}" rx="${hub.rx.toFixed(1)}" fill="#fff" stroke="#0A2A4A" stroke-width="${hub.stroke.toFixed(1)}"/>`;
-    if (st && st.src) g += photoElAt(st, hub.img, cid + "hub");
+    g += `<clipPath id="${cid}hubIn"><rect x="${(hub.x1 + inset).toFixed(1)}" y="${(hub.y1 + inset).toFixed(1)}" width="${(hub.w - sw).toFixed(1)}" height="${(hub.h - sw).toFixed(1)}" rx="${Math.max(0, hub.rx - inset).toFixed(1)}"/></clipPath>`;
+    g += `<g class="rhub rhubpic" data-cap="${fi}">`;
+    g += `<rect class="rhubfill" x="${hub.x1.toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${hub.w.toFixed(1)}" height="${hub.h.toFixed(1)}" rx="${hub.rx.toFixed(1)}" fill="#fff" stroke="none"/>`;
+    if (st && st.src) g += photoElAt(st, hub.img, cid + "hubIn", true);
     if (tree.label && !practice) {
       const bandH = hub.fit.h + 8;
-      g += `<rect class="rhubband" x="${(hub.x1 + 6).toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${(hub.w - 12).toFixed(1)}" height="${(hub.pad + bandH).toFixed(1)}" fill="#fff" fill-opacity=".92" clip-path="url(#${cid}hub)"/>`;
+      const bandY = hub.y1 + inset;
+      g += `<rect class="rhubband" x="${(hub.x1 + inset).toFixed(1)}" y="${bandY.toFixed(1)}" width="${(hub.w - sw).toFixed(1)}" height="${(hub.pad + bandH - inset).toFixed(1)}" fill="#fff" clip-path="url(#${cid}hubIn)"/>`;
       hub.fit.lines.forEach((ln, j) => {
         g += `<text class="rhubtitle" x="${hub.cx.toFixed(1)}" y="${(hub.titleY + hub.fit.fs * 0.9 + j * hub.fit.fs * 1.18).toFixed(1)}" text-anchor="middle" font-size="${hub.fit.fs.toFixed(1)}" font-weight="700" fill="#14222C">${esc(ln)}</text>`;
       });
     }
+    g += `<rect class="rhubstroke" x="${hub.x1.toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${hub.w.toFixed(1)}" height="${hub.h.toFixed(1)}" rx="${hub.rx.toFixed(1)}" fill="none" stroke="#0A2A4A" stroke-width="${sw.toFixed(1)}"/>`;
     g += `</g>`;
     L.nodes.forEach((node) => {
       const on = selPin === node.i ? " sel" : "";
@@ -1042,6 +1047,7 @@
     ST.k = k; ST.q = o.q || ""; ST.answer = o.answer || ""; ST.related = o.related || []; ST.hit = o.hit || null;
     ST.sel = null; ST.mode = "filled"; ST.ideas = false; ST.celebrate = false; ST.msg = ""; ST.zoom = false; ST.panel = o.panel || ""; ST.songPop = false;
     ST.from = o.from || "ask"; ST.fromK = o.fromK || k; ST.focus = null; ST.branch = null; ST.focusBranch = null; ST.ppNote = null;
+    ST.replace = null; ST.slotDraw = null; ST.focusPaste = false;
     if (o.build) { ST.style = "map"; ST.map = "build"; }
     PG = fixPage(getPage(k)) || blankPage();
   }
@@ -1170,6 +1176,7 @@
       if (next) PG.stickers[ST.sel] = Object.assign({}, prev, next); else delete PG.stickers[ST.sel];
       ST.focus = ST.sel; ST.focusBranch = null;
       ST.msg = next && next.shape === "photo" ? "" : (next ? "Nice start! Now make it yours: switch to Draw and add your own details." : "");
+      if (next) uniqueNote(next);
       savePage(); return true;
     }
     const thumbs = Object.assign({}, prev.thumbs || {});
@@ -1177,7 +1184,20 @@
     if (next) thumbs[ST.branch] = next; else delete thumbs[ST.branch];
     PG.stickers[ST.sel] = Object.assign({}, prev, { thumbs });
     ST.focus = ST.sel; ST.focusBranch = ST.branch; ST.msg = "";
+    if (next) uniqueNote(next);
     savePage(); return true;
+  }
+  function uniqueNote(next) {
+    const id = imageId(next); if (!id || ST.sel == null) return;
+    const where = ST.branch != null ? "fact:" + ST.sel + ":" + ST.branch : "fact:" + ST.sel;
+    if (collectImageIds(PG).some((x) => x.where !== where && x.id === id)) {
+      ST.msg = "This picture is already used on this page. A slightly different one will stick better.";
+      return;
+    }
+    try {
+      const hits = findImageConflicts([{ id, where }], ppOtherImages(ppLoad(), null, -1));
+      if (hits.length) ST.msg = "This picture already appears on “" + hits[0].other + "”. A slightly different one will stick better.";
+    } catch (e) {}
   }
   function setSticker(next) { return setBranchThumb(next); }
   function showFact(i, br) {
@@ -1194,7 +1214,10 @@
       if (er.top < pr.top || er.bottom > pr.bottom) paper.scrollTop += er.top - pr.top - 12;
     }
   }
-  function afterRender() { if (ST.focus != null) { const i = ST.focus, br = ST.focusBranch; ST.focus = null; ST.focusBranch = null; setTimeout(() => showFact(i, br), 0); } }
+  function afterRender() {
+    if (ST.focus != null) { const i = ST.focus, br = ST.focusBranch; ST.focus = null; ST.focusBranch = null; setTimeout(() => showFact(i, br), 0); }
+    if (ST.focusPaste) { ST.focusPaste = false; setTimeout(() => { const box = document.getElementById("streplacebox") || document.getElementById("stpastebox"); if (box) box.focus(); }, 0); }
+  }
   function enableUndo() { const b = document.querySelector('[data-act="stundo"]'); if (b) b.disabled = !(PG && PG.hist.length); }
   function shrinkImage(src, cb) {
     const im = new Image();
@@ -1229,6 +1252,108 @@
     const fr = new FileReader(); fr.onload = () => shrinkImage(fr.result, applyPhoto); fr.readAsDataURL(srcOrFile);
   }
 
+
+  const SLOT_DRAW = 320;
+  function slotLabel() {
+    const m = mdl(); if (!m) return "this picture";
+    if (ST.sel == null) return "this picture";
+    if (ST.branch != null) {
+      const it = ((capItems((PG.stickers || {})[ST.sel], m.facts[ST.sel], ((LAST && LAST.boxes) || [])[ST.sel] || {}).items) || [])[ST.branch];
+      return (it && it.text) || "this fact";
+    }
+    return m.facts[ST.sel] ? m.facts[ST.sel].label : "this topic";
+  }
+  function openReplace(sel, branch) {
+    ST.map = "build"; ST.tool = "sticker"; ST.sel = sel;
+    ST.branch = (branch == null || branch !== branch) ? null : branch;
+    ST.replace = { sel: ST.sel, branch: ST.branch }; ST.slotDraw = null;
+    ST.focus = ST.sel; ST.focusBranch = ST.branch; ST.msg = "";
+  }
+  function replaceMenuHtml() {
+    if (!ST.replace || ST.slotDraw) return "";
+    const lab = slotLabel();
+    return `<div class="streplace" id="streplace" role="dialog" aria-label="Replace picture">
+      <p class="streplacetitle">Replace this picture</p>
+      <p class="sthelp">“${esc(lab)}”. Paste, drop, pick from your photo gallery, take a photo, draw, or use a sticker. You come back here when you tap Done.</p>
+      <div class="streplaceacts">
+        <button type="button" data-act="streplacepaste">Paste</button>
+        <button type="button" data-act="streplacedrop">Drop</button>
+        <label class="streplacebtn">Photo gallery<input type="file" accept="image/*" id="stgallery" class="stpastefile"></label>
+        <label class="streplacebtn">Take photo<input type="file" accept="image/*" id="stcamera" class="stpastefile" capture="environment"></label>
+        <button type="button" data-act="streplacedraw">Draw</button>
+        <button type="button" data-act="streplacestickers">Stickers</button>
+        <label class="streplacebtn">Draw on this photo<input type="file" accept="image/*" id="stdrawfile" class="stpastefile"></label>
+      </div>
+      <div class="stpastebox streplacedrop" id="streplacebox" contenteditable="true" spellcheck="false" role="textbox" aria-label="Paste or drop a photo here" data-placeholder="Paste or drop a photo here"></div>
+      <button type="button" class="streplaceclose" data-act="streplaceclose">Close</button>
+    </div>`;
+  }
+  function coverBox(w, h, box) {
+    const ar = (w > 0 && h > 0) ? h / w : 1;
+    let dw = box, dh = dw * ar;
+    if (dh < box) { dh = box; dw = dh / (ar || 1); }
+    return { x: (box - dw) / 2, y: (box - dh) / 2, w: dw, h: dh };
+  }
+  function slotDrawHtml() {
+    const d = ST.slotDraw; if (!d) return "";
+    const lab = slotLabel();
+    const S = SLOT_DRAW;
+    let bg = "";
+    if (d.bg && d.bg.src) {
+      const b = coverBox(d.bg.w || S, d.bg.h || S, S);
+      const src = esc(d.bg.src);
+      bg = `<image href="${src}" xlink:href="${src}" x="${b.x.toFixed(1)}" y="${b.y.toFixed(1)}" width="${b.w.toFixed(1)}" height="${b.h.toFixed(1)}" preserveAspectRatio="xMidYMid slice"/>`;
+    }
+    const ink = (d.ink || []).map((k) => `<path d="M${k.pts.map((q) => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L")}" fill="none" stroke="${esc(k.c)}" stroke-width="${k.w || 2.6}" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
+    return `<div class="stdrawslot" id="stdrawslot" role="dialog" aria-labelledby="stdrawtitle">
+      <p class="streplacetitle" id="stdrawtitle">${d.bg ? "Draw on this photo" : "Draw a picture"} for “${esc(lab)}”</p>
+      <p class="sthelp">Draw with your finger or mouse. Lift and continue as often as you like; tap Done when you are finished.</p>
+      <svg class="stdrawsvg" viewBox="0 0 ${S} ${S}" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        <rect width="${S}" height="${S}" fill="#fff"/>${bg}${ink}
+      </svg>
+      <div class="strow"><button type="button" data-act="stdrawundo" ${(d.ink || []).length ? "" : "disabled"}>↶ Undo</button>
+        <button type="button" data-act="stdrawclear">Clear</button>
+        <button type="button" data-act="stdrawcancel">Cancel</button>
+        <button type="button" class="stdone" data-act="stdrawdone">Done</button></div>
+    </div>`;
+  }
+  function startSlotDraw(bg) {
+    ST.slotDraw = { sel: ST.sel, branch: ST.branch, bg: bg || null, ink: [] };
+    ST.replace = ST.replace || { sel: ST.sel, branch: ST.branch };
+  }
+  function finishSlotDraw() {
+    const d = ST.slotDraw; if (!d) return;
+    const S = SLOT_DRAW, out = 512;
+    const c = document.createElement("canvas"); c.width = out; c.height = out;
+    const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, out, out);
+    const z = out / S;
+    const done = () => {
+      (d.ink || []).forEach((k) => {
+        if (!k.pts || k.pts.length < 2) return;
+        ctx.beginPath(); ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.strokeStyle = k.c || "#C62828"; ctx.lineWidth = (k.w || 2.6) * z;
+        ctx.moveTo(k.pts[0][0] * z, k.pts[0][1] * z);
+        k.pts.forEach((q, i) => { if (i) ctx.lineTo(q[0] * z, q[1] * z); });
+        ctx.stroke();
+      });
+      let url = "";
+      try { url = c.toDataURL("image/webp", 0.82); } catch (e) {}
+      if (!url || url.indexOf("image/webp") < 0) { try { url = c.toDataURL("image/png"); } catch (e) { url = c.toDataURL("image/jpeg", 0.8); } }
+      ST.slotDraw = null; ST.replace = null;
+      applyPhoto({ src: url, w: out, h: out });
+    };
+    if (d.bg && d.bg.src) {
+      const im = new Image();
+      im.onload = () => {
+        const b = coverBox(im.naturalWidth || d.bg.w || S, im.naturalHeight || d.bg.h || S, out);
+        try { ctx.drawImage(im, b.x, b.y, b.w, b.h); } catch (e) {}
+        done();
+      };
+      im.onerror = done;
+      im.src = d.bg.src;
+    } else done();
+  }
+
   function builder(m) {
     const dec = decorated(m), n = dec.length, got = dec.filter(Boolean).length;
     const next = m.facts[dec.findIndex((d) => !d)];
@@ -1255,6 +1380,7 @@
     if (ST.tool === "move") h += `<p class="sthelp">Drag a fact to where it makes sense to you. Its branch follows.</p>`;
     if (ST.tool === "draw") h += `<p class="sthelp">Draw with your finger or mouse right on the page. Lift and continue as often as you like; tap Done when you are finished.</p>`;
     if (mapDups.length) h += `<p class="stppnote" role="status">Two facts on this page share a picture. A slightly different one will stick better.</p>`;
+    h += replaceMenuHtml() + slotDrawHtml();
     h += `<div class="stpaper builder tool-${ST.tool} ${ST.zoom ? "zoom" : ""}">${paperHtml(m)}</div>
       <div class="strow"><button type="button" data-act="stzoom">${ST.zoom ? "Fit to screen" : "Zoom in"}</button><button type="button" data-act="stundo" ${PG.hist.length ? "" : "disabled"}>↶ Undo</button><button type="button" data-act="stclear">Clear</button><button type="button" class="stdone" data-act="stdone">Done</button></div>
       <p class="stprog"><span class="stbar"><i style="width:${n ? Math.round(100 * got / n) : 0}%"></i></span>${got} of ${n} facts have a picture${PG.done ? ' · <b>🏅 Page built!</b>' : ""}</p>
@@ -1445,11 +1571,29 @@
   // click lands on a control (often Back) after the page jumps to the top (Ken, t195u). Many strokes are expected. Done leaves.
   let pen = null, drag = null, capDrag = null, pinDrag = null, skipClick = 0;
   const svgPt = (svg, e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const r = pt.matrixTransform(svg.getScreenCTM().inverse()); return [r.x, r.y]; };
+  let slotPen = null;
   document.addEventListener("pointerdown", (e) => {
+    const dsvg = e.target.closest && e.target.closest("svg.stdrawsvg");
+    if (dsvg && ST.slotDraw) {
+      e.preventDefault(); e.stopPropagation();
+      const p = svgPt(dsvg, e);
+      const el = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      el.setAttribute("class", "rink"); el.setAttribute("fill", "none"); el.setAttribute("stroke", ST.color); el.setAttribute("stroke-width", "2.6"); el.setAttribute("stroke-linecap", "round"); el.setAttribute("stroke-linejoin", "round");
+      dsvg.appendChild(el); slotPen = { svg: dsvg, el, k: { c: ST.color, w: 2.6, pts: [p] } };
+      try { dsvg.setPointerCapture(e.pointerId); } catch (x) {}
+      return;
+    }
     const svg = e.target.closest && e.target.closest("svg.recallsvg.builder"); if (!svg || !PG) return;
     e.stopPropagation();
     const p = svgPt(svg, e), fact = e.target.closest(".rfact"), fi = fact ? Number(fact.dataset.fi) : null;
     const pin = e.target.closest && e.target.closest(".rpin"), cap = e.target.closest && e.target.closest(".rcap");
+    const pic = e.target.closest && e.target.closest(".rhubpic, .rthumb, .rthumbadd");
+    if ((ST.tool === "sticker" || ST.tool === "look") && pic && pic.dataset.cap != null && !pin) {
+      e.preventDefault();
+      const br = pic.classList.contains("rhubpic") ? null : (pic.dataset.pin != null ? Number(pic.dataset.pin) : null);
+      openReplace(Number(pic.dataset.cap), br);
+      render(); return;
+    }
     if ((ST.tool === "sticker" || ST.tool === "look") && (pin || cap)) {
       e.preventDefault();
       const host = pin || cap, fi2 = Number(host.dataset.cap);
@@ -1486,7 +1630,9 @@
     return [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))];
   };
   document.addEventListener("pointermove", (e) => {
-    if (pen) { const p = svgPt(pen.svg, e), l = pen.k.pts[pen.k.pts.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) < 1.5) return;
+    if (slotPen) { const p = svgPt(slotPen.svg, e), l = slotPen.k.pts[slotPen.k.pts.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) < 1.5) return;
+      slotPen.k.pts.push(p); slotPen.el.setAttribute("d", "M" + slotPen.k.pts.map((q) => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L")); }
+    else if (pen) { const p = svgPt(pen.svg, e), l = pen.k.pts[pen.k.pts.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) < 1.5) return;
       pen.k.pts.push(p); pen.el.setAttribute("d", "M" + pen.k.pts.map((q) => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L")); }
     else if (drag) { const p = svgPt(drag.svg, e); drag.d = [p[0] - drag.p0[0], p[1] - drag.p0[1]]; drag.fact.setAttribute("transform", `translate(${drag.d[0]} ${drag.d[1]})`); }
     else if (capDrag) {
@@ -1510,7 +1656,12 @@
     }
   });
   const endPtr = (e) => {
-    if (pen) {
+    if (slotPen) {
+      const k = slotPen.k, el = slotPen.el; slotPen = null;
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      if (k.pts.length > 1 && ST.slotDraw) { ST.slotDraw.ink = (ST.slotDraw.ink || []).concat([k]); skipClick = 1; const b = document.querySelector('[data-act="stdrawundo"]'); if (b) b.disabled = false; }
+      else if (el && el.parentNode) el.parentNode.removeChild(el);
+    } else if (pen) {
       const k = pen.k, el = pen.el; pen = null;
       if (e) { e.preventDefault(); e.stopPropagation(); }
       if (k.pts.length > 1) { PG.ink.push(k); PG.hist.push({ t: "ink" }); ST.msg = ""; savePage(); skipClick = 1; enableUndo(); }
@@ -1538,10 +1689,10 @@
     return null;
   };
   document.addEventListener("paste", (e) => {
-    if (!document.getElementById("stpaste")) return;
+    if (!document.getElementById("stpaste") && !document.getElementById("streplace")) return;
     const f = imageFromClipboard(e);
     if (f) { e.preventDefault(); takeImage(f); return; }
-    const box = document.getElementById("stpastebox");
+    const box = document.getElementById("streplacebox") || document.getElementById("stpastebox");
     setTimeout(() => {
       if (!box) return;
       const img = box.querySelector("img");
@@ -1549,14 +1700,25 @@
       box.innerHTML = "";
     }, 0);
   });
-  document.addEventListener("dragover", (e) => { if (e.target.closest && e.target.closest("#stpaste")) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; } });
+  const dropHost = (el) => el && el.closest && el.closest("#stpaste, #streplace, #streplacebox, #stdrawslot");
+  document.addEventListener("dragover", (e) => { if (dropHost(e.target)) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; } });
   document.addEventListener("drop", (e) => {
-    if (!(e.target.closest && e.target.closest("#stpaste"))) return;
+    if (!dropHost(e.target)) return;
     e.preventDefault();
     const f = imageFromClipboard(e); if (f) takeImage(f);
   });
   document.addEventListener("change", (e) => {
-    if (e.target && e.target.id === "stpastefile") { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) takeImage(f); }
+    const id = e.target && e.target.id;
+    if (id === "stpastefile" || id === "stgallery" || id === "stcamera") {
+      const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) takeImage(f);
+    } else if (id === "stdrawfile") {
+      const f = e.target.files && e.target.files[0]; e.target.value = "";
+      if (f) {
+        const fr = new FileReader();
+        fr.onload = () => shrinkImage(fr.result, (data) => { startSlotDraw(data); render(); });
+        fr.readAsDataURL(f);
+      }
+    }
     else if (e.target && e.target.dataset && e.target.dataset.stscale && PG && ST.sel != null && PG.stickers[ST.sel]) {
       const prev = PG.stickers[ST.sel], thumb = e.target.dataset.stscale === "thumb";
       PG.hist.push({ t: "st", i: ST.sel, prev });
@@ -1695,6 +1857,15 @@
     },
     stprintall: () => { preparePrintAll(); setTimeout(() => window.print(), 50); return false; },
     stprintswap: (b) => { ppSwap(b.dataset.k); },
+    streplacepaste: () => { ST.focusPaste = true; },
+    streplacedrop: () => { ST.focusPaste = true; ST.msg = "Drop a photo on the box below."; },
+    streplacedraw: () => { startSlotDraw(null); },
+    streplacestickers: () => { ST.replace = null; ST.tool = "sticker"; ST.focus = ST.sel; ST.focusBranch = ST.branch; },
+    streplaceclose: () => { ST.replace = null; ST.slotDraw = null; },
+    stdrawundo: () => { if (ST.slotDraw && ST.slotDraw.ink.length) ST.slotDraw.ink.pop(); },
+    stdrawclear: () => { if (ST.slotDraw) ST.slotDraw.ink = []; },
+    stdrawcancel: () => { ST.slotDraw = null; },
+    stdrawdone: () => { finishSlotDraw(); return false; },
     stpanel: (b) => { ST.panel = ST.panel === b.dataset.v ? "" : b.dataset.v; },
     stpicreset: (b) => { delete PG.pics[b.dataset.i]; savePage(); },
     sttune: (b) => { PG.song.tune = b.dataset.v; savePage(); },

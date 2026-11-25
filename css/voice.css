@@ -266,12 +266,22 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
   .ppage.layout-4 { grid-template: 1fr 1fr / 1fr 1fr; }
   .pslot { overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 0; background: #fff; }
   .pslot .recallsvg, .pslot .tsheet { max-width: 100%; max-height: 100%; width: auto; height: auto; }
-  .rhubfill, .rcardbg, .rcardhead, .rcardstroke, .rtab, .rpin, .rpill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .rcardbg, .rcardstroke { stroke-width: 2.8px; }
+  .rhubfill, .rhubstroke, .rcardbg, .rcardhead, .rcardstroke, .rtab, .rpin, .rpill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rcardstroke { stroke-width: 2.8px; }
   html.obprinting .rthumbadd, html.obprinting .rhandle, html.obprinting .rsz,
-  #obPrint .rthumbadd, #obPrint .rhandle, #obPrint .rsz { display: none !important; }
+  html.obprinting .streplace, html.obprinting .stdrawslot,
+  #obPrint .rthumbadd, #obPrint .rhandle, #obPrint .rsz,
+  #obPrint .streplace, #obPrint .stdrawslot { display: none !important; }
 }
 
+
+/* Replace-picture menu and draw-on-this-photo editor (Ken, t228u–t229u) */
+.streplace, .stdrawslot { background: #fff; border: 2px solid var(--bay, #0A4A63); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 8px rgba(4,34,48,.08); }
+.streplacetitle { margin: 0; font-weight: 700; font-size: 17px; color: var(--bay, #0A4A63); }
+.streplaceacts { display: flex; flex-wrap: wrap; gap: 8px; }
+.streplaceacts button, .streplacebtn { min-height: 44px; padding: 0 12px; border: 2px solid var(--bay, #0A4A63); border-radius: 10px; background: #fff; color: var(--bay, #0A4A63); font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; position: relative; }
+.streplaceclose { min-height: 40px; align-self: flex-start; border: 0; background: none; color: #3B4A55; font: inherit; font-weight: 700; cursor: pointer; }
+.stdrawsvg { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto; background: #fff; border: 1px solid #D5DDE2; border-radius: 8px; touch-action: none; }
 /* Print pages tray and add-to-page buttons */
 .staddprint, .stprinttraybtn { min-height: 48px; border: 2px solid var(--bay); border-radius: 14px; background: #fff; color: var(--bay); font: inherit; font-weight: 700; font-size: 16px; cursor: pointer; }
 .stprintpages { background: #fff; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 8px rgba(4,34,48,.08); }
