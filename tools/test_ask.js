@@ -149,7 +149,10 @@ function loadStudy(exam) {
     return r.some((a, i) => a[0] < 0 || a[2] > 400 || a[3] > L.H || r.some((b, j) => j > i && a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1])); });
   study("on screen no fact spaces overlap or leave the page", !scrOver.length, scrOver.join(", "));
   const built = SB.recallSvg(ahi, { custom: { ink: [{ c: "#C62828", pts: [[100, 300], [140, 320]] }], stickers: { 3: { shape: "lungs", c: "#C62828" } }, moves: { 0: [10, -5] } } });
-  study("a built page prints the learner's drawing and shapes", built.includes('class="rink"') && built.includes('stroke="#C62828" stroke-width="2.4"'), "drawing missing");
+  study("a built page prints the learner's drawing and shapes", built.includes('class="rink"') && /class="rsticker"[^>]*lungs\.webp/.test(built), "drawing missing");
+  // Stickers (Ken, Nov 25): full-color artwork is never recolored; an old saved line drawing keeps working, in one ink, not the old tint
+  const oldShape = SB.recallSvg(ahi, { custom: { stickers: { 3: { shape: "kettle", c: "#C62828" } } } });
+  study("stickers keep their own colors; old line-drawing pages still show, untinted", !/rsticker[^>]*(fill|stroke)=/.test(built) && oldShape.includes('stroke="#1E3A44" stroke-width="2.4"') && !oldShape.includes('stroke="#C62828" stroke-width="2.4"'), "tint still applied");
   // The builder and thumbnail tag the SVG by rewriting its class; if that rewrite stops matching, taps on the page do nothing (caught Nov 23)
   const scrSvg = SB.recallSvg(ahi, { screen: true }), tags = [...fs.readFileSync(path.join(ROOT, "js/recall.js"), "utf8").matchAll(/\.replace\('(class="recallsvg[^']*)'/g)].map((m) => m[1]);
   study("builder and thumbnail class tags match the drawn SVG", tags.length >= 2 && tags.every((t) => scrSvg.includes(t)), tags.join(" | "));

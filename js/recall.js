@@ -218,6 +218,22 @@
   };
 
 
+  // Full-color stickers (Ken, Nov 25): image files in images/stickers/, shown as pictures and never recolored.
+  // Older pages saved a line-drawing name ({ shape: "lungs", c }); a name with artwork now shows that artwork, and the
+  // other old line drawings still show, in one dark ink instead of the old tint. Add a sticker: put the file in
+  // images/stickers/ and add a row here. Saved pages store only the name, so files can be redrawn later.
+  const ART = { lungs: ["lungs.webp", "Lungs", 317, 320], stethoscope: ["stethoscope.webp", "Stethoscope", 305, 320], "thumbs-up": ["thumbs-up.webp", "Thumbs up", 207, 320],
+    star: ["star.webp", "Star", 320, 315], "otter-celebrate": ["otter-celebrate.webp", "Otter celebrate", 253, 320], "otter-face": ["otter-face.webp", "Otter face", 279, 320] };
+  const INK = "#1E3A44";
+  const ART_BASE = (() => { try { const l = typeof document !== "undefined" && document.querySelector('link[href*="voice.css"]'); if (l && l.href) return l.href.replace(/css\/voice\.css.*$/, "") + "images/stickers/"; } catch (e) {} return "images/stickers/"; })();
+  const artSrc = (n) => ART[n] ? ART_BASE + ART[n][0] : "";
+  const hasSticker = (n) => !!(n && n !== "photo" && (ART[n] || SHAPES[n]));
+  // draw a sticker inside (x, y, w, h): artwork kept whole and centered (contain), or an old line drawing in ink
+  function stickerArt(n, x, y, w, h) {
+    if (ART[n]) { const src = esc(artSrc(n)); return `<image class="rsticker" href="${src}" xlink:href="${src}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, w).toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" preserveAspectRatio="xMidYMid meet"/>`; }
+    return SHAPES[n] ? SHAPES[n](x, y, w, h, INK) : "";
+  }
+
   // Photo and sticker size: 25–100% of the fact's drawing space, never overflowing (Ken, t193u).
   const clampScale = (v) => Math.min(1, Math.max(0.25, Number(v) || 0.7));
   function photoBox(b, st) {
@@ -258,14 +274,14 @@
     return { x: tx - fx * fullW, y: ty - fy * fullH, w: fullW, h: fullH, slice: false };
   }
   function branchThumbEl(th, cx, cy, color, fi, pin, builder) {
-    if (!th || !(th.src || (th.shape && th.shape !== "photo" && typeof SHAPES !== "undefined" && SHAPES[th.shape]))) {
+    if (!th || !(th.src || hasSticker(th.shape))) {
       if (!builder) return "";
       return `<g class="rthumbadd" data-cap="${fi}" data-pin="${pin}" transform="translate(${cx.toFixed(1)} ${cy.toFixed(1)})"><circle r="9" fill="#fff" fill-opacity=".95" stroke="${color}" stroke-width="1.2" stroke-dasharray="2 2"/><path d="M-4 0h8M0-4v8" fill="none" stroke="${color}" stroke-width="1.2" stroke-linecap="round"/></g>`;
     }
     const T = thumbBox(th), x = cx - T.w / 2, y = cy - T.h / 2;
     const inner = (th.shape === "photo" && th.src)
       ? `<image class="rthumbimg" href="${esc(th.src)}" xlink:href="${esc(th.src)}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${T.w.toFixed(1)}" height="${T.h.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/>`
-      : `<g>${SHAPES[th.shape](x, y, T.w, Math.max(10, T.h * 0.7), th.c || color)}</g>`;
+      : `<g>${ART[th.shape] ? stickerArt(th.shape, x, y, T.w, T.h) : stickerArt(th.shape, x, y, T.w, Math.max(10, T.h * 0.7))}</g>`;
     return `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${inner}</g>`;
   }
   function photoEl(st, b, clipId) {
@@ -685,7 +701,7 @@
     }
     const clip = `rcimg${fi}p${pin}`;
     g += `<clipPath id="${clip}"><rect x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" rx="4"/></clipPath>`;
-    if (th && (th.src || (th.shape && th.shape !== "photo" && SHAPES[th.shape]))) {
+    if (th && (th.src || hasSticker(th.shape))) {
       if (th.shape === "photo" && th.src) {
         const src = esc(th.src);
         const mode = photoFitMode(th, colW, colH, band, w, h - headH);
@@ -693,7 +709,7 @@
         const fit = box.slice ? "xMidYMid slice" : "xMidYMid meet";
         g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${box.x.toFixed(1)}" y="${box.y.toFixed(1)}" width="${box.w.toFixed(1)}" height="${box.h.toFixed(1)}" preserveAspectRatio="${fit}" clip-path="url(#${clip})"/></g>`;
       } else {
-        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${SHAPES[th.shape](imgX, imgY + 4, colW, Math.max(12, colH * 0.7), th.c || color)}</g>`;
+        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${ART[th.shape] ? stickerArt(th.shape, imgX + 4, imgY + 4, colW - 8, colH - 8) : stickerArt(th.shape, imgX, imgY + 4, colW, Math.max(12, colH * 0.7))}</g>`;
       }
     } else if (builder) {
       g += `<g class="rthumbadd" data-cap="${fi}" data-pin="${pin}" transform="translate(${(imgX + colW / 2).toFixed(1)} ${(imgY + colH / 2).toFixed(1)})"><rect x="${(-colW / 2).toFixed(1)}" y="${(-colH / 2).toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" rx="4" fill="#F4F7F8" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 2"/><path d="M-6 0h12M0-6v12" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/></g>`;
@@ -880,7 +896,7 @@
           g += photoElAt(st, ph, uid + "c" + i);
           g += capEl(st, ph, (tree.items[0] && tree.items[0].text) || tree.label, i, practice);
         }
-      } else if (st && SHAPES[st.shape]) g += `<g clip-path="url(#${uid}c${i})">${SHAPES[st.shape](...scaledHr(hr, b, st), st.c || col).replace(/stroke-width="1.6"/g, 'stroke-width="2.4"')}</g>`;
+      } else if (st && hasSticker(st.shape)) g += `<g clip-path="url(#${uid}c${i})">${stickerArt(st.shape, ...scaledHr(hr, b, st)).replace(/stroke-width="1.6"/g, 'stroke-width="2.4"')}</g>`;
       else if (opts.ideas) g += `<g opacity=".55" clip-path="url(#${uid}c${i})">${SHAPES[f.idea.shape](...hr, col)}</g>`;
       // the fact itself — hidden when a photo is composing the words (Ken, t198u: not a stamp over the card)
       if (!(st && st.shape === "photo" && st.src)) {
@@ -1533,7 +1549,8 @@
         : ST.branch != null ? `Picture for “${esc(branchLab || "this fact")}”. It should show that fact, not a decoration.`
         : `Topic picture for “${esc(factLab)}”. It should show this topic itself, not a decoration. Tap a card to add a picture for one fact.`;
       h += `<p class="sthelp">${help}</p>
-      <div class="ststickers">${STICKERS.map(([sh, t]) => `<button type="button" data-act="ststicker" data-s="${sh}" aria-label="${t}"><svg viewBox="-30 -30 120 90" width="54" height="40" aria-hidden="true">${SHAPES[sh](0, 0, 60, 30, ST.color)}</svg><span>${t}</span></button>`).join("")}
+      <p class="stsub">Stickers</p><div class="ststickers art">${Object.keys(ART).map((sh) => `<button type="button" data-act="ststicker" data-s="${sh}" aria-label="${esc(ART[sh][1])}"><img src="${esc(artSrc(sh))}" alt="" width="44" height="44" loading="lazy"><span>${esc(ART[sh][1])}</span></button>`).join("")}</div>
+      <p class="stsub">Line drawings</p><div class="ststickers">${STICKERS.filter(([sh]) => !ART[sh]).map(([sh, t]) => `<button type="button" data-act="ststicker" data-s="${sh}" aria-label="${t}"><svg viewBox="-30 -30 120 90" width="54" height="40" aria-hidden="true">${SHAPES[sh](0, 0, 60, 30, INK)}</svg><span>${t}</span></button>`).join("")}
       <button type="button" data-act="ststicker" data-s="" aria-label="No shape"><span class="none">✕</span><span>None</span></button></div>
       <div class="stpaste" id="stpaste">
         <div class="stpastebox" id="stpastebox" contenteditable="true" spellcheck="false" role="textbox" aria-label="Paste a sticker or photo, drop one here, or tap to choose" data-placeholder="Paste a sticker or photo, drop one here, or tap to choose"></div>
@@ -1961,7 +1978,7 @@
     ststicker: (b) => {
       if (ST.sel == null) { ST.msg = "Tap a fact, or a card, then pick its shape."; return; }
       const prev = (ST.branch != null ? ((PG.stickers[ST.sel] || {}).thumbs || {})[ST.branch] : PG.stickers[ST.sel]) || {};
-      setBranchThumb(b.dataset.s ? { shape: b.dataset.s, c: ST.color, scale: prev.scale } : null);
+      setBranchThumb(b.dataset.s ? { shape: b.dataset.s, scale: prev.scale } : null);   // no tint: stickers keep their own colors
     },
     stsize: (b) => {
       if (ST.sel == null || !PG.stickers[ST.sel]) return false;
