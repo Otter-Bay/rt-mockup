@@ -502,7 +502,8 @@
   function hubGeom(space, st, title, stacked) {
     const sw = space.x2 - space.x1, sh = space.y2 - space.y1;
     const reserve = stacked ? 12 : Math.max(86, Math.min(320, sw * 0.31));   // room for cards wide enough to hold their words
-    const maxSide = Math.min(sw - 2 * reserve, stacked ? sh * 0.48 : sh * 0.82, stacked ? 200 : 420);
+    // on a phone the otter placeholder gets room for its note and two buttons
+    const maxSide = Math.min(sw - 2 * reserve, stacked ? sh * 0.48 : sh * 0.82, stacked ? (st && st.placeholder ? 300 : 200) : 420);
     const minSide = 108;
     const sc = clampScale(st && st.scale != null ? st.scale : (stacked ? 0.7 : 0.85));
     let side = Math.max(minSide, Math.min(maxSide, minSide + (maxSide - minSide) * ((sc - 0.25) / 0.75)));
@@ -897,9 +898,18 @@
     g += `<g class="rhub rhubpic" data-cap="${fi}">`;
     g += `<rect class="rhubfill" x="${hub.x1.toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${hub.w.toFixed(1)}" height="${hub.h.toFixed(1)}" rx="${hub.rx.toFixed(1)}" fill="#fff" stroke="none"/>`;
     if (st && st.src) g += st.placeholder ? photoElAt(st, hub.img, cid + "hubIn", "contain").replace('class="rphoto"', 'class="rphoto rplaceholder" opacity=".38"') : photoElAt(st, hub.img, cid + "hubIn", "contain");
+    // what the placeholder is for, in words (Ken, Nov 26): on screen the two choices, on paper a place to draw
+    const phNote = (by, msg, fs) => {
+      const lines = wrap(msg, hub.img.w - 20, fs, true), lh = fs * 1.25, bh2 = lines.length * lh + 8, y0 = by - bh2 - 6;
+      let t = `<rect class="rphnote" x="${(hub.img.x + 4).toFixed(1)}" y="${y0.toFixed(1)}" width="${(hub.img.w - 8).toFixed(1)}" height="${bh2.toFixed(1)}" rx="8" fill="#fff" fill-opacity=".92"/>`;
+      lines.forEach((ln, j) => { t += `<text x="${hub.cx.toFixed(1)}" y="${(y0 + 4 + fs * 0.95 + j * lh).toFixed(1)}" text-anchor="middle" font-size="${fs.toFixed(1)}" font-weight="700" fill="#14222C">${esc(ln)}</text>`; });
+      return t;
+    };
+    if (st && st.placeholder && wide && !practice) g += phNote(hub.img.y + hub.img.h - 4, "Draw or paste your own picture for this topic here.", Math.min(12, Math.max(9, hub.w * 0.032)));
     if (st && st.placeholder && !wide) {
       // two choices on the placeholder (screen only): the learner's own picture, or pictures suggested from the topic's words
-      const bw = Math.min(118, (hub.w - 30) / 2), bh = 28, by = hub.img.y + hub.img.h - bh - 4, gx = hub.cx;
+      const bw = Math.min(112, (hub.w - 40) / 2), bh = 28, by = hub.img.y + hub.img.h - bh - 12, gx = hub.cx;
+      g += phNote(by, "Make this map yours: add your own picture, or pick a suggested sticker or graph. Tap any card's picture to change it.", Math.min(11, Math.max(9, hub.w * 0.05)));
       [["sthubmine", "📷 My picture", gx - bw - 4], ["sthubsuggest", "✨ Suggestions", gx + 4]].forEach(([act, t, x]) => {
         g += `<g class="rhubbtn" data-act="${act}" role="button" tabindex="0"><rect x="${x.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh}" rx="${bh / 2}" fill="#0B4F6C"/><text x="${(x + bw / 2).toFixed(1)}" y="${(by + bh / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(11.5, bw / 9.5).toFixed(1)}" font-weight="700" fill="#fff">${t}</text></g>`;
       });
@@ -1063,6 +1073,8 @@
       boxes.forEach((o) => { if (o !== b && o.y1 >= b.y2 - 1) ["y1", "y2", "cy1", "cy2", "ay"].forEach((q) => { if (o[q] != null) o[q] += delta; }); });
       b.y2 += delta; H += delta;
     });
+    // the starter map ends where its cards end: no empty stretch before the footer
+    if (scr && m.cards) H = Math.min(H, Math.max(...boxes.map((b) => b.y2)) + 16 + foot);
     const ang = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
     let g = "";
     const pictorialWide = boxes.some((b, i) => !!listedAt(b, i) && (scr || (b.x2 - b.x1) >= 520));
