@@ -1455,8 +1455,9 @@
     // the jingle player (js/jingle.js) takes over the sheet while it's open; anywhere else its music stops
     if (W.OB_JINGLE) { if (ST.jingle) return W.OB_JINGLE.html(m, PG); W.OB_JINGLE.stop(true); }
     const backLabel = ST.from === "bin" ? "Back to Study List" : ST.from === "settings" ? "Back to Settings" : "Back to the answer";
-    let h = `<section class="stsheet" id="askRes"><div class="sthead"><button type="button" class="stback" data-act="stback">‹ ${backLabel}</button>
-      <h2>Study sheet</h2><p class="stsub">Print the topic you asked about: <b>${esc(m.title)}</b></p>
+    // opened from the Study List, the top bar already says Study List and goes back to it, so no second back button here
+    let h = `<section class="stsheet" id="askRes"><div class="sthead">${ST.from === "bin" ? "" : `<button type="button" class="stback" data-act="stback">‹ ${backLabel}</button>`}
+      <h2>Study sheet</h2><p class="stsub">${ST.from === "bin" ? "Study this topic your way" : "Print the topic you asked about"}: <b>${esc(m.title)}</b></p>
       ${window.OB_BIN && OB_BIN.flag && ST.k ? `<div class="binflags starcade">${OB_BIN.flag(ST.k)}</div>` : ""}</div>
       <div class="stpick"><p class="asklabel">Style</p>${seg("ststyle", ST.style, [["map", "Recall map"], ["trad", "Traditional"]])}`;
     if (ST.style === "map") h += seg("stmap", ST.map, [["hand", "Draw on paper"], ["build", "Build it here"]]);

@@ -523,16 +523,20 @@
     const status = V.listening ? "Listening… ask your question" : V.err ? (ERR[V.err] || ERR.nosupport) : !SR ? "Type your question below." : "Tap the mic and ask, or type below.";
     // the jingle player uses the mic to record a song, so the Ask mic and header step aside while it is open (Ken, Nov 26)
     const jingleOn = !!(V.sheet && window.OB_STUDY && window.OB_STUDY.state && window.OB_STUDY.state.jingle);
+    // a topic opened from the Study List is studying, not asking (Ken, Nov 26): the top bar says Study List and goes back to it,
+    // and the Ask mic, which would leave the topic, steps aside
+    const fromList = !!(V.sheet && window.OB_STUDY && window.OB_STUDY.state && window.OB_STUDY.state.from === "bin"), noAsk = jingleOn || fromList;
+    const barTitle = !V.sheet ? "Ask a question<small>Answers from our reference library</small>" : fromList ? "Study List<small>Study this topic your way</small>" : "Study sheet<small>Print it, or build your own</small>";
     return `<div class="ob ask" style="${themeVars()}">
-      ${jingleOn ? "" : `<header class="obtop asktop"><button type="button" class="askback" data-act="askback" aria-label="Back">${BACK}<span>Back</span></button><span class="wm">Ask a question<small>Answers from our reference library</small></span></header>`}
+      ${jingleOn ? "" : `<header class="obtop asktop"><button type="button" class="askback" data-act="${V.sheet ? "stback" : "askback"}" aria-label="Back">${BACK}<span>Back</span></button><span class="wm">${barTitle}</span></header>`}
       <div class="obscroll askscroll">
-        <p class="askcare"${jingleOn ? " hidden" : ""}><span>For learning only. At work, follow your facility's protocols and your supervisor.</span> <b>Never say patient names or details.</b></p>
+        <p class="askcare"${noAsk ? " hidden" : ""}><span>For learning only. At work, follow your facility's protocols and your supervisor.</span> <b>Never say patient names or details.</b></p>
         <div class="askq"${V.sheet ? " hidden" : ""}><label for="askText">Your question</label>
           <textarea id="askText" rows="2" enterkeyhint="search" placeholder="For example: What is static compliance?">${esc(V.text)}</textarea>
           <button type="button" class="askfind" data-act="askfind">Find the answer</button></div>
         ${V.sheet && window.OB_STUDY ? window.OB_STUDY.screen() : askQuestion() + results()}
       </div>
-      ${jingleOn ? "" : `<div class="askdock">
+      ${noAsk ? "" : `<div class="askdock">
         <p class="askstatus ${V.listening ? "on" : ""} ${V.err ? "err" : ""}" aria-live="polite">${status}</p>
         <button type="button" class="askmic ${V.listening ? "on" : ""}" data-act="askmic" aria-pressed="${V.listening}" aria-label="${V.listening ? "Stop listening" : "Ask out loud"}" ${SR ? "" : "disabled"}>${MIC}<span>${V.listening ? "Stop" : "Ask"}</span></button>
       </div>`}
