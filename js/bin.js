@@ -339,12 +339,19 @@
     const btn = `<button type="button" class="binflag${on ? " on" : ""}" data-act="binflag" data-k="${k}" aria-pressed="${on}"><span aria-hidden="true">${on ? "★" : "☆"}</span><span><b>${on ? "Saved to Study List" : "Add to Study List"}</b><small>${esc(W.SCALES[k].title)}</small></span></button>`;
     return (JUST_TIP && JUST_KEY === k) ? `<div class="binflagwrap">${btn}${tipBanner()}</div>` : btn;
   }
-  // practice questions: a flag under the reference-card buttons (shown after the answer, like the cards)
+  // Add to Study List offers only topics that aren't on the list yet (Ken, Nov 26); saved ones are named in one quiet line
+  function flagSet(ks) {
+    ks = ks.filter((k) => W.SCALES[k]); if (!ks.length) return "";
+    const open = ks.filter((k) => !inBin(k)), saved = ks.filter(inBin);
+    const tip = JUST_TIP && saved.includes(JUST_KEY) ? tipBanner() : "";
+    return (open.length ? `<div class="binflags">${open.map(flag).join("")}</div>` : "") +
+      (saved.length ? `<p class="binsaved"><span aria-hidden="true">★</span><span><b>Already on your Study List</b>${saved.map((k) => esc(W.SCALES[k].title)).join(", ")} <button type="button" class="binsavedgo" data-act="binopen">Open Study List</button></span></p>${tip}` : "");
+  }
+  // practice questions: under the reference-card buttons (shown after the answer, like the cards)
   const origScale = W.scaleButtons;
   if (typeof origScale === "function") W.scaleButtons = function (q, c) {
     const h = origScale(q, c); if (!c || !c.done) return h;
-    const ks = (q.scales || []).filter((k) => W.SCALES[k]);
-    return h + (ks.length ? `<div class="binflags">${ks.map(flag).join("")}</div>` : "");
+    return h + flagSet(q.scales || []);
   };
   // info-card sheet (opened from a scale / rule button): one flag for that concept
   const origSheet = W.scaleSheet;
@@ -352,7 +359,7 @@
     const h = origSheet.apply(this, arguments);
     const k = S.scale;
     if (!h || !k || k === "__ev" || !W.SCALES[k]) return h;
-    const btn = `<div class="binflags">${flag(k)}</div>`;
+    const btn = flagSet([k]);
     return h.replace('<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to questions</button>', btn + '<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to questions</button>');
   };
   // home: the Study List button

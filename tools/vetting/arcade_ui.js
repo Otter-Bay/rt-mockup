@@ -48,10 +48,15 @@
     }
     return out.slice(0, 5);
   }
+  // Add to Study List offers only topics that aren't on the list yet (Ken, Nov 26); saved ones are named in one quiet line
+  function flagSet(ks) {
+    const open = ks.filter((k) => !inBin(k)), saved = ks.filter(inBin);
+    return `<div class="obflagset" data-ks="${esc(ks.join(","))}">${open.length ? `<div class="binflags">${open.map(flag).join("")}</div>` : ""}${saved.length ? `<p class="obarcsaved"><span aria-hidden="true">★</span><span><b>Already on your Study List</b>${saved.map((k) => esc(W.SCALES[k].title)).join(", ")}</span></p>` : ""}</div>`;
+  }
   function flags(q) {
     const ks = keysFor(q);
     if (!ks.length) return `<p class="obarcnote">No reference card is linked to this question yet, so it can't go on the Study List. You can still Ask about it.</p>${bar()}`;
-    return `<div class="binflags">${ks.map(flag).join("")}</div>${bar()}`;
+    return `${flagSet(ks)}${bar()}`;
   }
   let copied = false;
   function bar() {
@@ -96,6 +101,8 @@
 .obarclist .t{flex:1;min-width:0;font-size:15px}.obarclist .t b{display:block;overflow-wrap:anywhere}.obarclist .t small{display:block;font-size:12px;font-weight:700;color:#8A5A00}
 .obarcrm{min-height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #C9D2DC;background:#fff;color:#4A5663;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .obarcback{width:100%}
+.obarcsaved{margin:6px 0 0;display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:#FFF6DB;border:2px solid #F1B92D;color:#4A3300;font-size:14px;line-height:1.4}
+.obarcsaved>span:first-child{font-size:20px;line-height:1;color:#C99A2E}.obarcsaved b{display:block;font-size:15px;color:#14222C}
 .obarclist li{flex-wrap:wrap}
 .obarcstyles{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
 .obarcst{flex:1 1 auto;min-height:40px;padding:0 12px;border-radius:999px;border:2px solid #0B4F6C;background:#fff;color:#0B4F6C;font:inherit;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;white-space:nowrap}
@@ -113,7 +120,7 @@
     const h = origSheet.apply(this, arguments);
     const k = (typeof S !== "undefined" && S.scale) || "";
     if (!h || !k || k === "__ev" || !W.SCALES || !W.SCALES[k]) return h;
-    const btn = `<div class="binflags">${flag(k)}</div>`;
+    const btn = flagSet([k]);
     return h.replace('<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to questions</button>', btn + '<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to questions</button>');
   };
 
@@ -122,7 +129,7 @@
      closes it and leaves the page exactly where it was (nothing behind the pop-up is redrawn except the button itself). */
   let pop = null, popKey = "", popMsg = "";
   function refresh() {
-    document.querySelectorAll(".binflag[data-k]").forEach((el) => { el.outerHTML = flag(el.dataset.k); });
+    document.querySelectorAll(".obflagset[data-ks]").forEach((el) => { el.outerHTML = flagSet(el.dataset.ks.split(",").filter(Boolean)); });
     document.querySelectorAll(".obarcbar").forEach((el) => { el.outerHTML = bar(); });
   }
   function drawPop() {
