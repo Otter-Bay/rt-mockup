@@ -25,6 +25,7 @@ for f in sys.argv[3:]:
     s = s.replace('\n    <div class="row"><button type="button" class="btn grey" data-act="backquiz">Back to questions</button></div>', "")   # replaced by the top-bar button
     # Image viewer: open sideways only when the screen is upright; a sideways phone or a computer shows it straight (Ken, Nov 22)
     s = s.replace("S.zoom = 1; S.rot = true; }", "S.zoom = 1; S.rot = innerWidth < innerHeight; }")
+    s = s.replace('style="width:100%">Back to the question</button>', 'style="width:100%">Back to questions</button>')   # Ken, Nov 26: "s" says there are more questions
     s = s.replace("Scale and rule cards appear after you answer.", "Scale and rule cards, and Ask, appear after you answer.")
     s = s.replace("Tap the chart icon (top right) to see your progress or jump to any question.", "Tap “Question 1 of 200” at the top to go to any question.")
     s = s.replace("Tap the list icon (top right) to see progress or jump to any question.", "Tap “Question 1 of 200” at the top to go to any question.")
@@ -34,7 +35,7 @@ for f in sys.argv[3:]:
     SET0 = '<p style="margin:0;font-size:13px;color:var(--muted)">Changing the mode starts a new set of questions.</p>\n'
     if SET0 in s and "window.viewSettings ? window.viewSettings()" not in s: s = s.replace(SET0, SET0 + '      ${window.viewSettings ? window.viewSettings() : ""}\n', 1)
     assert "window.viewFit && window.viewFit()" in s and "window.viewSettings ? window.viewSettings()" in s, f"{p.name}: fit or settings layout changed"
-    assert "countbtn" in s and "obGotoBox" in s and "Back to questions<" not in s, f"{p.name}: page layout changed, additions not placed"
+    assert "countbtn" in s and "obGotoBox" in s and 'data-act="backquiz">Back to questions</button></div>' not in s, f"{p.name}: page layout changed, additions not placed"
     i = s.rstrip().rfind("</body></html>")
     s = s[:i] + START + bundle + END + s[i:]
     (out / p.name).write_text(s, encoding="utf-8"); print(p.name, len(s))

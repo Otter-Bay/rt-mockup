@@ -325,7 +325,7 @@ function evidenceSheet() {
     <figcaption>${ev.view ? `${esc(q.cap.toUpperCase())} · ZOOMED IN · TAP TO SEE THE WHOLE STRIP` : `${esc(q.cap.toUpperCase())} · TAP TO ENLARGE`}</figcaption></figure>
     <ol class="evlist">${notes.map((m) => `<li><span class="evn ${isEcg ? "ecg" : ""}" style="background:${ev.color}">${m.n}</span><span>${esc(m.note)}</span></li>`).join("")}</ol>
     <p class="scnote">${esc(ev.takeaway)}</p>
-    <button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button></div></div>`;
+    <button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to questions</button></div></div>`;
 }
 
 function scaleSheet() {
@@ -335,7 +335,7 @@ function scaleSheet() {
     <div class="schead"><h2 id="scT">${s.title}</h2><button type="button" class="vb" data-act="scaleclose" aria-label="Close">${ICON.x}</button></div>
     <p class="sub">${s.intro}</p><div class="sctwrap">${s.body}</div>
     ${s.note ? `<p class="scnote">${s.note}</p>` : ""}<p class="scsrc">Source: ${s.src}</p>
-    <button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button></div></div>`;
+    <button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to questions</button></div></div>`;
 }
 /* Field tag for the shared answer library (voice.js scope notes): cards added above without a field are rt cards. */
 Object.keys(window.SCALES).forEach((k) => { if (!window.SCALES[k].field) window.SCALES[k].field = "rt"; });

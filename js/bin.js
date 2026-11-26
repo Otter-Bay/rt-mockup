@@ -353,7 +353,7 @@
     const k = S.scale;
     if (!h || !k || k === "__ev" || !W.SCALES[k]) return h;
     const btn = `<div class="binflags">${flag(k)}</div>`;
-    return h.replace('<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button>', btn + '<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button>');
+    return h.replace('<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to questions</button>', btn + '<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to questions</button>');
   };
   // home: the Study List button
   const LISTICON = '<svg class="listico" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>';

@@ -114,7 +114,7 @@
     const k = (typeof S !== "undefined" && S.scale) || "";
     if (!h || !k || k === "__ev" || !W.SCALES || !W.SCALES[k]) return h;
     const btn = `<div class="binflags">${flag(k)}</div>`;
-    return h.replace('<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button>', btn + '<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to the question</button>');
+    return h.replace('<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to questions</button>', btn + '<button type="button" class="btn" data-act="scaleclose" style="width:100%">Back to questions</button>');
   };
 
   /* Clicks (Ken, Nov 25): the vetting page's own click handler doesn't know these buttons, so this file handles them.
