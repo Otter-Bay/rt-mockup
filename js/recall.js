@@ -751,6 +751,7 @@
       const total = (gs) => gs.reduce((a, g) => a + g.h, 0) + minGap * (m - 1);
       for (let c = 200; total(geoms) > avail && c >= 30; c -= 10) { cap = c; geoms = list.map((it) => cardGeom(0, 0, side, it.item, thumbs[it.i], cardW, c + 40, builder)); }
       if (total(geoms) > avail) tight = true;
+      if (tight || (cap != null && cap < 50)) TIGHT = true;
       const sumH = geoms.reduce((a, g) => a + g.h, 0);
       const gapY = m > 1 ? Math.min(28, Math.max(minGap, (avail - sumH) / (m - 1))) : 0;
       let y = space.y1 + 8 + Math.max(0, (avail - sumH - gapY * (m - 1)) / 2);
@@ -816,7 +817,7 @@
       if (bottom) {
         const top = hub.y2 + 22, availB = space.y2 - 4 - top;
         let card = cardGeom(hub.cx, top, "L", bottom.item, thumbs[bottom.i], bottomW, availB, builder);
-        if (card.h > availB) tight = true;
+        if (card.h > availB) { tight = true; TIGHT = true; }
         card = cardGeom(hub.cx, top + card.h / 2, "L", bottom.item, thumbs[bottom.i], bottomW, availB, builder);
         const hubTab = tabRect(hub.cx, hub.y2, "U", HUB_TAB), cardTab = tabRect(card.cx, card.y1, "D", CARD_TAB);
         nodes.push({ i: bottom.i, th: thumbs[bottom.i], item: bottom.item, side: "B", color: BRANCH[bottom.i % BRANCH.length],
@@ -1022,25 +1023,31 @@
       opts = Object.assign({}, opts, { custom: Object.assign({}, cu, { stickers: Object.assign({}, cu.stickers || {}, { 0: st }) }) });
     }
     const practice = opts.mode === "practice", scr = !!opts.screen, land = !scr && !!(opts.landscape || opts.print);
-    const Wd = scr ? 400 : land ? 1008 : 612, M = scr ? 14 : land ? 20 : 22;
+    // A print-page slot (Ken, Nov 26: several maps on one page when they fit) is drawn at its own size in the same units as a
+    // full page, so its text prints exactly as large as on a page of its own; header and footer shrink to the title and source.
+    const slot = !scr && opts.slot ? opts.slot : null;
+    const Wd = slot ? slot.w : scr ? 400 : land ? 1008 : 612, M = slot ? 12 : scr ? 14 : land ? 20 : 22;
+    TIGHT = false;
     // header (measured first so the drawing area knows where to start)
-    let hd = `<image href="${LOGO}" x="${M}" y="16" width="26" height="26"/>`;
+    let hd = slot ? "" : `<image href="${LOGO}" x="${M}" y="16" width="26" height="26"/>`;
+    if (!slot) {
     hd += `<text x="${M + 32}" y="27" font-size="9" font-weight="700" fill="${BAY}">${esc(APP)} · Otter Bay</text><text x="${M + 32}" y="39" font-size="8.5" fill="#5A6670">Study sheet: recall map${practice ? " (practice)" : ""}</text>`;
     hd += `<text x="${Wd - M}" y="27" text-anchor="end" font-size="8.5" fill="#5A6670">Name ${scr ? "______________" : "______________________"}</text><text x="${Wd - M}" y="40" text-anchor="end" font-size="8.5" fill="#5A6670">Date ____________</text>`;
-    let hy = 66;
-    const t1 = lines(M, hy, m.title, 19, Wd - 2 * M, 'font-weight="700" fill="#14222C"', 22); hd += t1.svg; hy += t1.h - 22;
-    if (m.intro) { const t = lines(M, hy + 15, m.intro, 9.5, Wd - 2 * M, 'fill="#3B4A55"', 12); hd += t.svg; hy += 15 + t.h - 12; }
-    if (m.answer && !practice) { const t = lines(M, hy + 16, "You asked: “" + m.q + "” → " + m.answer, 10, Wd - 2 * M, 'fill="#14222C"', 13); hd += t.svg; hy += 16 + t.h - 13; }
-    const head = hy + 20;
+    }
+    let hy = slot ? 26 : 66;
+    const t1 = lines(M, hy, m.title, slot ? 15 : 19, Wd - 2 * M, 'font-weight="700" fill="#14222C"', slot ? 18 : 22); hd += t1.svg; hy += t1.h - (slot ? 18 : 22);
+    if (m.intro && !slot) { const t = lines(M, hy + 15, m.intro, 9.5, Wd - 2 * M, 'fill="#3B4A55"', 12); hd += t.svg; hy += 15 + t.h - 12; }
+    if (m.answer && !practice && !slot) { const t = lines(M, hy + 16, "You asked: “" + m.q + "” → " + m.answer, 10, Wd - 2 * M, 'fill="#14222C"', 13); hd += t.svg; hy += 16 + t.h - 13; }
+    const head = hy + (slot ? 12 : 20);
     hd += `<line x1="${M}" y1="${head - 6}" x2="${Wd - M}" y2="${head - 6}" stroke="#D5DDE2"/>`;
     // footer rows (measured first, drawn after the layout)
     const meta = topicMeta(m);
     const FW = Wd - 2 * M, rows = [];
     const links = [...meta.abbrs.map((a) => `${a.abbr} = ${a.meaning}`), ...meta.related.map((t) => "See also: " + t)];
-    if (links.length) rows.push({ h: 20 * (scr ? 2 : 1), links: true });
+    if (links.length && !slot) rows.push({ h: 20 * (scr ? 2 : 1), links: true });
     if (meta.note) { const t = lines(0, 0, (practice ? "⚠ Remember:" : "⚠ Remember: " + meta.note), 9, FW, "", 11.5); rows.push({ h: t.h + 5, text: practice ? "⚠ Remember:" : "⚠ Remember: " + meta.note, fs: 9, fill: "#24313E", line: practice }); }
     const used = [...new Set(m.facts.map((f) => f.sev).filter(Boolean))];
-    if (used.length) rows.push({ h: 16, key: true });
+    if (used.length && !slot) rows.push({ h: 16, key: true });
     const steps = "How to use: 1) Draw your own picture around each fact (odd or funny sticks best). 2) Later, print Practice and fill it in from memory. 3) Check it against Filled and add what you missed in another color.";
     const why = "Why it works: drawing and making your own notes, then recalling them, help memory (Wammes et al. 2016; Slamecka & Graf 1978; Roediger & Karpicke 2006).";
     const src = "Source: " + (meta.src || "Otter Bay") + ". Written by Otter Bay in our own words. For learning only; follow your facility's protocols.";
@@ -1048,8 +1055,8 @@
     if (song) { const cols = Wd >= 600 ? (Math.max(...song.map((t) => textW(t, 8.4))) < (FW - 28) / 3 ? 3 : 2) : 1, cw = (FW - (cols - 1) * 14) / cols, per = Math.ceil(song.length / cols);
       const colsL = Array.from({ length: cols }, (_, c) => song.slice(c * per, (c + 1) * per).map((t) => wrap(t, cw - 4, 8.4)));
       rows.push({ h: 15 + Math.max(...colsL.map((c) => c.reduce((a, l) => a + l.length * 10.6 + 1.5, 0))) + 6, song: colsL, cw }); }
-    [[steps, 8.2, "#24313E"], [why, 7.2, "#5A6670"], [src, 7.2, "#5A6670"]].forEach(([t, fs, fill]) => rows.push({ h: lines(0, 0, t, fs, FW, "", fs * 1.3).h + 3, text: t, fs, fill }));
-    const foot = rows.reduce((a, r) => a + r.h, 0) + 16;
+    (slot ? [[src, 7.2, "#5A6670"]] : [[steps, 8.2, "#24313E"], [why, 7.2, "#5A6670"], [src, 7.2, "#5A6670"]]).forEach(([t, fs, fill]) => rows.push({ h: lines(0, 0, t, fs, FW, "", fs * 1.3).h + 3, text: t, fs, fill }));
+    const foot = rows.reduce((a, r) => a + r.h, 0) + (slot ? 8 : 16);
     // the drawing area: screen keeps the text full size and grows taller; print shrinks first, then grows (and print fits the page)
     // stickers pulled for each fact (one per fact without its own picture), chosen before the layout so a graph close-up
     // can get a full-width space under its words (Ken, Nov 25: "a large part of the graph")
@@ -1057,9 +1064,12 @@
     if (!opts.noAuto) m.facts.forEach((f, i) => { const st = (cu0.stickers || {})[i]; if (!st || !st.shape) fslots.push({ key: `${topicKey}|f${i}`, text: [f.label, ...(f.details || []).map((d) => d.text)].join(" ") }); });
     const fpicked = fslots.length ? assignStickers(topicKey, fslots, m.field) : {};
     opts = Object.assign({}, opts, { _gAR: m.facts.map((f, i) => isGraph(fpicked[`${topicKey}|f${i}`] || "")) });
-    let H = scr ? 640 : land ? 756 : 792, out = null;
+    let H = slot ? slot.h : scr ? 640 : land ? 756 : 792, out = null;
     const SCALES = scr ? [1.15, 1.08, 1] : land ? [1.2, 1.1, 1, 0.93, 0.86, 0.8, 0.74, 0.68] : [1.45, 1.3, 1.18, 1.08, 1, 0.93, 0.86, 0.8, 0.74, 0.68, 0.62, 0.58];
-    if (scr) {
+    if (slot) {
+      // a slot never shrinks the text or grows: either the map fits at full size or it doesn't
+      out = layout(m, opts, 1, Wd, H, M, head, foot); if (out) out.H = H; else TIGHT = true;
+    } else if (scr) {
       for (let grow = 0; grow < 24 && !out; grow++, H = Math.round(H * 1.12))
         for (const s of SCALES) { out = layout(m, opts, s, Wd, H, M, head, foot); if (out) { out.H = H; break; } }
     } else {
@@ -1072,7 +1082,7 @@
       }
       out = cand.find((o) => o.eff >= best * 0.93) || null;
     }
-    if (!out) return "";
+    if (!out) { LAST = { boxes: [], H, s: 0, Wd, fits: false }; return ""; }
     const { boxes, x0, y0, x1, y1, s, title } = out;
     H = out.H;
     const cu = opts.custom || {}, uid = "r" + (++SVGN);
@@ -1194,11 +1204,11 @@
       fy += r.h;
     });
     out.facts = boxes;
-    LAST = { boxes, H, s, Wd };
+    LAST = { boxes, H, s, Wd, fits: !TIGHT };
     return `<svg class="recallsvg${scr ? " screen" : ""}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${Wd} ${H}" width="${Wd}" height="${H}" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Recall map: ${esc(m.title)}">` +
       `<rect width="${Wd}" height="${H}" fill="#fff"/>${hd}${g}${ft}</svg>`;
   }
-  let SVGN = 0, LAST = null;
+  let SVGN = 0, LAST = null, TIGHT = false;
   // The jingle as printed lines: "1. Boyle says squeeze it, pressure's up". Practice keeps the first two words as a cue.
   const short = (lab) => String(lab).replace(/\s*\(.*$/, "").replace(/'s\b/g, "").replace(/\b(law|principle|score)\b/gi, "").replace(/\s+/g, " ").trim();
   function songItems(m, practice) {
@@ -1263,7 +1273,7 @@
           const fillH = Math.max(0, bot - top - 8);
           const hubD = stacked ? Math.min(160, bw - 16) : Math.min(360, Math.max(220, bw * 0.34));
           let h = stacked ? hubD + 18 + n * 108 + 16 : Math.max(hubD + 24, Math.ceil(n / 2) * 150 + 28);
-          if (!stacked && m.facts.length === 1 && fillH > h) h = fillH;
+          if (!stacked && m.facts.length === 1 && (fillH > h || opts.slot)) h = fillH;
           else h = h + (sb || 0);
           return { bw, label, lines, ch, pic, sb, h };
         }
@@ -1965,6 +1975,9 @@
       const cap = pg.layout || 1, used = (pg.items || []).length, open = used < cap;
       h += `<button type="button" class="stpppick" data-act="stprintaddto" data-id="${pg.id}" ${open ? "" : "disabled"}>${open ? "Page " + (i + 1) + " · " + used + " of " + cap : "Page " + (i + 1) + " is full"}</button>`;
     });
+    h += `<button type="button" class="stppfit" data-act="stprintfit">Fit as many as space allows</button>
+      <p class="sthelp">Puts two maps on a page wherever both still print at full text size; a map that needs the whole page keeps it.</p>`;
+    if (ST.ppNote && ST.ppNote.fit) { const r = ST.ppNote.fit; h += `<p class="stppnote" role="status">${r.maps} ${r.maps === 1 ? "map" : "maps"} now on ${r.after} ${r.after === 1 ? "page" : "pages"}${r.before && r.before !== r.after ? ` (was ${r.before})` : ""}.</p>`; }
     h += `<div class="stpplayouts"><span>New page</span>`;
     [1, 2, 4].forEach((n) => { h += `<button type="button" data-act="stprintnew" data-v="${n}">${n === 1 ? "1 up" : n === 2 ? "2 stacked" : "4 in a grid"}</button>`; });
     h += `</div></div>`;
@@ -1990,8 +2003,42 @@
       <button type="button" data-act="stprinttray" data-v="off">Close</button></div></div>`;
     return h;
   }
-  function slotHtml(it) {
+  // a slot's size in full-page units (a landscape page is 1008 × 756): half for 2 stacked, quarter for 4 in a grid
+  const SLOT = { 2: { w: 1008, h: 366 }, 4: { w: 500, h: 366 } };
+  // Draws one tray item at its slot's own size when it fits there with full-size text; otherwise null.
+  function slotSvg(it, n) {
+    const sz = SLOT[n]; if (!sz || !it || it.kind === "trad") return null;
+    const keep = PG, kk = ST.k, page = fixPage(getPage(it.k));
+    if (page && (page.ink || []).length) return null;   // a drawn page keeps its drawing's layout
+    let svg = null;
+    try {
+      ST.k = it.k; PG = page || blankPage();
+      const m = model(it.k, { mine: PG, layout: pageLayout(PG) });
+      const out = recallSvg(m, { custom: page ? { stickers: page.stickers } : undefined, mode: "filled", landscape: true, print: true, slot: sz });
+      if (out && LAST && LAST.fits) svg = out;
+    } catch (e) { svg = null; }
+    ST.k = kk; PG = keep;
+    return svg;
+  }
+  function fitsSlot(it, n) { return !!slotSvg(it, n); }
+  // "Fit as many as space allows": every tray item, in order, two to a page when both fit a half page at full text size
+  function ppFit() {
+    const data = ppLoad(), all = [];
+    data.pages.forEach((pg) => (pg.items || []).forEach((it) => all.push(it)));
+    const pages = [], halves = [];
+    all.forEach((it) => {
+      if (fitsSlot(it, 2)) { halves.push(it); if (halves.length === 2) { pages.push(Object.assign(ppNew(2), { items: halves.splice(0) })); } }
+      else pages.push(Object.assign(ppNew(1), { items: [it] }));
+    });
+    if (halves.length) pages.push(Object.assign(ppNew(1), { items: halves.splice(0) }));
+    const before = data.pages.length;
+    ppSave({ pages });
+    return { before, after: pages.length, maps: all.length };
+  }
+  function slotHtml(it, n) {
     if (!it) return `<div class="pslot empty"></div>`;
+    const own = slotSvg(it, n);
+    if (own) return `<div class="pslot">${own}</div>`;
     const keep = PG, kk = ST.k, stStyle = ST.style, stMap = ST.map, stMode = ST.mode;
     const page = fixPage(getPage(it.k));
     let html = "";
@@ -2010,7 +2057,7 @@
     return data.pages.map((pg) => {
       const n = pg.layout || 1, items = (pg.items || []).slice(0, n);
       while (items.length < n) items.push(null);
-      return `<div class="ppage layout-${n}">${items.map(slotHtml).join("")}</div>`;
+      return `<div class="ppage layout-${n}">${items.map((it) => slotHtml(it, n)).join("")}</div>`;
     }).join("");
   }
   function preparePrintAll() {
@@ -2306,6 +2353,7 @@
     staddprint: () => { ST.panel = "printpages"; ST.ppNote = null; },
     stprinttray: (b) => { ST.panel = b.dataset.v === "off" ? "" : (ST.panel === "printpages" ? "" : "printpages"); ST.ppNote = ST.panel === "printpages" ? ST.ppNote : null; },
     stprintnew: (b) => { addToPrintPage(null, Number(b.dataset.v) || 1); },
+    stprintfit: () => { const r = ppFit(); ST.ppNote = { fit: r }; },
     stprintaddto: (b) => { addToPrintPage(b.dataset.id); },
     stprintlayout: (b) => {
       const data = ppLoad(), page = data.pages.find((p) => p.id === b.dataset.id);
@@ -2406,5 +2454,5 @@
   }, true);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideZoom(); });
 
-  W.OB_STUDY = Object.assign(API(), { open, screen, hasPage, listPages, thumb, preparePrint, state: ST, afterRender });
+  W.OB_STUDY = Object.assign(API(), { open, screen, hasPage, listPages, thumb, preparePrint, printAllHtml, state: ST, afterRender });
 })();
