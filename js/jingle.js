@@ -133,32 +133,48 @@
   const midi = (p) => { const m = /^([A-G])(#|b)?(\d)$/.exec(p); return m ? 12 * (Number(m[3]) + 1) + NOTE[m[1]] + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0) : null; };
   const hz = (n) => 440 * Math.pow(2, (n - 69) / 12);
   let AC = null, MASTER = null, NOISE = null;
+  // A soft piano (Ken, Nov 26: "sounds like a cheap toy, rather it be a nice piano"). Still our own synth, offline, no files:
+  // two slightly detuned strings with a piano's overtones, a hammer tap, brightness that fades as the note rings, and a little room.
+  let PIANO = null, WET = null;
   function ctx() {
     if (!AC) {
       AC = new (W.AudioContext || W.webkitAudioContext)();
-      const comp = AC.createDynamicsCompressor(); MASTER = AC.createGain(); MASTER.gain.value = 0.7; MASTER.connect(comp); comp.connect(AC.destination);
+      const comp = AC.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 3;
+      MASTER = AC.createGain(); MASTER.gain.value = 0.8; MASTER.connect(comp); comp.connect(AC.destination);
       NOISE = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = NOISE.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const amps = [0, 1, 0.52, 0.34, 0.2, 0.16, 0.1, 0.07, 0.05, 0.035, 0.025, 0.018, 0.012];
+      PIANO = AC.createPeriodicWave(new Float32Array(amps.length), new Float32Array(amps), { disableNormalization: false });
+      // a small room: 1.8 s of fading noise as the reverb's echo
+      const len = Math.floor(AC.sampleRate * 1.8), ir = AC.createBuffer(2, len, AC.sampleRate);
+      for (let c = 0; c < 2; c++) { const x = ir.getChannelData(c); for (let i = 0; i < len; i++) x[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+      const conv = AC.createConvolver(); conv.buffer = ir; WET = AC.createGain(); WET.gain.value = 0.22; WET.connect(conv); conv.connect(comp);
     }
     if (AC.state === "suspended") AC.resume();
     return AC;
   }
   const NODES = [];
   function env(g, t, peak, a, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
-  function lead(n, t, dur) {
-    const f = AC.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 2600; f.Q.value = 0.6;
-    const g = AC.createGain(); env(g, t, 0.22, 0.02, Math.max(0.12, dur * 0.95));
-    [["triangle", 0, 1], ["square", 4, 0.18]].forEach(([type, det, lvl]) => {
-      const o = AC.createOscillator(), og = AC.createGain(); o.type = type; o.frequency.value = hz(n); o.detune.value = det; og.gain.value = lvl;
-      o.connect(og); og.connect(f); o.start(t); o.stop(t + dur + 0.05); NODES.push(o);
-    });
-    f.connect(g); g.connect(MASTER);
+  function piano(n, t, dur, vel) {
+    const f = hz(n), v = vel == null ? 1 : vel, peak = 0.2 * v;
+    const ring = Math.min(2.2, Math.max(0.35, 1.2 * Math.sqrt(261.6 / f)));   // low notes ring longer
+    const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 0.5;
+    lp.frequency.setValueAtTime(Math.min(12000, f * 14), t); lp.frequency.setTargetAtTime(Math.max(f * 3, 700), t + 0.01, 0.35);
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + 0.004);
+    g.gain.setTargetAtTime(peak * 0.4, t + 0.004, 0.09);
+    g.gain.setTargetAtTime(0.0001, t + 0.3, ring);
+    g.gain.setTargetAtTime(0.0001, t + Math.max(0.12, dur), 0.07);   // the damper comes down when the note ends
+    [0, 3.5].forEach((cents) => { const o = AC.createOscillator(); o.setPeriodicWave(PIANO); o.frequency.value = f; o.detune.value = cents; o.connect(lp); o.start(t); o.stop(t + dur + 0.6); NODES.push(o); });
+    lp.connect(g); g.connect(MASTER); g.connect(WET);
+    noise(t, 0.02, "bandpass", Math.min(4000, f * 4), 0.05 * v);   // the hammer
   }
-  function bass(n, t, dur) { const o = AC.createOscillator(), g = AC.createGain(); o.type = "triangle"; o.frequency.value = hz(n); env(g, t, 0.3, 0.01, Math.max(0.1, dur * 0.9)); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + dur + 0.05); NODES.push(o); }
-  function kick(t, v) { const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); env(g, t, 0.55 * (v || 1), 0.005, 0.16); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + 0.2); NODES.push(o); }
+  const lead = (n, t, dur) => piano(n, t, dur, 1);
+  const bass = (n, t, dur) => piano(n, t, dur, 0.7);
+  function kick(t, v) { const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); env(g, t, 0.3 * (v || 1), 0.005, 0.16); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + 0.2); NODES.push(o); }
   function noise(t, dur, type, freq, lvl) { const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = NOISE; f.type = type; f.frequency.value = freq; env(g, t, lvl, 0.003, dur); s.connect(f); f.connect(g); g.connect(MASTER); s.start(t); s.stop(t + dur + 0.02); NODES.push(s); }
-  const snare = (t, v) => noise(t, 0.16, "bandpass", 1800, 0.32 * (v || 1));
-  const hat = (t, v) => noise(t, 0.04, "highpass", 7000, 0.12 * (v || 1));
-  const clap = (t) => { [0, 0.012, 0.025].forEach((d) => noise(t + d, 0.08, "bandpass", 1200, 0.28)); };
+  const snare = (t, v) => noise(t, 0.14, "bandpass", 1800, 0.16 * (v || 1));
+  const hat = (t, v) => noise(t, 0.04, "highpass", 7000, 0.06 * (v || 1));
+  const clap = (t) => { [0, 0.012, 0.025].forEach((d) => noise(t + d, 0.08, "bandpass", 1200, 0.14)); };
   // one bar of 8 beats per lyric line; drums by style
   function drums(kind, t, b) {
     for (let i = 0; i < 8; i++) {
