@@ -615,7 +615,7 @@
       bandH = blocks.length ? textH + 6 : 0;
       picW = inner * (graphPic && th.auto ? 1 : frac); picH = picW / ar;
       // under short text the picture may be bigger than the words, but not by much: about 3 lines of text tall at M
-      const want = graphPic ? picW / ar : Math.min(170, Math.max(64, (textH || 20) * 3) * frac * 1.5);
+      const want = graphPic ? picW / ar : Math.min(170, Math.max(110, (textH || 20) * 3) * frac * 1.5);
       const capH = Math.min(want, maxH ? Math.max(40, maxH - headH - bandH - pad * 2) : want);
       if (picH > capH) { picH = capH; picW = picH * ar; }
       if (picW > inner) { picW = inner; picH = picW / ar; }
@@ -815,6 +815,32 @@
     return `<g class="rcap" data-cap="${i}" data-px="${photo.x.toFixed(1)}" data-py="${photo.y.toFixed(1)}" data-pw="${photo.w.toFixed(1)}" data-ph="${photo.h.toFixed(1)}">
       <rect class="rcapbg" x="${L.x.toFixed(1)}" y="${L.y.toFixed(1)}" width="${L.w.toFixed(1)}" height="${L.h.toFixed(1)}" rx="6" fill="#fff" fill-opacity=".86"/>${body}</g>`;
   }
+  // The number to remember, on the picture itself (Ken, Nov 26: "tachycardia at >160" → "> 160" inside the racing heart).
+  // A cutoff (> 160, RR > 20/min, SpO2 < 90%) first, then a range with a unit (8–13 Hz), then a decimal range (7.35–7.45).
+  const KV_UNIT = "%|beats\\/min|breaths\\/min|\\/min|bpm|mm ?Hg|Hz|µV|uV|°[CF]|cm ?H2O|mL\\/kg|mEq\\/L|sec\\b|s\\b";
+  const KV_CUT = new RegExp("(?:\\b(HR|RR|SpO2|SaO2|PaO2|PaCO2|pH|HCO3-?|AHI|SBP|DBP|BP|MAP|EtCO2|FiO2|PEEP|Vt|GCS|Temp)\\s*)?(≥|≤|>=|<=|>|<)\\s*(\\d+(?:[.⁄]\\d+)?)\\s*(" + KV_UNIT + ")?", "i");
+  const KV_RANGE = new RegExp("(\\d+(?:\\.\\d+)?)\\s*[–-]\\s*(\\d+(?:\\.\\d+)?)\\s*(" + KV_UNIT + ")");
+  const keyValue = (text) => keyValue0(text).replace(/⁄/g, "/");
+  function keyValue0(text) {
+    // "below 120/80" reads as < 120/80; a blood pressure is one number
+    const t = String(text || "").replace(/\b(?:below|under|less than)\s+(?=\d)/gi, "< ").replace(/\b(?:above|over|more than|greater than)\s+(?=\d)/gi, "> ")
+      .replace(/\b(\d{2,3})\/(\d{2,3})\b(?!\s*(?:min|hr))/g, "$1⁄$2");
+    let m = t.match(KV_CUT);
+    // just the number (Ken, Nov 26): the comparator, the value and its unit, never the word before it
+    if (m) { const op = { ">=": "≥", "<=": "≤" }[m[2]] || m[2]; return `${op} ${m[3]}${m[4] ? (/^[%°/]/.test(m[4]) ? "" : " ") + m[4].replace(/\s+/g, "") : ""}`.replace(/ ?(beats|breaths)\/min/, "/min"); }
+    m = t.match(KV_RANGE); if (m) return `${m[1]}–${m[2]}${/^[%°/]/.test(m[3]) ? "" : " "}${m[3].replace(/\s+/g, "")}`.replace(/ ?(beats|breaths)\/min/, "/min");
+    m = t.match(/\b(\d+\.\d+)\s*[–-]\s*(\d+\.\d+)\b/); if (m) return `${m[1]}–${m[2]}`;
+    return "";
+  }
+  // a small dark label inside the picture's box, bottom center; left off when the picture is too small to hold it clearly
+  function valueBadge(x, y, w, h, v) {
+    if (!v || w < 44 || h < 40) return "";
+    let fs = Math.min(15, Math.max(9, h * 0.15)), tw = textW(v, fs, true);
+    while (tw + fs > w * 0.94 && fs > 8.5) { fs -= 0.5; tw = textW(v, fs, true); }
+    if (tw + fs > w * 0.94) return "";
+    const bw = tw + fs, bh = fs * 1.55, bx = x + (w - bw) / 2, by = y + h - bh - 2;
+    return `<g class="rvalue"><rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="${(bh / 2).toFixed(1)}" fill="#14222C" fill-opacity=".88" stroke="#fff" stroke-width="1.2"/><text x="${(x + w / 2).toFixed(1)}" y="${(by + bh / 2 + fs * 0.36).toFixed(1)}" text-anchor="middle" font-size="${fs.toFixed(1)}" font-weight="700" fill="#fff">${esc(v)}</text></g>`;
+  }
   function cardFace(card, th, color, fi, pin, practice, builder, idp) {
     idp = idp || "";   // unique per drawing, so several maps on one print page never share clip paths
     const { x1, y1, w, h, rx, headH, headFit, blocks, pad } = card;
@@ -848,7 +874,9 @@
         const src = esc(th.src);   // the slot already has the picture's shape, so it fills the slot and stays whole
         g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clip})"/></g>`;
       } else if (th && hasSticker(th.shape)) {
-        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${stickerArt(th.shape, imgX, imgY, colW, colH)}</g>`;
+        // the card's own number goes on the picture (never in Practice, where it would give the answer away; graph close-ups have theirs)
+        const kv = !practice && !isGraph(th.shape) ? keyValue(blocks.map((b) => b.lines.join(" ")).join(" ")) : "";
+        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${stickerArt(th.shape, imgX, imgY, colW, colH)}${valueBadge(imgX, imgY, colW, colH, kv)}</g>`;
       } else if (builder) {
         g += `<g class="rthumbadd" data-cap="${fi}" data-pin="${pin}" transform="translate(${(imgX + colW / 2).toFixed(1)} ${(imgY + colH / 2).toFixed(1)})"><rect x="${(-colW / 2).toFixed(1)}" y="${(-colH / 2).toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" rx="4" fill="#F4F7F8" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 2"/><path d="M-6 0h12M0-6v12" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/></g>`;
       }
@@ -1074,7 +1102,8 @@
         // the learner's sticker, or one pulled from the fact's words (Ken, Nov 25: a related sticker for every fact)
         const own = st && hasSticker(st.shape), id = own ? st.shape : autoStk[i];
         const sq = id && (!own && b.gph && isGraph(id) ? [b.cx1 + Math.max(0, (b.cx2 - b.cx1) - b.gph / isGraph(id)) / 2, b.cy2 + b.gpy, Math.min(b.cx2 - b.cx1, b.gph / isGraph(id)), b.gph] : stickerSpot(b, own ? clampScale(st.scale == null ? 0.8 : st.scale) : 0.8, Wd, isGraph(id)));
-        if (sq) g += `<g class="${own ? "rsticked" : "rauto"}">${stickerArt(id, ...sq)}</g>`;
+        const kv = sq && !practice && !isGraph(id) ? keyValue([f.label, ...(f.details || []).map((d) => d.text)].join(" ")) : "";
+        if (sq) g += `<g class="${own ? "rsticked" : "rauto"}">${stickerArt(id, ...sq)}${valueBadge(...sq, kv)}</g>`;
       }
       // the fact itself — hidden when a photo is composing the words (Ken, t198u: not a stamp over the card)
       if (!(st && st.shape === "photo" && st.src)) {
@@ -1306,7 +1335,7 @@
     return hits;
   }
 
-  function API() { return { suggestStickers, hubSuggestions, scores: stickerScores, resetPicks: () => { PICKS = {}; }, TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, photoCover, photoFitMode, FACT_FS, FACT_FS_SUB, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
+  function API() { return { keyValue, suggestStickers, hubSuggestions, scores: stickerScores, resetPicks: () => { PICKS = {}; }, TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, photoCover, photoFitMode, FACT_FS, FACT_FS_SUB, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }

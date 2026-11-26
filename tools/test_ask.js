@@ -155,6 +155,9 @@ function loadStudy(exam) {
   const oldShape = SB.recallSvg(ahi, { custom: { stickers: { 3: { shape: "kettle", c: "#C62828" } } } });
   study("stickers keep their own colors; an old line-drawing page shows the matching sticker", !/rsticker[^>]*(fill|stroke)=/.test(built) && /class="rsticker"[^>]*teapot\.webp/.test(oldShape), "old page not mapped");
   // related and unique (Ken, Nov 25): a sticker that fits the words, and never the same pulled sticker on two maps
+  // the number to remember sits inside its picture, as just the number (Ken, Nov 26)
+  const kvs = ["Tachycardia at >160", "RR > 20/min", "SpO2 < 90%", "Alpha 8–13 Hz", "pH 7.35–7.45", "Retractions"].map(SB.keyValue);
+  study("a card's number goes inside its picture, just the number", kvs.join("|") === "> 160|> 20/min|< 90%|8–13 Hz|7.35–7.45|", kvs.join("|"));
   const sug = (t) => SB.suggestStickers(t, 3);
   study("pulled stickers are related to the words", sug("Blue lips, cyanosis")[0] === "cold-face" && sug("K-complex or sleep spindle").some((x) => /k-complex|sleep-spindle/.test(x)) && sug("Inhaled corticosteroid (for example fluticasone)")[0] === "pill" && sug("Heart rate and ECG")[0] === "anatomical-heart", [sug("Blue lips, cyanosis"), sug("K-complex or sleep spindle"), sug("Inhaled corticosteroid (for example fluticasone)"), sug("Heart rate and ECG")].join(" / "));
   SB.resetPicks();
