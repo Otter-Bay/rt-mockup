@@ -185,17 +185,41 @@
       get.then((ab) => new Promise((res, rej) => AC.decodeAudioData(ab, res, rej))).then((buf) => { SAMPLES[m] = buf; }).catch(() => {});
     });
   }
-  function grand(n, t, dur, vel) {
+  function grand(n, t, dur, vel, cents) {
     const near = SAMPLE_MIDI.reduce((a, m) => (SAMPLES[m] && Math.abs(m - n) < Math.abs(a - n) ? m : a), -99);
     if (near < 0 || Math.abs(near - n) > 3) return false;
     const src = AC.createBufferSource(), g = AC.createGain(), peak = 0.55 * (vel == null ? 1 : vel);
-    src.buffer = SAMPLES[near]; src.playbackRate.value = Math.pow(2, (n - near) / 12);
+    src.buffer = SAMPLES[near]; src.playbackRate.value = Math.pow(2, (n - near) / 12 + (cents || 0) / 1200);
     g.gain.setValueAtTime(peak, t); g.gain.setTargetAtTime(0.0001, t + Math.max(0.15, dur), 0.12);   // the damper at the end of the note
     src.connect(g); g.connect(MASTER); g.connect(WET); src.start(t); src.stop(t + Math.max(0.15, dur) + 0.8); NODES.push(src);
     return true;
   }
-  const lead = (n, t, dur) => { if (!grand(n, t, dur, 1)) piano(n, t, dur, 1); };
-  const bass = (n, t, dur) => { if (!grand(n, t, dur, 0.6)) piano(n, t, dur, 0.7); };
+  // Three piano sounds to pick from (Ken, Nov 26): the recorded grand; honky-tonk (the grand doubled, a little out of tune and
+  // a hair late, like an old saloon upright); and an electric piano (our own bell-like tine sound with a gentle tremolo).
+  function electric(n, t, dur, vel) {
+    const f = hz(n), v = vel == null ? 1 : vel, end = t + Math.max(0.15, dur);
+    const car = AC.createOscillator(), mod = AC.createOscillator(), idx = AC.createGain(), tine = AC.createOscillator(), tidx = AC.createGain();
+    car.frequency.value = f; mod.frequency.value = f; tine.frequency.value = f * 14;
+    idx.gain.setValueAtTime(f * 1.6, t); idx.gain.setTargetAtTime(f * 0.25, t, 0.5);          // the bark fades into a round tone
+    tidx.gain.setValueAtTime(f * 0.9, t); tidx.gain.setTargetAtTime(0.0001, t, 0.03);         // the tine "ping"
+    mod.connect(idx); idx.connect(car.frequency); tine.connect(tidx); tidx.connect(car.frequency);
+    const g = AC.createGain(), peak = 0.13 * v;   // about as loud as the grand
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + 0.004); g.gain.setTargetAtTime(peak * 0.5, t + 0.004, 0.4);
+    g.gain.setTargetAtTime(0.0001, end, 0.1);
+    const trem = AC.createGain(), lfo = AC.createOscillator(), depth = AC.createGain();
+    trem.gain.value = 0.82; lfo.frequency.value = 4.6; depth.gain.value = 0.18; lfo.connect(depth); depth.connect(trem.gain);
+    car.connect(g); g.connect(trem); trem.connect(MASTER); trem.connect(WET);
+    [car, mod, tine, lfo].forEach((o) => { o.start(t); o.stop(end + 0.6); NODES.push(o); });
+  }
+  function voice(n, t, dur, vel) {
+    if (INST === "electric") return electric(n, t, dur, vel);
+    if (INST === "honky") { if (grand(n, t, dur, vel * 0.75, -9)) { grand(n, t + 0.012, dur, vel * 0.6, 14); return; } return piano(n, t, dur, vel); }
+    if (!grand(n, t, dur, vel)) piano(n, t, dur, vel);
+  }
+  let INST = "grand";
+  const INSTS = [["grand", "Grand piano"], ["electric", "Electric piano"], ["honky", "Honky-tonk"]];
+  const lead = (n, t, dur) => voice(n, t, dur, 1);
+  const bass = (n, t, dur) => voice(n, t, dur, INST === "electric" ? 0.8 : 0.6);
   function kick(t, v) { const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); env(g, t, 0.3 * (v || 1), 0.005, 0.16); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + 0.2); NODES.push(o); }
   function noise(t, dur, type, freq, lvl) { const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = NOISE; f.type = type; f.frequency.value = freq; env(g, t, lvl, 0.003, dur); s.connect(f); f.connect(g); g.connect(MASTER); s.start(t); s.stop(t + dur + 0.02); NODES.push(s); }
   const snare = (t, v) => noise(t, 0.14, "bandpass", 1800, 0.16 * (v || 1));
@@ -263,6 +287,7 @@
   async function play(m, page, from) {
     stop(true);
     const k = m.k, style = styleOf(k), lines = curLines(m, page), tune = (page && page.song && page.song.tune) || "twinkle";
+    INST = pref(k).inst || "grand";
     P.lines = lines; P.playing = true; P.line = from || 0;
     const useRec = !P.ex && pref(k).useRec && HAS_TAKE[k];
     if (useRec) {
@@ -352,6 +377,8 @@
     else if (weak(style)) { const alt = bestFor(type); h += `<p class="jfit warn">${esc(STYLES[style].name)} may not be the best fit for ${esc(TYPES[type])}. ${esc(fit.weak[type])} You decide. <button type="button" data-act="jstyle" data-v="${alt}">Try ${esc(STYLES[alt].name)}</button></p>`; }
     if (style === "nursery") { const T = (S().TUNES || {}), cur = (page.song && page.song.tune) || "twinkle"; h += `<div class="jtunes">${Object.entries(T).map(([v, t]) => `<button type="button" data-act="jtune" data-v="${v}" class="${cur === v ? "on" : ""}">${esc(t.name)}</button>`).join("")}</div>`; }
     else h += `<p class="jtune">${esc(STYLES[style].tune)}</p>`;
+    const inst = Pk.inst || "grand";
+    h += `<p class="asklabel jsoundlabel">Sound</p><div class="jchips jsound">${INSTS.map(([v, t]) => `<button type="button" data-act="jinst" data-v="${v}" class="${inst === v ? "on" : ""}" aria-pressed="${inst === v}">${t}</button>`).join("")}</div>`;
     h += `</div>`;
     const exs = EX[style] || [];
     h += `<p class="asklabel">3 examples you can use <span class="jdraft">${DRAFT}</span></p><div class="jexs">`;
@@ -403,6 +430,7 @@
     jopen: (b) => { stop(); P.ex = null; if (W.PAGE_ACTIONS.stopenpage) W.PAGE_ACTIONS.stopenpage({ dataset: { k: b.dataset.k } }); st().jingle = true; },
     jfav: () => { const p = pref(st().k); p.fav = !p.fav; savePrefs(); },
     jstyle: (b) => { const was = P.playing; stop(); P.ex = null; pref(st().k).style = b.dataset.v; savePrefs(); if (was) setTimeout(() => play(mdl(), page(), 0), 30); },
+    jinst: (b) => { pref(st().k).inst = b.dataset.v; savePrefs(); if (P.playing && !P.audio) play(mdl(), page(), P.line); },
     jtune: (b) => { const pg = page(); pg.song.tune = b.dataset.v; S().savePage(); },
     jex: (b) => { const style = styleOf(st().k), i = Number(b.dataset.i), e = (EX[style] || [])[i]; if (!e) return; const same = P.ex && P.ex.style === style && P.ex.i === i && P.playing; stop(); P.ex = same ? null : { style, i, e }; if (!same) play(mdl(), page(), 0); },
     jmine: () => { stop(); P.ex = null; },
