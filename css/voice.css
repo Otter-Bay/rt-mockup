@@ -664,3 +664,14 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .recallsvg .rzoomed { filter: drop-shadow(0 0 4px rgba(11, 79, 108, .55)); }
 .recallsvg:not(.builder) .rfact, .recallsvg:not(.builder) .rcard, .stpaper.tool-look .rfact, .stpaper.tool-look .rcard { cursor: zoom-in; }
 @media print { .rzoom { display: none !important; } .recallsvg .rzoomed { filter: none; } }
+
+/* Starter map (Ken, Nov 26): otter placeholder with two choices, and a grid of topic picture suggestions */
+.recallsvg .rhubbtn { cursor: pointer; }
+.recallsvg .rhubbtn:hover rect, .recallsvg .rhubbtn:focus rect { fill: #0E6A90; }
+.sthubsug { margin: 10px 0; padding: 10px 12px 12px; background: #fff; border: 1px solid #D5DDE2; border-radius: 14px; box-shadow: 0 4px 16px rgba(10, 30, 45, .12); }
+.sthubsughead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sthubgrid { display: grid; gap: 8px; margin: 8px 0 10px; }
+.sthubgrid button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px; min-height: 108px; background: #F6F9FB; border: 1px solid #D5DDE2; border-radius: 12px; cursor: pointer; font: inherit; }
+.sthubgrid button:hover, .sthubgrid button:focus-visible { border-color: #0B4F6C; background: #EEF4F7; }
+.sthubgrid img { width: 72px; height: 72px; object-fit: contain; }
+.sthubgrid span { font-size: 11.5px; line-height: 1.2; color: #24313E; text-align: center; }

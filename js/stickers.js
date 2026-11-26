@@ -134,7 +134,7 @@ window.OB_STICKERS = [{"id":"lungs","label":"Lungs","cat":"Body","w":317,"h":320
   {"id":"up-down-arrow","label":"Up-down arrow","cat":"Signs","w":200,"h":200,"words":["range","fluctuat","vary","between"]},
   {"id":"left-right-arrow","label":"Left-right arrow","cat":"Signs","w":200,"h":200,"words":["exchange","shift","versus","balance"]},
   {"id":"counterclockwise-arrows-button","label":"Counterclockwise arrows button","cat":"Signs","w":200,"h":200,"words":["cycle","repeat","again","reset","refresh","return"]},
-  {"id":"water-wave","label":"Water wave","cat":"Air and gas","w":200,"h":196,"words":["wave","waves","fluid","tide","flow","ocean"]},
+  {"id":"water-wave","label":"Water wave","cat":"Air and gas","w":200,"h":196,"words":["fluid","tide","ocean","surf","water"]},
   {"id":"fog","label":"Fog","cat":"Air and gas","w":200,"h":200,"words":["fog","haze","vapor","mist","humid","aerosol"]},
   {"id":"tornado","label":"Tornado","cat":"Air and gas","w":200,"h":194,"words":["swirl","turbul","vortex","spin"]},
   {"id":"lemon","label":"Lemon","cat":"Daily life","w":200,"h":199,"words":["acid","acidosis","sour","acidic"]},

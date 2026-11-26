@@ -157,9 +157,21 @@
       .map((l) => Object.assign(l, { mine: !!(l.own != null && l.own.trim() && l.own.trim() !== l.def), text: (l.own != null && l.own.trim()) ? l.own.trim() : l.def }));
     const song = { tune, tuneName: TUNES[tune].name, beats: TUNES[tune].beats, suggested: J.tune || "", lines: songLines, print: !!ms.print, hasDefault: !!(J.lines || []).length };
     const related = (opts.related || []).filter((r) => r !== k && W.SCALES[r]).slice(0, 2).map((r) => W.SCALES[r].title);
-    return { k, song, title: plain(card.title), intro: plain(card.intro), note: plain(card.note), src: plain(card.src), field: card.field || "rt",
+    const out = { k, song, title: plain(card.title), intro: plain(card.intro), note: plain(card.note), src: plain(card.src), field: card.field || "rt",
       heads: tbs.map((t) => t.heads), facts, abbrs: abbrsOn(card), related, q: opts.q || "", answer: opts.answer || "" };
+    return opts.layout === "cards" ? asCards(out) : out;
   }
+  // The starter map (Ken, Nov 26): the topic in the center squircle with an otter placeholder picture, and every fact as an index card
+  // around it. Internally it is one fact (the topic) whose caption lists the facts, which is the index-card map the builder already
+  // makes; allFacts keeps the real facts for the picture-idea list, the traditional page and the song.
+  function asCards(m) {
+    const cap = m.facts.map((f) => [f.label, ...(f.details || []).map((d) => "  " + (d.head ? d.head + ": " : "") + d.text)].join("\n")).join("\n");
+    return Object.assign({}, m, { cards: true, allFacts: m.facts, capDefault: cap,
+      facts: [{ table: 0, row: 0, label: m.title, details: [], sev: null, idea: {}, hit: false, pic: "", picDefault: "", picMine: false }] });
+  }
+  const PLACEHOLDER = { shape: "photo", w: 320, h: 320, scale: 0.85, placeholder: true };
+  // which map a saved page uses: pages built on the old line map before the starter changed keep it
+  const pageLayout = (p) => (p && p.layout) || (p && ((p.ink || []).length || Object.keys(p.moves || {}).length || Object.keys(p.stickers || {}).length) ? "line" : "cards");
 
   // ---------- Text measuring and wrapping (Helvetica-like widths, good enough for layout) ----------
   const CW = (ch) => /[il.,:;'|!]/.test(ch) ? 0.28 : /[mwMW]/.test(ch) ? 0.83 : /[A-Z0-9]/.test(ch) ? 0.64 : 0.52;
@@ -251,6 +263,16 @@
       if (sc > 0) out[t.id] = sc;
     });
     return out;
+  }
+  function hubSuggestions(m, n, taken) {
+    const facts = m.allFacts || m.facts, sc = {}, add = (t, w) => { const x = stickerScores(t); Object.keys(x).forEach((id) => { sc[id] = (sc[id] || 0) + x[id] * w; }); };
+    add(m.title, 3); facts.forEach((f) => add([f.label, ...(f.details || []).map((d) => d.text)].join(" "), 1));
+    const titleSc = stickerScores(m.title), fam = {}, order = {}; STK.forEach((t, k) => { fam[t.id] = t.same || t.id; order[t.id] = k; });
+    const seen = new Set((taken || []).map((id) => fam[id] || id));
+    const ok = Object.keys(sc).filter((id) => ART[id] && !(GRAPH[id] && !(titleSc[id] >= 3)) && !(taken || []).includes(id));
+    const best = Math.max(0, ...ok.map((id) => sc[id]));   // only pictures that clearly match the topic's words (Ken, Nov 26)
+    return ok.filter((id) => sc[id] >= Math.max(3, best * 0.25))
+      .sort((a, b) => sc[b] - sc[a] || order[a] - order[b]).filter((id) => !seen.has(fam[id]) && seen.add(fam[id])).slice(0, n || 12);
   }
   function suggestStickers(text, n) {
     const sc = stickerScores(text), order = {}; STK.forEach((t, k) => { order[t.id] = k; });
@@ -846,7 +868,14 @@
     g += `<clipPath id="${cid}hubIn"><rect x="${(hub.x1 + inset).toFixed(1)}" y="${(hub.y1 + inset).toFixed(1)}" width="${(hub.w - sw).toFixed(1)}" height="${(hub.h - sw).toFixed(1)}" rx="${Math.max(0, hub.rx - inset).toFixed(1)}"/></clipPath>`;
     g += `<g class="rhub rhubpic" data-cap="${fi}">`;
     g += `<rect class="rhubfill" x="${hub.x1.toFixed(1)}" y="${hub.y1.toFixed(1)}" width="${hub.w.toFixed(1)}" height="${hub.h.toFixed(1)}" rx="${hub.rx.toFixed(1)}" fill="#fff" stroke="none"/>`;
-    if (st && st.src) g += photoElAt(st, hub.img, cid + "hubIn", "contain");
+    if (st && st.src) g += st.placeholder ? photoElAt(st, hub.img, cid + "hubIn", "contain").replace('class="rphoto"', 'class="rphoto rplaceholder" opacity=".38"') : photoElAt(st, hub.img, cid + "hubIn", "contain");
+    if (st && st.placeholder && !wide) {
+      // two choices on the placeholder (screen only): the learner's own picture, or pictures suggested from the topic's words
+      const bw = Math.min(118, (hub.w - 30) / 2), bh = 28, by = hub.img.y + hub.img.h - bh - 4, gx = hub.cx;
+      [["sthubmine", "📷 My picture", gx - bw - 4], ["sthubsuggest", "✨ Suggestions", gx + 4]].forEach(([act, t, x]) => {
+        g += `<g class="rhubbtn" data-act="${act}" role="button" tabindex="0"><rect x="${x.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh}" rx="${bh / 2}" fill="#0B4F6C"/><text x="${(x + bw / 2).toFixed(1)}" y="${(by + bh / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(11.5, bw / 9.5).toFixed(1)}" font-weight="700" fill="#fff">${t}</text></g>`;
+      });
+    }
     if (tree.label && !practice) {
       const bandY = hub.y1 + inset;
       const bandHt = Math.max(0, hub.img.y - bandY);
@@ -922,6 +951,13 @@
   }
   function recallSvg(m, opts) {
     opts = opts || {};
+    if (m && m.cards) {
+      const cu = opts.custom || {}; let st0 = (cu.stickers || {})[0] || {};
+      if (st0.shape && st0.shape !== "photo" && hasSticker(st0.shape)) { const id = artId(st0.shape); st0 = Object.assign({}, st0, { shape: "photo", src: artSrc(id), w: ART[id][2], h: ART[id][3], sticker: id }); }
+      const real = st0.shape === "photo" && st0.src && !st0.placeholder;
+      const st = Object.assign({}, real ? {} : PLACEHOLDER, real ? {} : { src: ART_BASE + "otter-face.webp" }, st0, real ? {} : { shape: "photo", placeholder: true, src: ART_BASE + "otter-face.webp" }, { cap: st0.cap || m.capDefault });
+      opts = Object.assign({}, opts, { custom: Object.assign({}, cu, { stickers: Object.assign({}, cu.stickers || {}, { 0: st }) }) });
+    }
     const practice = opts.mode === "practice", scr = !!opts.screen, land = !scr && !!(opts.landscape || opts.print);
     const Wd = scr ? 400 : land ? 1008 : 612, M = scr ? 14 : land ? 20 : 22;
     // header (measured first so the drawing area knows where to start)
@@ -988,14 +1024,14 @@
       const L0 = listedAt(b, i);
       if (L0) L0.tree.items.forEach((it, c) => { if (!((L0.st.thumbs || {})[c])) slots.push({ key: `${topicKey}|f${i}|c${c}`, text: [it.text, ...factLines(it)].join(" ") }); });
     });
-    const picked = Object.assign({}, fpicked, slots.length ? assignStickers(topicKey, slots, m.field, Object.values(fpicked)) : {});
+    const picked = Object.assign({}, fpicked, slots.length ? assignStickers(topicKey, slots, m.field, Object.values(fpicked).concat(((cu.stickers || {})[0] || {}).sticker || [])) : {});
     const autoStk = {}; boxes.forEach((b, i) => { autoStk[i] = picked[`${topicKey}|f${i}`] || ""; });
     AUTO_CARD = (i, c) => picked[`${topicKey}|f${i}|c${c}`] || "";
     if (scr) boxes.map((b, i) => [b, i]).sort((p, q) => p[0].y1 - q[0].y1).forEach(([b, i]) => {
       const L0 = listedAt(b, i); if (!L0) return;
       const CL = calloutLayout(b, composePhoto(b, L0.st, "list"), L0.st, L0.tree, false, opts.builder, i);
       const bottom = Math.max(CL.hub.y2, ...CL.nodes.map((n) => n.card.y2)) + 10, delta = bottom - b.y2;
-      if (delta <= 0) return;
+      if (delta <= 0 && !(m.cards && delta < -12)) return;   // the starter map also gives back space its cards don't use
       boxes.forEach((o) => { if (o !== b && o.y1 >= b.y2 - 1) ["y1", "y2", "cy1", "cy2", "ay"].forEach((q) => { if (o[q] != null) o[q] += delta; }); });
       b.y2 += delta; H += delta;
     });
@@ -1020,7 +1056,7 @@
       g += `<g class="rfact${opts.sel === i ? " sel" : ""}" data-fi="${i}">`;
       // the draw-your-own space
       g += `<clipPath id="${uid}c${i}"><rect x="${b.x1}" y="${b.y1}" width="${b.x2 - b.x1}" height="${b.y2 - b.y1}" rx="12"/></clipPath>`;
-      if (!(listed0 && land && !scr)) {
+      if (!(listed0 && land && !scr) && !m.cards) {
       g += `<rect class="rspace" x="${b.x1}" y="${b.y1}" width="${b.x2 - b.x1}" height="${b.y2 - b.y1}" rx="12" fill="${opts.builder ? "#fff" : "none"}" fill-opacity="${opts.builder ? ".01" : "0"}" stroke="${opts.sel === i ? BAY : "#A9B4BD"}" stroke-width="${opts.sel === i ? 2 : 1}" stroke-dasharray="4 4"/>`;
       }
       const ix = (b.cx1 - b.x1) * 0.45, iy = (b.cy1 - b.y1) * 0.4;
@@ -1072,7 +1108,7 @@
         links.forEach((t) => {
           let tw = Math.min(textW(t, 8) + 14, Wd - M - (M + 70));
           if (lx + tw > Wd - M) { if (!scr || ly > fy) return; lx = M + 70; ly += 20; }
-          ft += `<path d="M${x0} ${y0}Q${(x0 + lx + tw / 2) / 2} ${(y0 + ly) / 2 - 8} ${lx + tw / 2} ${ly - 6}" fill="none" stroke="#7A8791" stroke-width="1" stroke-dasharray="1.5 3"/>`;
+          if (!m.cards) ft += `<path d="M${x0} ${y0}Q${(x0 + lx + tw / 2) / 2} ${(y0 + ly) / 2 - 8} ${lx + tw / 2} ${ly - 6}" fill="none" stroke="#7A8791" stroke-width="1" stroke-dasharray="1.5 3"/>`;
           ft += `<rect x="${lx}" y="${ly - 6}" width="${tw}" height="14" rx="7" fill="#fff" stroke="#7A8791" stroke-dasharray="1.5 2.5"/><text x="${lx + 7}" y="${ly + 4}" font-size="8" fill="#24313E">${esc(clip(t, tw - 12, 8))}</text>`;
           lx += tw + 6;
         });
@@ -1270,7 +1306,7 @@
     return hits;
   }
 
-  function API() { return { suggestStickers, resetPicks: () => { PICKS = {}; }, TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, photoCover, photoFitMode, FACT_FS, FACT_FS_SUB, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
+  function API() { return { suggestStickers, hubSuggestions, scores: stickerScores, resetPicks: () => { PICKS = {}; }, TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, photoCover, photoFitMode, FACT_FS, FACT_FS_SUB, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }
@@ -1282,9 +1318,9 @@
     tool: "draw", color: "#C62828", sel: null, zoom: false, celebrate: false, msg: "", panel: "", songPop: false, from: "ask", fromK: "", focus: null, branch: null, focusBranch: null };
   const savePref = () => sv(STYLE_KEY, { style: ST.style, map: ST.map });
   const getPage = (k) => ld(PAGE_KEY(k), null);
-  const blankPage = () => ({ ink: [], stickers: {}, moves: {}, hist: [], done: false, at: Date.now(), pics: {}, song: { tune: "", lines: {}, print: false, asked: false } });
+  const blankPage = () => ({ layout: "cards", ink: [], stickers: {}, moves: {}, hist: [], done: false, at: Date.now(), pics: {}, song: { tune: "", lines: {}, print: false, asked: false } });
   // older saved pages (before picture ideas and songs) get the new parts
-  const fixPage = (p) => { if (!p) return p; p.pics = p.pics || {}; p.song = Object.assign({ tune: "", lines: {}, print: false, asked: false }, p.song || {}); return p; };
+  const fixPage = (p) => { if (!p) return p; p.layout = pageLayout(p); p.pics = p.pics || {}; p.song = Object.assign({ tune: "", lines: {}, print: false, asked: false }, p.song || {}); return p; };
   let PG = null;
   const savePage = () => { if (!ST.k || !PG) return; PG.at = Date.now(); PG.title = (W.SCALES[ST.k] || {}).title; sv(PAGE_KEY(ST.k), PG); };
   const hasPage = (k) => { const p = getPage(k); return !!(p && ((p.ink || []).length || Object.keys(p.stickers || {}).length || Object.keys(p.moves || {}).length ||
@@ -1302,6 +1338,8 @@
       const m = mdl(), f = ST.sel != null ? m.facts[ST.sel] : null; if (!f) return STK.slice(0, 8).map((t) => t.id);
       let text = [f.label, ...(f.details || []).map((d) => d.text)].join(" ");
       if (ST.branch != null) { const it = (capItems((PG.stickers || {})[ST.sel], f, ((LAST && LAST.boxes) || [])[ST.sel] || {}).items || [])[ST.branch]; if (it) text = [it.text, ...factLines(it)].join(" "); }
+      const sc = stickerScores(text), graphs = Object.keys(sc).filter((id) => GRAPH[id] && sc[id] >= 3);
+      if (graphs.length) return graphs.sort((a, b) => sc[b] - sc[a]).slice(0, 8);   // a graph answer: only graph close-ups
       const ids = suggestStickers(text, 8);
       return ids.length ? ids : STK.slice(0, 8).map((t) => t.id);
     } catch (e) { return STK.slice(0, 8).map((t) => t.id); }
@@ -1310,7 +1348,12 @@
     ["wing", "Wing"], ["hourglass", "Venturi tube"], ["runner", "Runner"], ["lungs", "Lungs"], ["heart", "Heart"], ["drop", "Drop"], ["brain", "Cloud"], ["moon", "Moon"], ["clock", "Clock"], ["thermo", "Thermometer"], ["shield", "Shield"]];
   const PROMPTS = ["What does “{f}” remind you of? Draw it around the box.", "Picture “{f}” at the bedside. What would you see?",
     "Odd and funny sticks best. What silly picture fits “{f}”?", "If “{f}” were an object, what would it be?"];
-  const mdl = (k) => model(k || ST.k, { hit: ST.hit, q: ST.q, answer: ST.answer, related: ST.related, mine: PG });
+  const mdl = (k) => {
+    const m = model(k || ST.k, { hit: ST.hit, q: ST.q, answer: ST.answer, related: ST.related, mine: PG, layout: pageLayout(PG) });
+    // the topic picture keeps the card list with it, so the builder's card tools see every card
+    if (m && m.cards && PG && PG.stickers && PG.stickers[0] && !PG.stickers[0].cap) PG.stickers[0].cap = m.capDefault;
+    return m;
+  };
   function open(k, o) {
     o = o || {};
     ST.k = k; ST.q = o.q || ""; ST.answer = o.answer || ""; ST.related = o.related || []; ST.hit = o.hit || null;
@@ -1322,6 +1365,7 @@
   }
   // Which facts have a picture yet (a sticker, or a line drawn in or across their space)
   function decorated(m) {
+    if (m.cards) { const st0 = (PG.stickers || {})[0]; return [!!(st0 && ((st0.shape === "photo" && st0.src && !st0.placeholder) || hasSticker(st0.shape)))]; }
     recallSvg(m, { custom: PG, builder: true, screen: true, noSong: true });
     const bx = (LAST && LAST.boxes) || [];
     return bx.map((b, i) => !!(PG.stickers[i]) || PG.ink.some((k) => k.pts.some((p) => p[0] >= b.x1 - 6 && p[0] <= b.x2 + 6 && p[1] >= b.y1 - 6 && p[1] <= b.y2 + 6)));
@@ -1341,7 +1385,7 @@
     h += whyBox() + `</div>`;
     if (ST.style === "trad" || ST.map === "hand") {
       h += `<div class="stopts">${seg("stmode", ST.mode, [["filled", "Filled"], ["practice", "Practice (blanks)"]])}
-        ${ST.style === "map" ? `<label class="stchk"><input type="checkbox" data-act="stideas" ${ST.ideas ? "checked" : ""}> Show ideas (a starter picture)</label>` : ""}
+        ${ST.style === "map" && !m.cards ? `<label class="stchk"><input type="checkbox" data-act="stideas" ${ST.ideas ? "checked" : ""}> Show ideas (a starter picture)</label>` : ""}
         <p class="sthelp">${ST.mode === "practice" ? "Fill it in from memory, then switch to Filled and check. Add what you missed in another color." : ST.style === "map" ? "Each fact has an empty space. Draw your own picture around it after you print." : "A plain page with the full table, ready to print."}</p></div>`;
       h += `<button type="button" class="stprint" data-act="stprint">${PRINTICON}<span>Print this sheet</span></button>
       <button type="button" class="staddprint" data-act="staddprint">Add to print page</button>
@@ -1356,18 +1400,18 @@
   // What the paper on screen shows (also redrawn in place while the learner types, so the keyboard stays up)
   function paperHtml(m) {
     if (ST.style === "map" && ST.map === "build") return recallSvg(m, { custom: PG, builder: true, screen: true, noSong: true, sel: ST.tool === "sticker" ? ST.sel : null, branch: ST.branch }).replace('class="recallsvg', 'class="recallsvg builder');
-    return ST.style === "map" ? recallSvg(m, { mode: ST.mode, ideas: ST.ideas, screen: true }) : traditionalHtml(m, { mode: ST.mode });
+    return ST.style === "map" ? recallSvg(m, { mode: ST.mode, ideas: ST.ideas, screen: true }) : traditionalHtml(m.allFacts ? Object.assign({}, m, { facts: m.allFacts }) : m, { mode: ST.mode });
   }
   function refreshPaper() { const el = document.querySelector(".stsheet .stpaper"); if (el && ST.k) el.innerHTML = paperHtml(mdl()); }
   // Picture ideas (ours, or the learner's own words) and the optional song. (Ken, Nov 23: "Do it for them, but let them type in a
   // different image description. Same with the jingle. Make one for them, but allow them to put in their own words.")
   function memPanels(m) {
-    const anyDef = m.facts.some((f) => f.picDefault), mineN = m.facts.filter((f) => f.picMine).length;
+    const FF = m.allFacts || m.facts, anyDef = FF.some((f) => f.picDefault), mineN = FF.filter((f) => f.picMine).length;
     let h = `<div class="stmem"><button type="button" class="stmembtn${ST.panel === "pics" ? " on" : ""}" data-act="stpanel" data-v="pics" aria-expanded="${ST.panel === "pics"}">
       <span class="stmemic" aria-hidden="true">✎</span><span><b>Picture ideas</b><small>${anyDef ? (mineN ? `${mineN} in your own words` : "We wrote one for each fact. Change any to your own.") : "Describe your own picture for each fact."}</small></span><i aria-hidden="true">${ST.panel === "pics" ? "▴" : "▾"}</i></button>`;
     if (ST.panel === "pics") {
       h += `<div class="stpanel"><p class="sthelp">${anyDef ? "Here's a picture for each fact to get you started. Type your own words to make it yours: yours goes on the sheet. Your own picture sticks best." : "Write what you'll draw for each fact. It goes on the sheet under the fact."}</p>`;
-      m.facts.forEach((f, i) => { h += `<div class="stpicrow"><label for="stpic${i}"><b>${esc(f.label)}</b><span class="sttag ${f.picMine ? "mine" : ""}" data-tag="${i}">${f.picMine ? "Yours" : f.picDefault ? "Suggested" : "Empty"}</span></label>
+      FF.forEach((f, i) => { h += `<div class="stpicrow"><label for="stpic${i}"><b>${esc(f.label)}</b><span class="sttag ${f.picMine ? "mine" : ""}" data-tag="${i}">${f.picMine ? "Yours" : f.picDefault ? "Suggested" : "Empty"}</span></label>
         <textarea id="stpic${i}" data-stpic="${i}" rows="${Math.max(3, Math.ceil((f.pic || f.picDefault || "").length / 40) + 1)}" placeholder="${esc(f.picDefault ? f.picDefault : "What will you draw for “" + f.label + "”?")}">${esc(f.pic)}</textarea>
         <button type="button" class="streset" data-act="stpicreset" data-i="${i}" ${f.picMine ? "" : "hidden"}>↺ ${f.picDefault ? "Back to our suggestion" : "Clear"}</button></div>`; });
       h += `</div>`;
@@ -1597,6 +1641,22 @@
     }
     return m.facts[ST.sel] ? m.facts[ST.sel].label : "this topic";
   }
+  // Suggestions for the topic picture (Ken, Nov 26): as many related pictures as fit the screen while each stays easy to see,
+  // only ones whose words match the topic, none already used on another map or on this one's cards.
+  function hubSugHtml(m) {
+    if (!ST.hubSug || !m.cards) return "";
+    const vw = Math.min(760, (W.innerWidth || 400) - 40), vh = (W.innerHeight || 800) * 0.6, tile = 92, gap = 8;
+    const cols = Math.max(3, Math.floor((vw + gap) / (tile + gap))), rows = Math.max(2, Math.floor(vh / (tile + 22 + gap)));
+    const P0 = picks(), mineK = (k2) => k2.split("|")[0] === m.k;
+    const taken = Object.keys(P0).filter((k2) => !mineK(k2)).map((k2) => P0[k2]).concat(Object.keys(P0).filter(mineK).filter((k2) => k2 !== m.k + "|hub").map((k2) => P0[k2]));
+    const ids = hubSuggestions(m, cols * rows, taken);
+    return `<div class="sthubsug" role="dialog" aria-label="Suggested topic pictures"><div class="sthubsughead"><p class="streplacetitle">Pictures for “${esc(m.title)}”</p>
+      <button type="button" class="rzoomx" data-act="sthubclose">Close ✕</button></div>
+      ${ids.length ? `<p class="sthelp">Picked from the words on this topic. Tap one to use it. Your own picture sticks best.</p>
+      <div class="sthubgrid" style="grid-template-columns:repeat(${cols},1fr)">${ids.map((id) => `<button type="button" data-act="sthubpick" data-s="${id}"><img src="${esc(artSrc(id))}" alt="" loading="lazy"><span>${esc(ART[id][1])}</span></button>`).join("")}</div>`
+        : `<p class="sthelp">No close matches for this topic yet. Use your own picture: a photo, a drawing, or paste one.</p>`}
+      <div class="strow"><button type="button" data-act="sthubmine">📷 Use my own picture instead</button></div></div>`;
+  }
   function openReplace(sel, branch) {
     ST.map = "build"; ST.tool = "sticker"; ST.sel = sel;
     ST.branch = (branch == null || branch !== branch) ? null : branch;
@@ -1692,7 +1752,7 @@
     const dec = decorated(m), n = dec.length, got = dec.filter(Boolean).length;
     const next = m.facts[dec.findIndex((d) => !d)];
     if (got === n && n && !PG.done) { PG.done = true; ST.celebrate = true; savePage(); }
-    const prompt = ST.msg || (next ? PROMPTS[(m.facts.indexOf(next) + PG.ink.length) % PROMPTS.length].replace("{f}", next.label) : "Every fact has a picture. Print it, then try Practice from memory tomorrow.");
+    const prompt = ST.msg || (m.cards && next ? "Pick a topic picture: tap My picture or Suggestions on the otter. Each card already has a picture for its fact; tap one to change it." : next ? PROMPTS[(m.facts.indexOf(next) + PG.ink.length) % PROMPTS.length].replace("{f}", next.label) : "Every fact has a picture. Print it, then try Practice from memory tomorrow.");
     const seenImgs = {}, mapDups = collectImageIds(PG).filter((x) => { if (seenImgs[x.id]) return true; seenImgs[x.id] = 1; return false; });
     const tools = [["look", "👀 Look"], ["draw", "✏️ Draw"], ["sticker", "⭐ Stickers"], ["move", "✋ Move"]];
     let h = `<div class="stbuild"><p class="stprompt" aria-live="polite">${esc(prompt)}</p>
@@ -1716,10 +1776,10 @@
     if (ST.tool === "move") h += `<p class="sthelp">Drag a fact to where it makes sense to you. Its branch follows.</p>`;
     if (ST.tool === "draw") h += `<p class="sthelp">Draw with your finger or mouse right on the page. Lift and continue as often as you like; tap Done when you are finished.</p>`;
     if (mapDups.length) h += `<p class="stppnote" role="status">Two facts on this page share a picture. A slightly different one will stick better.</p>`;
-    h += replaceMenuHtml() + slotDrawHtml();
+    h += replaceMenuHtml() + slotDrawHtml() + hubSugHtml(m);
     h += `<div class="stpaper builder tool-${ST.tool} ${ST.zoom ? "zoom" : ""}">${paperHtml(m)}</div>
       <div class="strow"><button type="button" data-act="stzoom">${ST.zoom ? "Fit to screen" : "Zoom in"}</button><button type="button" data-act="stundo" ${PG.hist.length ? "" : "disabled"}>↶ Undo</button><button type="button" data-act="stclear">Clear</button><button type="button" class="stdone" data-act="stdone">Done</button></div>
-      <p class="stprog"><span class="stbar"><i style="width:${n ? Math.round(100 * got / n) : 0}%"></i></span>${got} of ${n} facts have a picture${PG.done ? ' · <b>🏅 Page built!</b>' : ""}</p>
+      <p class="stprog"><span class="stbar"><i style="width:${n ? Math.round(100 * got / n) : 0}%"></i></span>${m.cards ? (got ? "Topic picture added" : "No topic picture yet") : `${got} of ${n} facts have a picture`}${PG.done ? ' · <b>🏅 Page built!</b>' : ""}</p>
       <button type="button" class="stprint" data-act="stprint">${PRINTICON}<span>Print my page</span></button>
       <button type="button" class="staddprint" data-act="staddprint">Add to print page</button>
       <button type="button" class="stprinttraybtn" data-act="stprinttray">Print pages</button>
@@ -1737,7 +1797,7 @@
   // The page to print, exactly as chosen (or built).
   function printHtml() {
     const m = mdl();
-    if (ST.style === "trad") return traditionalHtml(m, { mode: ST.mode });
+    if (ST.style === "trad") return traditionalHtml(m.allFacts ? Object.assign({}, m, { facts: m.allFacts }) : m, { mode: ST.mode });
     if (ST.map === "build") return builtForPrint(m, PG);   // same layout as the builder, so the drawing lines up
     return recallSvg(m, { mode: ST.mode, ideas: ST.ideas, landscape: true, print: true });
   }
@@ -1871,8 +1931,8 @@
     let html = "";
     try {
       ST.k = it.k; PG = page || blankPage();
-      const m = model(it.k, { mine: PG });
-      if (it.kind === "trad") html = traditionalHtml(m, { mode: "filled" });
+      const m = model(it.k, { mine: PG, layout: pageLayout(PG) });
+      if (it.kind === "trad") html = traditionalHtml(m.allFacts ? Object.assign({}, m, { facts: m.allFacts }) : m, { mode: "filled" });
       else if (page) html = builtForPrint(m, PG);
       else html = recallSvg(m, { mode: "filled", landscape: true, print: true });
     } catch (e) { html = `<p>${esc(it.title || it.k)}</p>`; }
@@ -1899,7 +1959,7 @@
   function thumb(k) {
     const p = getPage(k); if (!p) return "";
     const keep = PG, kk = ST.k; PG = p; ST.k = k;
-    const svg = recallSvg(model(k, { mine: fixPage(p) }), { custom: p, screen: true, builder: true, noSong: true });
+    const svg = recallSvg(model(k, { mine: fixPage(p), layout: pageLayout(p) }), { custom: p, screen: true, builder: true, noSong: true });
     PG = keep; ST.k = kk;
     return svg.replace('class="recallsvg', 'class="recallsvg thumb');
   }
@@ -1920,6 +1980,7 @@
       return;
     }
     const svg = e.target.closest && e.target.closest("svg.recallsvg.builder"); if (!svg || !PG) return;
+    if (e.target.closest("[data-act]")) return;
     e.stopPropagation();
     const p = svgPt(svg, e), fact = e.target.closest(".rfact"), fi = fact ? Number(fact.dataset.fi) : null;
     const pin = e.target.closest && e.target.closest(".rpin"), cap = e.target.closest && e.target.closest(".rcap");
@@ -2091,7 +2152,7 @@
     if (!PG || !t.dataset) return;
     const m0 = mdl();
     if (t.dataset.stpic != null) {
-      const i = t.dataset.stpic, f = m0.facts[i], v = t.value;
+      const i = t.dataset.stpic, f = (m0.allFacts || m0.facts)[i], v = t.value;
       if (!v.trim() || v.trim() === f.picDefault) delete PG.pics[i]; else PG.pics[i] = v;
       const mine = !!PG.pics[i], tag = document.querySelector(`[data-tag="${i}"]`), rb = t.parentNode.querySelector(".streset");
       if (tag) { tag.textContent = mine ? "Yours" : f.picDefault ? "Suggested" : "Empty"; tag.classList.toggle("mine", mine); }
@@ -2132,6 +2193,18 @@
     sttool: (b) => { ST.tool = b.dataset.v; ST.msg = ""; },
     stcolor: (b) => { ST.color = b.dataset.c; },
     stzoom: () => { ST.zoom = !ST.zoom; },
+    sthubmine: () => { ST.style = "map"; ST.hubSug = false; openReplace(0, null); savePref(); },
+    sthubsuggest: () => { ST.style = "map"; ST.map = "build"; ST.replace = null; ST.slotDraw = null; ST.sel = 0; ST.branch = null; ST.hubSug = true; savePref();
+      setTimeout(() => { const el = document.querySelector(".sthubsug"); if (el) el.scrollIntoView({ block: "start", behavior: "smooth" }); }, 60); },
+    sthubclose: () => { ST.hubSug = false; },
+    sthubpick: (b) => {
+      const id = artId(b.dataset.s); if (!id) return;
+      const m = mdl(), prev = (PG.stickers || {})[0] || {};
+      PG.hist.push({ t: "st", i: 0, prev: PG.stickers[0] || null });
+      PG.stickers = Object.assign({}, PG.stickers, { 0: Object.assign({}, prev, { shape: "photo", src: artSrc(id), w: ART[id][2], h: ART[id][3], sticker: id, scale: prev.scale || 0.85, cap: prev.cap || m.capDefault }) });
+      delete PG.stickers[0].placeholder; PG.layout = "cards";
+      const P0 = picks(); P0[m.k + "|hub"] = id; savePicks(); savePage(); ST.hubSug = false; ST.msg = "";
+    },
     ststicker: (b) => {
       if (ST.sel == null) { ST.msg = "Tap a fact, or a card, then pick its shape."; return; }
       const prev = (ST.branch != null ? ((PG.stickers[ST.sel] || {}).thumbs || {})[ST.branch] : PG.stickers[ST.sel]) || {};
@@ -2222,7 +2295,7 @@
     if (!t || !t.closest) return null;
     const svg = t.closest("svg.recallsvg"); if (!svg || svg.classList.contains("thumb")) return null;
     if (svg.classList.contains("builder") && ST.tool !== "look") return null;
-    if (t.closest(".rpin, .rcap, .rhubpic, .rthumb, .rthumbadd")) return null;   // pictures keep their Replace menu
+    if (t.closest(".rpin, .rcap, .rhub, .rhubpic, .rthumb, .rthumbadd, [data-act]")) return null;   // pictures keep their Replace menu
     const el = t.closest(".rcard") || t.closest(".rfact"); return el ? { svg, el } : null;
   }
   function showZoom(svg, el) {
