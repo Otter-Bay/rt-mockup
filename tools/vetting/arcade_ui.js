@@ -118,7 +118,7 @@
   };
 
   /* Clicks (Ken, Nov 25): the vetting page's own click handler doesn't know these buttons, so this file handles them.
-     Saving a topic opens a pop-up with the whole Study List, so it's clear it was saved; "Back to the question"
+     Saving a topic opens a pop-up with the whole Study List, so it's clear it was saved; "Back to questions"
      closes it and leaves the page exactly where it was (nothing behind the pop-up is redrawn except the button itself). */
   let pop = null, popKey = "", popMsg = "";
   function refresh() {
@@ -139,7 +139,7 @@
           <a class="obarcbtn" href="${esc(appHref())}" target="_blank" rel="noopener">Study these in ${esc(APP_NAME)}</a></div>
         <p class="obarcnote">Pick how to study each topic. Jingle opens here; Picture, Flashcard and Game open ${esc(APP_NAME)} with your list, straight to that topic. Study these in ${esc(APP_NAME)} opens the whole list there. This page can't share storage with the app.</p>`
         : `<p class="obarcsub">Nothing saved yet. Tap Add to Study List under a question's reference card.</p>`}
-      <button type="button" class="btn obarcback" data-obarc="close">Back to the question</button></div>`;
+      <button type="button" class="btn obarcback" data-obarc="close">Back to questions</button></div>`;
   }
   // How to study a topic lives on the Study List (Ken, Nov 26), the same four styles as the app. Jingle opens right here;
   // Picture, Flashcard and Game open the app with the list imported and that topic's style already open.
