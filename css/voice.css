@@ -779,3 +779,5 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .binflag.binhave > span:first-child { color: #C99A2E; }
 .binflag.binhave b { color: #14222C; }
 .binflag.binhave .binsavedgo { margin-left: auto; font: inherit; font-weight: 700; color: #0B4F6C; background: #fff; border: 2px solid #0B4F6C; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.jsound .jbass { margin-left: 6px; border-style: dashed; }
+.jsound .jbass.on { border-style: solid; background: #14222C; border-color: #14222C; color: #fff; }

@@ -216,6 +216,18 @@
     if (INST === "honky") { if (grand(n, t, dur, vel * 0.75, -9)) { grand(n, t + 0.012, dur, vel * 0.6, 14); return; } return piano(n, t, dur, vel); }
     if (!grand(n, t, dur, vel)) piano(n, t, dur, vel);
   }
+  // the bass: a round electric bass (sine body plus a filtered saw for the pluck), mostly dry so it sits under the piano
+  function bassGuitar(n, t, dur, vel) {
+    const f = hz(n), v = vel == null ? 1 : vel, end = t + Math.max(0.1, dur);
+    const sub = AC.createOscillator(), saw = AC.createOscillator(), sg = AC.createGain(), lp = AC.createBiquadFilter(), g = AC.createGain();
+    sub.type = "sine"; sub.frequency.value = f; saw.type = "sawtooth"; saw.frequency.value = f; sg.gain.value = 0.35;
+    lp.type = "lowpass"; lp.Q.value = 1.2; lp.frequency.setValueAtTime(Math.min(1400, f * 9), t); lp.frequency.setTargetAtTime(f * 3, t, 0.08);
+    const peak = 0.42 * v;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + 0.006); g.gain.setTargetAtTime(peak * 0.65, t + 0.006, 0.15); g.gain.setTargetAtTime(0.0001, end, 0.05);
+    saw.connect(sg); sg.connect(lp); sub.connect(lp); lp.connect(g); g.connect(MASTER);
+    [sub, saw].forEach((o) => { o.start(t); o.stop(end + 0.3); NODES.push(o); });
+  }
+  let BASS = true;
   let INST = "grand";
   const INSTS = [["grand", "Grand piano"], ["electric", "Electric piano"], ["honky", "Honky-tonk"]];
   const lead = (n, t, dur) => voice(n, t, dur, 1);
@@ -270,8 +282,15 @@
     lines.forEach((ln, i) => {
       const t0 = start + sch.lines[i].t0; if (i < (from || 0)) { if (ln.chorus) chorusN++; else verseN++; return; }
       drums(st.drums, t0, b);
-      if (st.bassline) { let t = t0; parsePhrase(st.bassline).forEach((x) => { if (x.n != null) bass(x.n, t, x.d * b); t += x.d * b; }); }
-      else if (st.lead) { const root = parsePhrase(phraseFor(st, ln.chorus ? chorusN : verseN, ln.chorus, tuneKey)).find((x) => x.n != null); if (root) { bass(root.n - 24, t0, 4 * b); bass(root.n - 24 + 7, t0 + 4 * b, 4 * b); } }
+      if (st.bassline) { if (BASS) { let t = t0; parsePhrase(st.bassline).forEach((x) => { if (x.n != null) bassGuitar(x.n, t, x.d * b, 1); t += x.d * b; }); } }
+      else if (st.lead) {
+        const root = parsePhrase(phraseFor(st, ln.chorus ? chorusN : verseN, ln.chorus, tuneKey)).find((x) => x.n != null);
+        if (root && BASS) {
+          // a strong bass line (Ken, Nov 26: "kids love a strong bass backing"): root on the beat, a push on the "and", the fifth, an octave pop
+          let r = root.n - 24; while (r > 50) r -= 12; while (r < 33) r += 12;
+          [[0, 0, 0.9], [1.5, 0, 0.45], [2, 7, 0.9], [3, 0, 0.9], [4, 0, 0.9], [5.5, 0, 0.45], [6, 7, 0.9], [7, 12, 0.8]].forEach(([at, iv, d]) => bassGuitar(r + iv, t0 + at * b, d * b, at % 2 ? 0.8 : 1));
+        } else if (root) { bass(root.n - 24, t0, 4 * b); bass(root.n - 24 + 7, t0 + 4 * b, 4 * b); }
+      }
       if (st.lead) { let t = t0; parsePhrase(phraseFor(st, ln.chorus ? chorusN : verseN, ln.chorus, tuneKey)).forEach((x) => { if (x.n != null) lead(x.n, t, x.d * b); t += x.d * b; }); }
       if (ln.chorus) chorusN++; else verseN++;
     });
@@ -287,7 +306,7 @@
   async function play(m, page, from) {
     stop(true);
     const k = m.k, style = styleOf(k), lines = curLines(m, page), tune = (page && page.song && page.song.tune) || "twinkle";
-    INST = pref(k).inst || "grand";
+    INST = pref(k).inst || "grand"; BASS = pref(k).bass !== false;
     P.lines = lines; P.playing = true; P.line = from || 0;
     const useRec = !P.ex && pref(k).useRec && HAS_TAKE[k];
     if (useRec) {
@@ -378,7 +397,7 @@
     if (style === "nursery") { const T = (S().TUNES || {}), cur = (page.song && page.song.tune) || "twinkle"; h += `<div class="jtunes">${Object.entries(T).map(([v, t]) => `<button type="button" data-act="jtune" data-v="${v}" class="${cur === v ? "on" : ""}">${esc(t.name)}</button>`).join("")}</div>`; }
     else h += `<p class="jtune">${esc(STYLES[style].tune)}</p>`;
     const inst = Pk.inst || "grand";
-    h += `<p class="asklabel jsoundlabel">Sound</p><div class="jchips jsound">${INSTS.map(([v, t]) => `<button type="button" data-act="jinst" data-v="${v}" class="${inst === v ? "on" : ""}" aria-pressed="${inst === v}">${t}</button>`).join("")}</div>`;
+    h += `<p class="asklabel jsoundlabel">Sound</p><div class="jchips jsound">${INSTS.map(([v, t]) => `<button type="button" data-act="jinst" data-v="${v}" class="${inst === v ? "on" : ""}" aria-pressed="${inst === v}">${t}</button>`).join("")}<button type="button" data-act="jbass" class="jbass${Pk.bass !== false ? " on" : ""}" aria-pressed="${Pk.bass !== false}">Bass ${Pk.bass !== false ? "on" : "off"}</button></div>`;
     h += `</div>`;
     const exs = EX[style] || [];
     h += `<p class="asklabel">3 examples you can use <span class="jdraft">${DRAFT}</span></p><div class="jexs">`;
@@ -430,6 +449,7 @@
     jopen: (b) => { stop(); P.ex = null; if (W.PAGE_ACTIONS.stopenpage) W.PAGE_ACTIONS.stopenpage({ dataset: { k: b.dataset.k } }); st().jingle = true; },
     jfav: () => { const p = pref(st().k); p.fav = !p.fav; savePrefs(); },
     jstyle: (b) => { const was = P.playing; stop(); P.ex = null; pref(st().k).style = b.dataset.v; savePrefs(); if (was) setTimeout(() => play(mdl(), page(), 0), 30); },
+    jbass: () => { const p = pref(st().k); p.bass = p.bass === false; savePrefs(); if (P.playing && !P.audio) play(mdl(), page(), P.line); },
     jinst: (b) => { pref(st().k).inst = b.dataset.v; savePrefs(); if (P.playing && !P.audio) play(mdl(), page(), P.line); },
     jtune: (b) => { const pg = page(); pg.song.tune = b.dataset.v; S().savePage(); },
     jex: (b) => { const style = styleOf(st().k), i = Number(b.dataset.i), e = (EX[style] || [])[i]; if (!e) return; const same = P.ex && P.ex.style === style && P.ex.i === i && P.playing; stop(); P.ex = same ? null : { style, i, e }; if (!same) play(mdl(), page(), 0); },
