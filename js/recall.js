@@ -727,6 +727,20 @@
     const nodes = [];
     const cardW = stacked ? Math.min(sw - 36, 300) : Math.min(300, Math.max(168, (sw - hub.w - 56) / 2));
     let tight = false;
+    // When one side holds more than fits, its last card moves under the topic picture and the picture moves up, so no
+    // side has to shrink its pictures (Ken, Nov 26: the 3-card side of the sleep staging map squeezed its graphs).
+    let bottom = null;
+    const bottomW = Math.min(340, sw - 2 * cardW - 40);
+    if (both && n >= 3 && bottomW >= 200) {
+      const tot = (list) => list.reduce((a, it) => a + cardGeom(0, 0, "L", it.item, thumbs[it.i], cardW, null, builder).h, 0) + 8 * Math.max(0, list.length - 1);
+      const tL = tot(left), tR = tot(right), big = tL >= tR ? left : right;
+      const last = big[big.length - 1];
+      if (Math.max(tL, tR) > sh - 16 && last && !(pins[last.i] && pins[last.i].side) && sh - hub.h - 40 >= 110) {
+        bottom = big.pop();
+        const dy = (space.y1 + 6 + hub.h / 2) - hub.cy;
+        ["cy", "y1", "y2", "titleY"].forEach((q) => { hub[q] += dy; }); hub.img = Object.assign({}, hub.img, { y: hub.img.y + dy });
+      }
+    }
     function placeGroup(list, side) {
       const m = list.length;
       if (stacked || !m) return;
@@ -799,6 +813,17 @@
     } else {
       placeGroup(left, "L");
       placeGroup(right, "R");
+      if (bottom) {
+        const top = hub.y2 + 22, availB = space.y2 - 4 - top;
+        let card = cardGeom(hub.cx, top, "L", bottom.item, thumbs[bottom.i], bottomW, availB, builder);
+        if (card.h > availB) tight = true;
+        card = cardGeom(hub.cx, top + card.h / 2, "L", bottom.item, thumbs[bottom.i], bottomW, availB, builder);
+        const hubTab = tabRect(hub.cx, hub.y2, "U", HUB_TAB), cardTab = tabRect(card.cx, card.y1, "D", CARD_TAB);
+        nodes.push({ i: bottom.i, th: thumbs[bottom.i], item: bottom.item, side: "B", color: BRANCH[bottom.i % BRANCH.length],
+          leader: `M${hubTab.cx.toFixed(1)} ${hubTab.cy.toFixed(1)}L${cardTab.cx.toFixed(1)} ${cardTab.cy.toFixed(1)}`, card,
+          hA: { x: hub.cx, y: hub.y2, side: "B" }, bA: { x: card.cx, y: card.y1, side: "B" }, elbowX: hub.cx, hubTab, cardTab, hubDir: "U", cardDir: "D",
+          kids: [], depth: 0, hx1: hub.cx, hx2: hub.cx, hy: card.y1 });
+      }
     }
     return { photo: hub.img, label: tree.label, nodes, both, stacked, hub, tight };
   }
