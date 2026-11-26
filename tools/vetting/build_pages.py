@@ -28,6 +28,12 @@ for f in sys.argv[3:]:
     s = s.replace("Scale and rule cards appear after you answer.", "Scale and rule cards, and Ask, appear after you answer.")
     s = s.replace("Tap the chart icon (top right) to see your progress or jump to any question.", "Tap “Question 1 of 200” at the top to go to any question.")
     s = s.replace("Tap the list icon (top right) to see progress or jump to any question.", "Tap “Question 1 of 200” at the top to go to any question.")
+    # Screen layouts (Ken, Nov 26): the page's fit() asks views.js first, and Settings shows the "Screen layout" choice
+    FIT0 = 'function fit() {\n  const phone = document.getElementById("phone");'
+    if FIT0 in s and "window.viewFit && window.viewFit()" not in s: s = s.replace(FIT0, 'function fit() {\n  if (window.viewFit && window.viewFit()) return;   // views.js: phone, tablet and desktop layouts\n  const phone = document.getElementById("phone");', 1)
+    SET0 = '<p style="margin:0;font-size:13px;color:var(--muted)">Changing the mode starts a new set of questions.</p>\n'
+    if SET0 in s and "window.viewSettings ? window.viewSettings()" not in s: s = s.replace(SET0, SET0 + '      ${window.viewSettings ? window.viewSettings() : ""}\n', 1)
+    assert "window.viewFit && window.viewFit()" in s and "window.viewSettings ? window.viewSettings()" in s, f"{p.name}: fit or settings layout changed"
     assert "countbtn" in s and "obGotoBox" in s and "Back to questions<" not in s, f"{p.name}: page layout changed, additions not placed"
     i = s.rstrip().rfind("</body></html>")
     s = s[:i] + START + bundle + END + s[i:]

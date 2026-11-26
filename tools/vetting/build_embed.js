@@ -37,6 +37,18 @@ ${fs.readFileSync(path.join(ROOT, "js/recall.js"), "utf8")}
 window.OB_JINGLE_CSS = ${J(jingleCss())};
 ${fs.readFileSync(path.join(ROOT, "js/jingle.js"), "utf8")}
 ${fs.readFileSync(path.join(__dirname, "jingle_ui.js"), "utf8")}
+/* Phone, Tablet and Desktop layouts, the same as the apps (js/views.js, css/views.css), with "Screen layout" in Settings
+   (Ken, Nov 26: "why is there no PC/Tablet view option under settings?"). The page's own click handler doesn't run
+   PAGE_ACTIONS, so the choice is handled here; then the page is fitted and redrawn. */
+(function () { const st = document.createElement("style"); st.textContent = ${J(fs.readFileSync(path.join(ROOT, "css/views.css"), "utf8"))}; document.head.appendChild(st); })();
+${fs.readFileSync(path.join(ROOT, "js/views.js"), "utf8")}
+document.addEventListener("click", function (e) {
+  const b = e.target.closest && e.target.closest('[data-act="setview"]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  window.PAGE_ACTIONS.setview(b);
+  if (typeof render === "function") render();
+}, true);
+if (typeof fit === "function") fit();
 ${fs.readFileSync(path.join(__dirname, "nav_ui.js"), "utf8")}
 ${fs.readFileSync(path.join(ROOT, "js/scrollhint.js"), "utf8").replace('const SEL = ".content, .stats, .results, .obscroll, .dialog";', 'const SEL = ".content, .stats, .results, .obscroll, .dialog, .obaskdlg";')}`;
 fs.writeFileSync(process.argv[2], out.replace(/<\/script/gi, "<\\/script"));
