@@ -179,7 +179,10 @@
     if (SAMPLES_ASKED || !AC) return; SAMPLES_ASKED = true;
     SAMPLE_MIDI.forEach((m) => {
       const src = (W.OB_PIANO_DATA && W.OB_PIANO_DATA[m]) || PIANO_BASE + "p" + m + ".mp3";
-      fetch(src).then((r) => r.arrayBuffer()).then((ab) => new Promise((res, rej) => AC.decodeAudioData(ab, res, rej))).then((buf) => { SAMPLES[m] = buf; }).catch(() => {});
+      // notes inside the page are decoded directly (a page's security rules may not allow fetching data: addresses)
+      const get = /^data:/.test(src) ? Promise.resolve().then(() => { const bin = atob(src.split(",")[1]), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; })
+        : fetch(src).then((r) => r.arrayBuffer());
+      get.then((ab) => new Promise((res, rej) => AC.decodeAudioData(ab, res, rej))).then((buf) => { SAMPLES[m] = buf; }).catch(() => {});
     });
   }
   function grand(n, t, dur, vel) {
