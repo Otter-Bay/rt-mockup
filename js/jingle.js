@@ -147,9 +147,10 @@
       // a small room: 1.8 s of fading noise as the reverb's echo
       const len = Math.floor(AC.sampleRate * 1.8), ir = AC.createBuffer(2, len, AC.sampleRate);
       for (let c = 0; c < 2; c++) { const x = ir.getChannelData(c); for (let i = 0; i < len; i++) x[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
-      const conv = AC.createConvolver(); conv.buffer = ir; WET = AC.createGain(); WET.gain.value = 0.22; WET.connect(conv); conv.connect(comp);
+      const conv = AC.createConvolver(); conv.buffer = ir; WET = AC.createGain(); WET.gain.value = 0.16; WET.connect(conv); conv.connect(comp);
     }
     if (AC.state === "suspended") AC.resume();
+    loadSamples();
     return AC;
   }
   const NODES = [];
@@ -168,8 +169,30 @@
     lp.connect(g); g.connect(MASTER); g.connect(WET);
     noise(t, 0.02, "bandpass", Math.min(4000, f * 4), 0.05 * v);   // the hammer
   }
-  const lead = (n, t, dur) => piano(n, t, dur, 1);
-  const bass = (n, t, dur) => piano(n, t, dur, 0.7);
+  // A real grand piano when its notes have loaded (Ken, Nov 26: "the higher the fidelity ... the better"): Salamander Grand Piano V3
+  // by Alexander Holm, CC BY 3.0 (audio/piano/LICENSE.txt). 18 recorded notes, a minor third apart, each pitched to its neighbors.
+  // The vetting pages carry the same notes inside the page (W.OB_PIANO_DATA). Until they load, the soft synth piano above plays.
+  const SAMPLE_MIDI = [33, 36, 39, 42, 45, 48, 51, 54, 57, 60, 63, 66, 69, 72, 75, 78, 81, 84], SAMPLES = {};
+  let SAMPLES_ASKED = false;
+  const PIANO_BASE = (() => { try { const sc = document.querySelector('script[src*="js/jingle.js"]'); if (sc && sc.src) return sc.src.replace(/js\/jingle\.js.*$/, "") + "audio/piano/"; } catch (e) {} return "audio/piano/"; })();
+  function loadSamples() {
+    if (SAMPLES_ASKED || !AC) return; SAMPLES_ASKED = true;
+    SAMPLE_MIDI.forEach((m) => {
+      const src = (W.OB_PIANO_DATA && W.OB_PIANO_DATA[m]) || PIANO_BASE + "p" + m + ".mp3";
+      fetch(src).then((r) => r.arrayBuffer()).then((ab) => new Promise((res, rej) => AC.decodeAudioData(ab, res, rej))).then((buf) => { SAMPLES[m] = buf; }).catch(() => {});
+    });
+  }
+  function grand(n, t, dur, vel) {
+    const near = SAMPLE_MIDI.reduce((a, m) => (SAMPLES[m] && Math.abs(m - n) < Math.abs(a - n) ? m : a), -99);
+    if (near < 0 || Math.abs(near - n) > 3) return false;
+    const src = AC.createBufferSource(), g = AC.createGain(), peak = 0.55 * (vel == null ? 1 : vel);
+    src.buffer = SAMPLES[near]; src.playbackRate.value = Math.pow(2, (n - near) / 12);
+    g.gain.setValueAtTime(peak, t); g.gain.setTargetAtTime(0.0001, t + Math.max(0.15, dur), 0.12);   // the damper at the end of the note
+    src.connect(g); g.connect(MASTER); g.connect(WET); src.start(t); src.stop(t + Math.max(0.15, dur) + 0.8); NODES.push(src);
+    return true;
+  }
+  const lead = (n, t, dur) => { if (!grand(n, t, dur, 1)) piano(n, t, dur, 1); };
+  const bass = (n, t, dur) => { if (!grand(n, t, dur, 0.6)) piano(n, t, dur, 0.7); };
   function kick(t, v) { const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); env(g, t, 0.3 * (v || 1), 0.005, 0.16); o.connect(g); g.connect(MASTER); o.start(t); o.stop(t + 0.2); NODES.push(o); }
   function noise(t, dur, type, freq, lvl) { const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = NOISE; f.type = type; f.frequency.value = freq; env(g, t, lvl, 0.003, dur); s.connect(f); f.connect(g); g.connect(MASTER); s.start(t); s.stop(t + dur + 0.02); NODES.push(s); }
   const snare = (t, v) => noise(t, 0.14, "bandpass", 1800, 0.16 * (v || 1));
@@ -311,6 +334,7 @@
   function html(m, page, opts) {
     opts = opts || {};
     const k = m.k, Pk = pref(k), style = styleOf(k), type = factType(m), fit = FIT[style];
+    if (!SAMPLES_ASKED) { try { ctx(); } catch (e) {} }   // start fetching the piano notes as soon as the player opens
     if (HAS_TAKE[k] == null) { HAS_TAKE[k] = false; getTake(k).then((t) => { if (t) { HAS_TAKE[k] = true; rerender(); } }); }
     const song = songFor(m, page), facts = m.allFacts || m.facts;
     const good = (s) => FIT[s].good.includes(type), weak = (s) => !!FIT[s].weak[type];

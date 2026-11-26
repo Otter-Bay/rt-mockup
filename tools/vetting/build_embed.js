@@ -35,6 +35,8 @@ ${fs.readFileSync(path.join(ROOT, "js/memory_ideas.js"), "utf8")}
 ${fs.readFileSync(path.join(ROOT, "js/recall.js"), "utf8")}
 })();
 window.OB_JINGLE_CSS = ${J(jingleCss())};
+/* the recorded piano notes (Salamander Grand Piano V3 by Alexander Holm, CC BY 3.0; see audio/piano/LICENSE.txt), inside the page */
+window.OB_PIANO_DATA = ${J(Object.fromEntries(fs.readdirSync(path.join(ROOT, "audio/piano")).filter((f) => /^p\d+\.mp3$/.test(f)).map((f) => [f.slice(1, -4), "data:audio/mpeg;base64," + fs.readFileSync(path.join(ROOT, "audio/piano", f)).toString("base64")])))};
 ${fs.readFileSync(path.join(ROOT, "js/jingle.js"), "utf8")}
 ${fs.readFileSync(path.join(__dirname, "jingle_ui.js"), "utf8")}
 /* Phone, Tablet and Desktop layouts, the same as the apps (js/views.js, css/views.css), with "Screen layout" in Settings

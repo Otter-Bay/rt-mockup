@@ -1,0 +1,5 @@
+Piano samples: Salamander Grand Piano V3 by Alexander Holm, licensed CC BY 3.0
+(https://creativecommons.org/licenses/by/3.0/). Source: https://archive.org/details/SalamanderGrandPianoV3
+(MP3 velocity-8 set via the npm package @audio-samples/piano-mp3-velocity8).
+Changes by Otter Bay: 18 notes from A1 to C6 kept, made mono, shortened to 3.2 seconds with a fade, re-encoded at 80 kb/s.
+Files are named by MIDI note number (p60.mp3 = middle C).
