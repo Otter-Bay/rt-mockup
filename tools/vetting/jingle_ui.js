@@ -1,7 +1,8 @@
 /* Jingle player inside the question-vetting pages (Ken, Nov 26: "give me the desktop version to get used to the jingle
    methodology ... use SDS 200 vetting"). Each question's topic gets a "♪ Try it as a jingle" button beside Add to Study List,
    and the Study List pop-up gets one per topic. It opens the same player as the apps (js/jingle.js) full screen, laid out for a
-   computer (lines on the left, player on the right) and for a phone.
+   computer (lines on the left, player on the right) and for a phone. It opens from the Study List pop-up: each saved topic has
+   Picture, Jingle, Flashcard and Game, and Jingle plays right here.
    This page can't share storage with the app: lyrics, style and recordings made here stay in this browser. Storage uses the
    app's names (obStudyPage:${EXAM}:topic for the words, obJinglePrefs:${EXAM}, obStudyMethods:${EXAM}, IndexedDB obJingleRec:${EXAM}).
    Built into the vetting pages by tools/vetting/build_embed.js, after recall.js (data half only), memory_ideas.js and jingle.js. */
@@ -35,12 +36,14 @@
     }
     box.scrollTop = 0; draw();
   }
-  function close() { W.OB_JINGLE.stop(true); if (box) box.remove(); box = null; }
+  let FROM_LIST = false;
+  // closing goes back to where they came from: the Study List when they started there
+  function close() { W.OB_JINGLE.stop(true); if (box) box.remove(); box = null; if (FROM_LIST && W.OB_VET_ARCADE && W.OB_VET_ARCADE.openPop) { FROM_LIST = false; W.OB_VET_ARCADE.openPop("", ""); } }
   W.OB_JINGLE.setRerender(draw);
   // clicks inside the player: the page's own click handler doesn't know these buttons
   document.addEventListener("click", (e) => {
     const go = e.target.closest && e.target.closest('[data-objing]');
-    if (go) { e.preventDefault(); e.stopPropagation(); if (W.OB_VET_ARCADE && W.OB_VET_ARCADE.closePop) W.OB_VET_ARCADE.closePop(); open(go.dataset.objing); return; }
+    if (go) { e.preventDefault(); e.stopPropagation(); FROM_LIST = !!go.closest(".obarcpop"); if (W.OB_VET_ARCADE && W.OB_VET_ARCADE.closePop) W.OB_VET_ARCADE.closePop(); open(go.dataset.objing); return; }
     if (!box || !box.contains(e.target)) return;
     const b = e.target.closest("[data-act]"); if (!b || b.disabled) return;
     const a = b.dataset.act;
@@ -56,7 +59,8 @@
   // "Try it as a jingle" beside each Add to Study List button (under the question, and on a reference card)
   const jbtn = (k) => W.SCALES[k] ? `<button type="button" class="objingbtn" data-objing="${esc(k)}"><span aria-hidden="true">♪</span><span><b>Try it as a jingle</b><small>${esc(W.SCALES[k].title)}</small></span></button>` : "";
   const addJ = (h) => String(h).replace(/(<button type="button" class="binflag[^"]*" data-act="binflag" data-k="([^"]+)"[\s\S]*?<\/button>)/g, (all, btn, k) => btn + jbtn(k));
-  ["scaleButtons", "scaleSheet"].forEach((name) => { const orig = W[name]; if (typeof orig === "function") W[name] = function () { return addJ(orig.apply(this, arguments)); }; });
+  // (Ken, Nov 26: how to study belongs on the Study List, so there's no jingle button under each question; see arcade_ui.js)
+  void addJ;
 
   const css = document.createElement("style");
   css.textContent = `

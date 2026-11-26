@@ -304,6 +304,7 @@
   const inBin = (k) => !!B.cards[k] && !B.cards[k].mastered;
   const CHECKS = [1, 7, 30];
   function addCard(k) { if (!B.cards[k] || B.cards[k].mastered) B.cards[k] = { added: now(), step: 1, checks: 0, due: 0, best: {}, mastered: false }; save(); }
+  let STUDY_NOW = null;   // a style to open as soon as the app is ready (from the vetting page)
   (function bootArcade() {
     try {
       const u = new URL(location.href);
@@ -313,6 +314,10 @@
       // open straight to the Study List with the new topics marked, instead of the home page (Ken, Nov 25: "there is a disconnect")
       if (ks.length) { JUST_IMPORTED = ks; OPEN_LIST = true;
         LIST_MSG = `Added ${ks.length} topic${ks.length === 1 ? "" : "s"} from your vetting page. Pick Picture, Jingle, Flashcard or Game on ${ks.length === 1 ? "it" : "each one"} to start studying.`; }
+      // ...and straight into one topic's study style when the vetting page's Study List asked for it (?study=key:style)
+      const study = (u.searchParams.get("study") || "").split(":");
+      if (study[0] && ks.includes(study[0]) && ["picture", "jingle", "flash", "game"].includes(study[1])) STUDY_NOW = { k: study[0], s: study[1] };
+      u.searchParams.delete("study");
       u.searchParams.delete("arcade");
       const q = u.searchParams.toString();
       history.replaceState({}, "", u.pathname + (q ? "?" + q : "") + u.hash);
@@ -893,4 +898,9 @@
     };
   }
   W.OB_BIN = Object.assign(API(), { flag, way, inBin, celebrate, importArcadeList, currentFocusTask, state: () => ({ B, G, VIEW, STY, TIP }) });
+  if (STUDY_NOW) W.addEventListener("load", () => setTimeout(() => {
+    const go = STUDY_NOW; STUDY_NOW = null; OPEN_LIST = false;
+    try { W.PAGE_ACTIONS.binstyle({ dataset: go }); } catch (e) {}
+    if (typeof W.render === "function") W.render();
+  }, 60));
 })();

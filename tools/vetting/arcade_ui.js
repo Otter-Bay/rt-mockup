@@ -95,7 +95,11 @@
 .obarclist li.new{border:2px solid #F5B83D;background:#FFFBF0}
 .obarclist .t{flex:1;min-width:0;font-size:15px}.obarclist .t b{display:block;overflow-wrap:anywhere}.obarclist .t small{display:block;font-size:12px;font-weight:700;color:#8A5A00}
 .obarcrm{min-height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #C9D2DC;background:#fff;color:#4A5663;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
-.obarcback{width:100%}`;
+.obarcback{width:100%}
+.obarclist li{flex-wrap:wrap}
+.obarcstyles{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.obarcst{flex:1 1 auto;min-height:40px;padding:0 12px;border-radius:999px;border:2px solid #0B4F6C;background:#fff;color:#0B4F6C;font:inherit;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;white-space:nowrap}
+.obarcst:hover{background:#EEF4F7}`;
   document.head.appendChild(css);
 
   const origScale = W.scaleButtons;
@@ -125,17 +129,25 @@
     if (!pop) return;
     const ks = liveKeys().sort((a, b) => B.cards[b].added - B.cards[a].added);
     const items = ks.map((k) => `<li class="${k === popKey ? "new" : ""}"><span class="t"><b>${esc(W.SCALES[k].title)}</b>${k === popKey ? "<small>Just added</small>" : ""}</span>
-      ${W.OB_VET_JINGLE ? `<button type="button" class="objingsm" data-objing="${k}" aria-label="Try ${esc(W.SCALES[k].title)} as a jingle">♪ Jingle</button>` : ""}
-      <button type="button" class="obarcrm" data-obarc="rm" data-k="${k}" aria-label="Remove ${esc(W.SCALES[k].title)}">Remove</button></li>`).join("");
+      <button type="button" class="obarcrm" data-obarc="rm" data-k="${k}" aria-label="Remove ${esc(W.SCALES[k].title)}">Remove</button>
+      ${styles(k)}</li>`).join("");
     pop.innerHTML = `<div class="obarcdlg" role="dialog" aria-modal="true" aria-labelledby="obarcT">
       <div class="obarchead"><h2 id="obarcT">${popMsg ? esc(popMsg) : "Your Study List"}</h2>
         <button type="button" class="obarcx" data-obarc="close" aria-label="Close">✕</button></div>
       ${ks.length ? `<p class="obarcsub">${ks.length} topic${ks.length === 1 ? "" : "s"} saved from this page.</p><ul class="obarclist">${items}</ul>
         <div class="obarcacts"><button type="button" class="obarcbtn" data-obarc="copy">${copied ? "Copied" : "Copy list"}</button>
           <a class="obarcbtn" href="${esc(appHref())}" target="_blank" rel="noopener">Study these in ${esc(APP_NAME)}</a></div>
-        <p class="obarcnote">Study these in ${esc(APP_NAME)} opens the app straight to your Study List, where you pick Picture, Jingle, Flashcard or Game for each topic. (Or Copy list and use Import on the app's Study List screen.) This page can't share storage with the app.</p>`
+        <p class="obarcnote">Pick how to study each topic. Jingle opens here; Picture, Flashcard and Game open ${esc(APP_NAME)} with your list, straight to that topic. Study these in ${esc(APP_NAME)} opens the whole list there. This page can't share storage with the app.</p>`
         : `<p class="obarcsub">Nothing saved yet. Tap Add to Study List under a question's reference card.</p>`}
       <button type="button" class="btn obarcback" data-obarc="close">Back to the question</button></div>`;
+  }
+  // How to study a topic lives on the Study List (Ken, Nov 26), the same four styles as the app. Jingle opens right here;
+  // Picture, Flashcard and Game open the app with the list imported and that topic's style already open.
+  const STYLES = [["picture", "Picture"], ["jingle", "Jingle"], ["flash", "Flashcard"], ["game", "Game"]];
+  function styles(k) {
+    return `<div class="obarcstyles" role="group" aria-label="How to study ${esc(W.SCALES[k].title)}">${STYLES.map(([s, t]) =>
+      s === "jingle" && W.OB_VET_JINGLE ? `<button type="button" class="obarcst" data-objing="${k}">♪ ${t}</button>`
+        : `<a class="obarcst" href="${esc(appHref() + "&study=" + encodeURIComponent(k + ":" + s))}" target="_blank" rel="noopener">${t}<span aria-hidden="true"> ↗</span></a>`).join("")}</div>`;
   }
   function openPop(k, msg) {
     popKey = k || ""; popMsg = msg || "";
@@ -170,5 +182,5 @@
   }, true);
   document.addEventListener("keydown", (e) => { if (pop && e.key === "Escape") { e.stopPropagation(); closePop(); } }, true);
 
-  W.OB_VET_ARCADE = { flag, keysFor, listCode, inBin, toggle, closePop };
+  W.OB_VET_ARCADE = { flag, keysFor, listCode, inBin, toggle, closePop, openPop };
 })();
