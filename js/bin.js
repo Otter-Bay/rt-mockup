@@ -254,7 +254,7 @@
   const STYLE_KEY = "obStudyStyle:" + EXAM, TIP_KEY = "obStudyTip:" + EXAM;
   const loadStyle = () => { try { return JSON.parse(localStorage.getItem(STYLE_KEY) || "{}") || {}; } catch (e) { return {}; } };
   const loadTip = () => { try { return Object.assign({ shown: 0, picked: false }, JSON.parse(localStorage.getItem(TIP_KEY) || "{}") || {}); } catch (e) { return { shown: 0, picked: false }; } };
-  let STY = loadStyle(), TIP = loadTip(), JUST_TIP = false, JUST_KEY = "", FROM_LIST = false, LIST_MSG = "";
+  let STY = loadStyle(), TIP = loadTip(), JUST_TIP = false, JUST_KEY = "", FROM_LIST = false, LIST_MSG = "", JUST_IMPORTED = [], OPEN_LIST = false;
   const saveStyle = () => { try { localStorage.setItem(STYLE_KEY, JSON.stringify(STY)); } catch (e) {} };
   const saveTip = () => { try { localStorage.setItem(TIP_KEY, JSON.stringify(TIP)); } catch (e) {} };
   const STYLES = [["picture", "Picture"], ["jingle", "Jingle"], ["flash", "Flashcard"], ["game", "Game"]];
@@ -309,7 +309,10 @@
       const u = new URL(location.href);
       const raw = u.searchParams.get("arcade");
       if (!raw) return;
-      IMPORTED = importArcadeList(raw).length;
+      const ks = importArcadeList(raw); IMPORTED = ks.length;
+      // open straight to the Study List with the new topics marked, instead of the home page (Ken, Nov 25: "there is a disconnect")
+      if (ks.length) { JUST_IMPORTED = ks; OPEN_LIST = true;
+        LIST_MSG = `Added ${ks.length} topic${ks.length === 1 ? "" : "s"} from your vetting page. Pick Picture, Jingle, Flashcard or Game on ${ks.length === 1 ? "it" : "each one"} to start studying.`; }
       u.searchParams.delete("arcade");
       const q = u.searchParams.toString();
       history.replaceState({}, "", u.pathname + (q ? "?" + q : "") + u.hash);
@@ -658,7 +661,8 @@
     const taskN = meta.taskName || meta.task || "", topicN = meta.topicName || meta.topic || "";
     const where = [taskN, topicN && topicN.toLowerCase() !== taskN.toLowerCase() ? topicN : ""].filter(Boolean).join(" · ");
     const lastLab = last ? "Last studied: " + styleName(last) : "Pick a study style";
-    return `<li class="bincard${focused ? " focus" : ""}" data-k="${k}"><div class="binhead"><b>${esc(W.SCALES[k].title)}</b>
+    const fresh = JUST_IMPORTED.includes(k);
+    return `<li class="bincard${focused ? " focus" : ""}${fresh ? " fresh" : ""}" data-k="${k}"><div class="binhead"><b>${esc(W.SCALES[k].title)}</b>${fresh ? '<em class="freshtag">Just added</em>' : ""}
         <small>${esc(lastLab)}${where ? " · " + esc(where) : ""}${focused ? ' <em class="focustag">Your focus</em>' : ""}</small></div>
         <div class="binstyles" role="group" aria-label="How to study ${esc(W.SCALES[k].title)}">${STYLES.map(([id, lab]) =>
           `<button type="button" class="binstyle${last === id ? " on" : ""}" data-act="binstyle" data-k="${k}" data-s="${id}" aria-pressed="${last === id}">${esc(lab)}</button>`).join("")}</div></li>`;
@@ -767,7 +771,7 @@
     binstyle: (b) => {
       const k = b.dataset.k, st = b.dataset.s; if (!k || !W.SCALES[k]) return;
       if (!B.cards[k]) addCard(k);
-      rememberStyle(k, st); LIST_MSG = ""; FROM_LIST = true;
+      rememberStyle(k, st); LIST_MSG = ""; FROM_LIST = true; JUST_IMPORTED = [];
       if (st === "picture" || st === "jingle") {
         if (W.PAGE_ACTIONS && W.PAGE_ACTIONS.stopenpage) W.PAGE_ACTIONS.stopenpage({ dataset: { k } });
         if (W.OB_STUDY && W.OB_STUDY.state) {
@@ -875,6 +879,9 @@
   if (typeof render === "function") {
     const r0 = render;
     render = function () {
+      if (OPEN_LIST && typeof QS !== "undefined" && QS.length && W.PAGE_ACTIONS && W.PAGE_ACTIONS.binopen) {
+        OPEN_LIST = false; const keep = LIST_MSG; W.PAGE_ACTIONS.binopen(); LIST_MSG = keep;
+      }
       r0.apply(this, arguments);
       if (FROM_LIST && S.page === "quiz") {
         const foot = document.querySelector(".foot");

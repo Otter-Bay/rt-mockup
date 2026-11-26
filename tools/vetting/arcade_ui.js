@@ -58,9 +58,9 @@
     const n = liveKeys().length;
     return `<div class="obarcbar"><p><b>Study List:</b> ${n ? n + " topic" + (n === 1 ? "" : "s") + " saved on this page." : "tap Add to Study List to save this topic."}</p>
       ${n ? `<div class="obarcacts"><button type="button" class="obarcbtn" data-act="obarcopen">See Study List</button><button type="button" class="obarcbtn" data-act="obarccopy">${copied ? "Copied" : "Copy list"}</button>
-        <a class="obarcbtn" href="${esc(appHref())}" target="_blank" rel="noopener">Open in ${esc(APP_NAME)}</a></div>
+        <a class="obarcbtn" href="${esc(appHref())}" target="_blank" rel="noopener">Study these in ${esc(APP_NAME)}</a></div>
         <p class="obarcnote">A Claude artifact or a file on your computer can't share saved cards with the app automatically. Copy the list or open the link. The list is an OBARC1 code of topic keys only. If the link does not add them, use Import on the Study List screen.</p>`
-        : `<p class="obarcnote">This page can't share storage with the app. After you add topics, Copy list and Open in ${esc(APP_NAME)} will appear here.</p>`}
+        : `<p class="obarcnote">This page can't share storage with the app. After you add topics, a button to study them in ${esc(APP_NAME)} will appear here.</p>`}
       </div>`;
   }
 
@@ -131,8 +131,8 @@
         <button type="button" class="obarcx" data-obarc="close" aria-label="Close">✕</button></div>
       ${ks.length ? `<p class="obarcsub">${ks.length} topic${ks.length === 1 ? "" : "s"} saved from this page.</p><ul class="obarclist">${items}</ul>
         <div class="obarcacts"><button type="button" class="obarcbtn" data-obarc="copy">${copied ? "Copied" : "Copy list"}</button>
-          <a class="obarcbtn" href="${esc(appHref())}" target="_blank" rel="noopener">Open in ${esc(APP_NAME)}</a></div>
-        <p class="obarcnote">To study them, Open in ${esc(APP_NAME)} (or Copy list and use Import on the app's Study List screen). This page can't share storage with the app.</p>`
+          <a class="obarcbtn" href="${esc(appHref())}" target="_blank" rel="noopener">Study these in ${esc(APP_NAME)}</a></div>
+        <p class="obarcnote">Study these in ${esc(APP_NAME)} opens the app straight to your Study List, where you pick Picture, Jingle, Flashcard or Game for each topic. (Or Copy list and use Import on the app's Study List screen.) This page can't share storage with the app.</p>`
         : `<p class="obarcsub">Nothing saved yet. Tap Add to Study List under a question's reference card.</p>`}
       <button type="button" class="btn obarcback" data-obarc="close">Back to the question</button></div>`;
   }

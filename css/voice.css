@@ -320,6 +320,8 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .binstyles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 2px; }
 .binstyle { box-sizing: border-box; min-height: 44px; padding: 8px 10px; border: 2px solid var(--bay, #0A4A63); border-radius: 12px; background: #fff; color: var(--bay, #0A4A63); font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; text-align: center; }
 .binstyle.on { background: var(--bay, #0A4A63); color: #fff; }
+.bincard.fresh { box-shadow: 0 0 0 3px #F5B83D, 0 2px 8px rgba(4,34,48,.08); }
+.freshtag { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 10px; background: #FFF3D1; color: #6A4A00; font-size: 12px; font-style: normal; font-weight: 700; vertical-align: middle; }
 .bincard.focus { box-shadow: 0 0 0 2px var(--buoy, #F5B83D), 0 2px 8px rgba(4,34,48,.08); }
 .focustag { font-style: normal; font-weight: 700; font-size: 11px; padding: 1px 7px; border-radius: 8px; background: var(--buoy, #F5B83D); color: #3A2800; margin-left: 4px; }
 .binsec { margin: 14px 0 6px; font-family: "Fredoka", var(--font); font-weight: 600; font-size: 16px; color: var(--bay, #0A4A63); }
