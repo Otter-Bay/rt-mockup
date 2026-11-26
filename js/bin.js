@@ -342,10 +342,10 @@
   // Add to Study List offers only topics that aren't on the list yet (Ken, Nov 26); saved ones are named in one quiet line
   function flagSet(ks) {
     ks = ks.filter((k) => W.SCALES[k]); if (!ks.length) return "";
-    const open = ks.filter((k) => !inBin(k)), saved = ks.filter(inBin);
-    const tip = JUST_TIP && saved.includes(JUST_KEY) ? tipBanner() : "";
-    return (open.length ? `<div class="binflags">${open.map(flag).join("")}</div>` : "") +
-      (saved.length ? `<p class="binsaved"><span aria-hidden="true">★</span><span><b>Already on your Study List</b>${saved.map((k) => esc(W.SCALES[k].title)).join(", ")} <button type="button" class="binsavedgo" data-act="binopen">Open Study List</button></span></p>${tip}` : "");
+    // every topic keeps its place (Ken, Nov 26: so it never looks forgotten): Add for new ones, a gold "already there" card for saved ones
+    const saved = (k) => `<div class="binflag binhave" role="note"><span aria-hidden="true">★</span><span><b>Already on your Study List</b><small>${esc(W.SCALES[k].title)}</small></span><button type="button" class="binsavedgo" data-act="binopen">Open</button></div>`;
+    const tip = JUST_TIP && ks.some((k) => inBin(k) && k === JUST_KEY) ? tipBanner() : "";
+    return `<div class="binflags">${ks.map((k) => inBin(k) ? saved(k) : flag(k)).join("")}</div>${tip}`;
   }
   // practice questions: under the reference-card buttons (shown after the answer, like the cards)
   const origScale = W.scaleButtons;

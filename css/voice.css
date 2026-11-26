@@ -774,8 +774,8 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
   .jexs { grid-template-columns: repeat(3, minmax(0, 220px)); }
   .jline { grid-template-columns: 70px 1fr 64px; }
 }
-/* topics already on the Study List: named in one quiet line instead of another Add button (Ken, Nov 26) */
-.binsaved { margin: 6px 0 0; display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: #FFF6DB; border: 2px solid #F1B92D; color: #4A3300; font-size: 14px; line-height: 1.45; }
-.binsaved > span:first-child { font-size: 20px; line-height: 1; color: #C99A2E; }
-.binsaved b { display: block; font-size: 15px; color: #14222C; }
-.binsavedgo { font: inherit; font-weight: 700; color: #0B4F6C; background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 4px 2px; }
+/* a topic already on the Study List keeps its place as a gold card, not an Add button (Ken, Nov 26) */
+.binflag.binhave { cursor: default; background: #FFF6DB; border: 2px solid #F1B92D; color: #4A3300; align-items: center; }
+.binflag.binhave > span:first-child { color: #C99A2E; }
+.binflag.binhave b { color: #14222C; }
+.binflag.binhave .binsavedgo { margin-left: auto; font: inherit; font-weight: 700; color: #0B4F6C; background: #fff; border: 2px solid #0B4F6C; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
