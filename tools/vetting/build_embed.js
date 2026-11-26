@@ -18,6 +18,8 @@ if (start < 0 || end < 0) throw new Error("voice.js layout changed: can't find t
 const matcher = voice.slice(start, end + 1).join("\n") + "\n})();";
 
 const J = (o) => JSON.stringify(o).replace(/<\//g, "<\\/");
+// the player's rules in css/voice.css: everything from its first comment on, plus the shared .stjinglebtn
+function jingleCss() { const css = fs.readFileSync(path.join(ROOT, "css/voice.css"), "utf8"), i = css.indexOf("/* Jingle player (Ken, Nov 26) */"); if (i < 0) throw new Error("voice.css: jingle styles not found"); return css.slice(i); }
 const out = `/* Ask in the vetting pages. Generated ${new Date().toISOString().slice(0, 10)} by rt-mockup tools/vetting/build_embed.js; do not edit here. */
 window.EXAM = window.EXAM || ({ SDS: "SDS", RPSGT: "RPSGT", CNA: "CNA" }[window.APP_LABEL] || "RRT");
 Object.assign(window.SCALES = window.SCALES || {}, ${J(win.SCALES)});
@@ -26,6 +28,15 @@ window.ACRONYMS = { norm: (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "
 ${matcher}
 ${fs.readFileSync(path.join(__dirname, "ask_ui.js"), "utf8")}
 ${fs.readFileSync(path.join(__dirname, "arcade_ui.js"), "utf8")}
+/* Jingle player (Ken, Nov 26): recall.js's data half (the page has no study sheet, so "document" is hidden from it), the starter
+   lyrics, the player itself and its styles from css/voice.css, then the vetting-page hookup. */
+${fs.readFileSync(path.join(ROOT, "js/memory_ideas.js"), "utf8")}
+(function () { const document = undefined;
+${fs.readFileSync(path.join(ROOT, "js/recall.js"), "utf8")}
+})();
+window.OB_JINGLE_CSS = ${J(jingleCss())};
+${fs.readFileSync(path.join(ROOT, "js/jingle.js"), "utf8")}
+${fs.readFileSync(path.join(__dirname, "jingle_ui.js"), "utf8")}
 ${fs.readFileSync(path.join(__dirname, "nav_ui.js"), "utf8")}
 ${fs.readFileSync(path.join(ROOT, "js/scrollhint.js"), "utf8").replace('const SEL = ".content, .stats, .results, .obscroll, .dialog";', 'const SEL = ".content, .stats, .results, .obscroll, .dialog, .obaskdlg";')}`;
 fs.writeFileSync(process.argv[2], out.replace(/<\/script/gi, "<\\/script"));

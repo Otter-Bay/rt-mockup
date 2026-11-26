@@ -52,4 +52,22 @@ window.MEMORY_IDEAS = {
       "Under seven? Score again",
     ] },
   },
+  // Draft for Ken's approval (Nov 26): Ken asked for a jingle to memorize lead placement on a standard sleep study.
+  electrodes: {
+    // Each line is 7 beats (Twinkle). "Stops" = apneas (thermal sensor); "dips" = hypopneas (nasal pressure).
+    jingle: { tune: "twinkle", hook: "Wire them up from head to toe", lines: [
+      "EEG: F4, C4, O2",
+      "Ten-twenty: Cz at the half",
+      "Eyes: one low left, two high right",
+      "Chin: one above, two below",
+      "Two on each shin, two to three",
+      "Right collarbone, left low side",
+      "Thermal: stops; and pressure: dips",
+      "Chest and belly wear the belts",
+    ], refrain: [
+      "Odd on the left, even right",
+      "Right side leads go to M1",
+      "Mid-line z, then wire it tight",
+    ] },
+  },
 };

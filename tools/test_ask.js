@@ -170,7 +170,7 @@ function loadStudy(exam) {
   study("builder and thumbnail class tags match the drawn SVG", tags.length >= 2 && tags.every((t) => scrSvg.includes(t)), tags.join(" | "));
   // Picture ideas and the jingle: ours by default, the learner's own words win (Ken, Nov 23)
   const MI = C.MEMORY_IDEAS, done = Object.keys(MI);
-  const sizeBad = done.filter((k) => { const mm = SB.model(k, {}); return MI[k].pictures.length !== mm.facts.length || MI[k].jingle.lines.length !== mm.facts.length || MI[k].pictures.some((t) => t.length < 40); });
+  const sizeBad = done.filter((k) => { const mm = SB.model(k, {}); return (MI[k].pictures && (MI[k].pictures.length !== mm.facts.length || MI[k].pictures.some((t) => t.length < 40))) || MI[k].jingle.lines.length !== mm.facts.length; });   // a topic may have a starter jingle without picture ideas
   study(`picture ideas and jingle written for ${done.join(", ")}: one per row`, done.includes("gaslaws") && done.includes("apgar") && !sizeBad.length, sizeBad.join(", "));
   const offBeat = []; done.forEach((k) => { const mm = SB.model(k, {}); mm.song.lines.forEach((l) => { if (SB.beats(l.text) !== SB.TUNES[mm.song.tune].beats) offBeat.push(`${k}: "${l.text}" = ${SB.beats(l.text)}`); }); });
   study("every starter jingle line has the tune's 7 beats", !offBeat.length, offBeat.join("; "));

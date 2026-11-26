@@ -125,6 +125,7 @@
     if (!pop) return;
     const ks = liveKeys().sort((a, b) => B.cards[b].added - B.cards[a].added);
     const items = ks.map((k) => `<li class="${k === popKey ? "new" : ""}"><span class="t"><b>${esc(W.SCALES[k].title)}</b>${k === popKey ? "<small>Just added</small>" : ""}</span>
+      ${W.OB_VET_JINGLE ? `<button type="button" class="objingsm" data-objing="${k}" aria-label="Try ${esc(W.SCALES[k].title)} as a jingle">♪ Jingle</button>` : ""}
       <button type="button" class="obarcrm" data-obarc="rm" data-k="${k}" aria-label="Remove ${esc(W.SCALES[k].title)}">Remove</button></li>`).join("");
     pop.innerHTML = `<div class="obarcdlg" role="dialog" aria-modal="true" aria-labelledby="obarcT">
       <div class="obarchead"><h2 id="obarcT">${popMsg ? esc(popMsg) : "Your Study List"}</h2>
@@ -169,5 +170,5 @@
   }, true);
   document.addEventListener("keydown", (e) => { if (pop && e.key === "Escape") { e.stopPropagation(); closePop(); } }, true);
 
-  W.OB_VET_ARCADE = { flag, keysFor, listCode, inBin, toggle };
+  W.OB_VET_ARCADE = { flag, keysFor, listCode, inBin, toggle, closePop };
 })();

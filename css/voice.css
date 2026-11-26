@@ -754,3 +754,23 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .jdock .jbottom { flex-wrap: nowrap; gap: 6px; }
 .jdock .jtempo button { padding: 6px 10px; min-height: 36px; font-size: 14px; }
 .jdock .juse { font-size: 13.5px; padding: 4px 6px 4px 10px; gap: 6px; white-space: nowrap; }
+/* the jingle method, in five steps */
+.jhow { background: #fff; border: 1px solid #D5DDE2; border-radius: 12px; padding: 8px 12px; }
+.jhow summary { font-weight: 700; color: #0B4F6C; cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.jhow ol { margin: 6px 0 4px; padding-left: 20px; font-size: 14.5px; line-height: 1.45; } .jhow li { margin: 4px 0; }
+.jbody, .jmain, .jside { display: flex; flex-direction: column; gap: 10px; }
+/* Desktop: lines on the left, the player on the right, always in view */
+@media (min-width: 900px) {
+  .jplayer { max-width: 1180px; margin: 0 auto; }
+  .jbody { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 24px; align-items: start; }
+  .jside { position: sticky; top: 12px; }
+  .jside .jdock { position: static; margin: 0; border-radius: 16px; border: 1px solid #D5DDE2; box-shadow: none; padding: 14px; gap: 10px; }
+  .jside .jkara { min-height: 120px; display: flex; flex-direction: column; justify-content: center; }
+  .jside .jkara span { font-size: 26px; }
+  .jside .jcontrols .jplay { width: 70px; height: 70px; font-size: 28px; }
+  .jside .jbottom { flex-wrap: wrap; }
+  .jside .jhow { display: block; }
+  .jside .jhow[open] { }
+  .jexs { grid-template-columns: repeat(3, minmax(0, 220px)); }
+  .jline { grid-template-columns: 70px 1fr 64px; }
+}

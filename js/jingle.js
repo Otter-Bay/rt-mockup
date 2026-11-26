@@ -115,7 +115,7 @@
     const MI = ((W.MEMORY_IDEAS || {})[m.k] || {}).jingle || {};
     const order = (P.slots && P.slots.length === facts.length && P.slots.every((i) => facts[i])) ? P.slots : facts.map((f, i) => i);
     const verses = order.map((fi, j) => ({ key: String(fi), slot: "V" + (j + 1), fact: facts[fi], text: own(String(fi)) || (MI.lines || [])[fi] || starter(facts[fi]) }));
-    const hook = own("hook") || m.title;
+    const hook = own("hook") || MI.hook || m.title;
     const chorus = own("chorus") || ((MI.refrain || []).length ? MI.refrain.join(" / ") : "Sing it once more, then you know");
     return { hook, verses, chorus, order };
   }
@@ -285,18 +285,26 @@
   // ---------- Screen ----------
   let RERENDER = null;
   const rerender = () => { if (RERENDER) RERENDER(); else if (typeof W.render === "function") W.render(); };
-  function html(m, page) {
+  // The jingle method in five steps (Ken, Nov 26: "get used to the jingle methodology")
+  const HOW = (open) => `<details class="jhow"${open ? " open" : ""}><summary>How the jingle method works</summary><ol>
+    <li><b>Pick a style.</b> A ✓ means it suits this kind of fact; a ! means it may not, but you decide.</li>
+    <li><b>Hear an example</b> to get the feel of the style.</li>
+    <li><b>Make it yours:</b> drag a fact onto the hook, a verse or the chorus, or type your own words. About the same number of beats on each line sings best.</li>
+    <li><b>Sing along three times</b> with the words lighting up, slower at 0.75× first. Then record yourself; your voice becomes the one that plays.</li>
+    <li><b>Later, recall it:</b> look only at the topic (or your recall map) and sing the line that goes with each fact.</li></ol></details>`;
+  function html(m, page, opts) {
+    opts = opts || {};
     const k = m.k, Pk = pref(k), style = styleOf(k), type = factType(m), fit = FIT[style];
     if (HAS_TAKE[k] == null) { HAS_TAKE[k] = false; getTake(k).then((t) => { if (t) { HAS_TAKE[k] = true; rerender(); } }); }
     const song = songFor(m, page), facts = m.allFacts || m.facts;
     const good = (s) => FIT[s].good.includes(type), weak = (s) => !!FIT[s].weak[type];
-    let h = `<section class="jplayer" id="askRes"><header class="jhead"><button type="button" class="jback" data-act="jback">‹ Sheet</button><h2>Jingle</h2>
+    let h = `<section class="jplayer${opts.embedded ? " embedded" : ""}" id="askRes"><header class="jhead">${opts.embedded ? `<button type="button" class="jback" data-act="jclose">✕ Close</button>` : `<button type="button" class="jback" data-act="jback">‹ Sheet</button>`}<h2>Jingle</h2>
       <button type="button" class="jfav${Pk.fav ? " on" : ""}" data-act="jfav" aria-pressed="${!!Pk.fav}" aria-label="${Pk.fav ? "Remove from My jingles" : "Add to My jingles"}">${Pk.fav ? "★" : "☆"}</button></header>
       <h3 class="jtitle">${esc(m.title)}</h3>
-      <div class="jlinks"><button type="button" data-act="jcard">Card</button><button type="button" data-act="jback">Recall map</button></div>`;
+      ${opts.embedded ? "" : `<div class="jlinks"><button type="button" data-act="jcard">Card</button><button type="button" data-act="jback">Recall map</button></div>`}`;
     const favs = Object.keys(PREFS).filter((x) => PREFS[x].fav && x !== k && (W.SCALES || {})[x]);
-    if (favs.length) h += `<p class="jmy"><b>My jingles:</b> ${favs.map((x) => `<button type="button" data-act="jopen" data-k="${esc(x)}">${esc(W.SCALES[x].title)}</button>`).join("")}</p>`;
-    h += `<div class="jstyles"><p class="asklabel">Style <span>8 to choose from · more coming</span></p><div class="jchips">${ORDER.map((s) => `<button type="button" data-act="jstyle" data-v="${s}" class="${style === s ? "on" : ""}" aria-pressed="${style === s}">${esc(STYLES[s].name)}${good(s) ? ' <i class="ok" aria-label="good fit">✓</i>' : weak(s) ? ' <i class="warn" aria-label="may not fit">!</i>' : ""}</button>`).join("")}</div>`;
+    if (favs.length && !opts.embedded) h += `<p class="jmy"><b>My jingles:</b> ${favs.map((x) => `<button type="button" data-act="jopen" data-k="${esc(x)}">${esc(W.SCALES[x].title)}</button>`).join("")}</p>`;
+    h += `<div class="jbody"><div class="jmain"><div class="jstyles"><p class="asklabel">Style <span>8 to choose from · more coming</span></p><div class="jchips">${ORDER.map((s) => `<button type="button" data-act="jstyle" data-v="${s}" class="${style === s ? "on" : ""}" aria-pressed="${style === s}">${esc(STYLES[s].name)}${good(s) ? ' <i class="ok" aria-label="good fit">✓</i>' : weak(s) ? ' <i class="warn" aria-label="may not fit">!</i>' : ""}</button>`).join("")}</div>`;
     if (good(style)) h += `<p class="jfit ok">Good fit for ${esc(TYPES[type])}. ${esc(fit.why)}</p>`;
     else if (weak(style)) { const alt = bestFor(type); h += `<p class="jfit warn">${esc(STYLES[style].name)} may not be the best fit for ${esc(TYPES[type])}. ${esc(fit.weak[type])} You decide. <button type="button" data-act="jstyle" data-v="${alt}">Try ${esc(STYLES[alt].name)}</button></p>`; }
     if (style === "nursery") { const T = (S().TUNES || {}), cur = (page.song && page.song.tune) || "twinkle"; h += `<div class="jtunes">${Object.entries(T).map(([v, t]) => `<button type="button" data-act="jtune" data-v="${v}" class="${cur === v ? "on" : ""}">${esc(t.name)}</button>`).join("")}</div>`; }
@@ -318,7 +326,7 @@
     h += `</div>`;
     // the player
     const takeOn = !!(Pk.useRec && HAS_TAKE[k]);
-    h += `<div class="jdock"><div class="jkara" aria-live="polite" data-li=""><small>Hook</small><span>${esc(P.ex ? P.ex.e.hook : song.hook)}</span></div>
+    h += `</div><aside class="jside"><div class="jdock"><div class="jkara" aria-live="polite" data-li=""><small>Hook</small><span>${esc(P.ex ? P.ex.e.hook : song.hook)}</span></div>
       <div class="jcontrols"><button type="button" class="jloop${P.loop ? " on" : ""}" data-act="jloop" aria-pressed="${P.loop}" aria-label="Loop">⟲</button>
       <button type="button" data-act="jprev" aria-label="Previous line">⏮</button>
       <button type="button" class="jplay" data-act="jplay" aria-label="${P.playing ? "Stop" : "Play"}">${P.playing ? "■" : "▶"}</button>
@@ -327,7 +335,7 @@
       <div class="jbottom"><div class="jtempo" role="group" aria-label="Speed">${[0.75, 1, 1.25].map((t) => `<button type="button" data-act="jtempo" data-v="${t}" class="${P.tempo === t ? "on" : ""}">${t}×</button>`).join("")}</div>
       <label class="juse${HAS_TAKE[k] ? "" : " off"}"><span>Use my recording</span><input type="checkbox" data-act="juserec" ${takeOn ? "checked" : ""} ${HAS_TAKE[k] ? "" : "disabled"}></label></div></div>
       ${P.recMsg ? `<p class="jrecmsg" role="status">${esc(P.recMsg)}</p>` : ""}
-      <p class="sthelp">Recordings stay on this phone. Sing it three times, then look only at your pictures and sing the line that goes with each one.</p></section>`;
+      <p class="sthelp">Recordings stay on this device. Sing it three times, then look only at your pictures and sing the line that goes with each one.</p>${HOW(opts.embedded)}</aside></div></section>`;
     return h;
   }
 
@@ -401,5 +409,5 @@
     document.addEventListener("click", swallow, true); setTimeout(() => document.removeEventListener("click", swallow, true), 300);
   });
 
-  W.OB_JINGLE = { html: (m, pg) => html(m, pg), setRerender: (f) => { RERENDER = f; }, stop, factType, schedule, STYLES, EX, FIT, ORDER };
+  W.OB_JINGLE = { html: (m, pg, o) => html(m, pg, o), setRerender: (f) => { RERENDER = f; }, stop, factType, schedule, STYLES, EX, FIT, ORDER };
 })();
