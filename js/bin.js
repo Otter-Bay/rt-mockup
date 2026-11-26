@@ -378,8 +378,9 @@
       T.cells.forEach((row, i) => row.forEach((v, j) => blocks.push({ id: `x${i}_${j}`, kind: "cell", v, icon: (T.cellIcons || [])[i] && T.cellIcons[i][j], tone: (T.cellTone || [])[i] ? T.cellTone[i][j] : null })));
       g.blocks = shuffle(blocks); g.slots = {}; g.sel = null; g.n = blocks.length;
     } else if (game === "match") {
-      const ps = shuffle(D.pairs).slice(0, 6);
-      g.tiles = shuffle(ps.flatMap((p, i) => [{ p: i, side: "a", t: p.a, icon: p.icon }, { p: i, side: "b", t: p.b, icon: p.bicon || "", tone: p.tone }])); g.open = []; g.got = []; g.moves = 0; g.n = 6;
+      // no two tiles may read the same, or a right-looking pair could fail (Ken, Nov 25: "the logic of the match game isn't working")
+      const seenA = {}, seenB = {}, ps = shuffle(D.pairs).filter((p) => { if (seenA[p.a] || seenB[p.b] || p.a === p.b) return false; seenA[p.a] = seenB[p.b] = 1; return true; }).slice(0, 6);
+      g.tiles = shuffle(ps.flatMap((p, i) => [{ p: i, side: "a", t: p.a, icon: p.icon }, { p: i, side: "b", t: p.b, icon: p.bicon || "", tone: p.tone }])); g.open = []; g.got = []; g.moves = 0; g.n = ps.length;
     } else if (game === "blanks") { g.qs = D.qs().slice(0, 8); g.n = g.qs.length; g.cr = !!(G && G.cr); g.reveal = false; }
     else if (game === "baby") { g.qs = [scenario(k), scenario(k), scenario(k)]; g.n = 3; }
     else if (game === "crossword") { g.cw = crossword(D.E.words); g.n = g.cw.words.length; g.typed = g.cw.words.map(() => ""); g.checked = false; }
@@ -480,6 +481,16 @@
     render(); return false;
   }
   document.addEventListener("keydown", (e) => { if (!G || G.game !== "attack" || !/^[1-9]$/.test(e.key) || +e.key > G.cols.length) return; e.preventDefault(); atkFire(+e.key - 1); });
+  // Fact Attack redraws about 9 times a second, so a tap's press and release can land on two different copies of a button and the
+  // browser never sends a click (Ken, Nov 25: "no way to move blocks"). Act on the press instead, and skip the click that may follow.
+  let atkTap = 0;
+  document.addEventListener("pointerdown", (e) => {
+    if (!G || G.game !== "attack" || G.over || G.demo) return;
+    const b = e.target.closest('[data-act="bgafire"],[data-act="bgasel"]'); if (!b || b.disabled) return;
+    e.preventDefault(); atkTap = Date.now();
+    if (b.dataset.act === "bgafire") atkFire(+b.dataset.v);
+    else if (!G.wait) { G.sel = +b.dataset.v; render(); }
+  }, true);
 
   // Speed Sort: a miss pauses the game and shows the right column until Next
   function sortMiss(g, it) { g.wait = { a: g.cols[it.col], why: (it.why ? it.why + ". " : "") + it.t.replace(/^[^\w\s]\S* /, ""), go: () => sortNext(g) }; }
@@ -815,7 +826,8 @@
       g.open.push(i); if (g.open.length < 2) return;
       g.moves++; const [x, y] = g.open.map((j) => g.tiles[j]);
       if (x.p === y.p && x.side !== y.side) { g.got.push(x.p); g.open = []; g.i++; hit(true, "A pair!"); if (g.got.length === g.n) finish(true); }
-      else { hit(false, "Not a pair"); g.lock = true; g.wait = { msg: "Look at both, then tap Next to flip them back.", go: () => { g.open = []; g.lock = false; } }; } },
+      // a miss shows both tiles for a moment, then flips them back on its own (there was no Next button here, so the game got stuck)
+      else { hit(false, "Not a pair"); g.lock = true; setTimeout(() => { if (G !== g || g.over) return; g.open = []; g.lock = false; render(); }, 1300); } },
     // shared multiple choice (Fill the Blanks, Score the Baby, Escape Room, Boss Battle)
     bgpick: (b) => { const g = G; if (g.wait) return false; const v = b.dataset.v;
       const q = g.game === "escape" ? g.qs[g.open] : g.game === "boss" ? g.qs[g.i % g.qs.length] : g.qs[g.i], ok = v === q.a; let go = nextQ;
@@ -825,8 +837,8 @@
       else hit(ok);
       g.wait = { a: q.a, v, ok, why: q.why || "", go }; },
     bgnext: () => { const w = G.wait; if (!w) return false; G.wait = null; G.fb = null; G.calc = ""; w.go(); },
-    bgasel: (b) => { if (G.wait || G.demo) return false; G.sel = +b.dataset.v; },
-    bgafire: (b) => atkFire(+b.dataset.v),
+    bgasel: (b) => { if (Date.now() - atkTap < 700 || G.wait || G.demo) return false; G.sel = +b.dataset.v; },
+    bgafire: (b) => Date.now() - atkTap < 700 ? false : atkFire(+b.dataset.v),
     bgdemostart: () => endDemo(),
     bgdemoskip: () => endDemo(),
     bgdemohelp: () => { if (!G || G.over) return; G.demo = true; clearInterval(G.timer); clearTimeout(G.timer); },

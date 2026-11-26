@@ -477,6 +477,14 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .gkeys button { min-height: 46px; border: 0; border-radius: 10px; background: #455A64; color: #fff; font: inherit; font-weight: 700; font-size: 20px; cursor: pointer; }
 .gkeys button.op { background: #F5B83D; color: #3A2800; } .gkeys button:active { transform: translateY(2px); }
 .bin .tone4 { background: repeating-linear-gradient(45deg, #EDE7F6 0 5px, #D1C4E9 5px 7px), repeating-linear-gradient(-45deg, transparent 0 5px, #D1C4E9 5px 7px) !important; border: 3px double #4A148C !important; }
+/* Answer buttons in the games stay neutral until answered (Ken, Nov 25: a green "Normal" looked already chosen).
+   The card's color shows only as a stripe on the left edge; green fill and a thick border mean "right" and appear only after an answer. */
+.bin :is(.gopt, .gcan, .gcol, .gbc)[class*="tone"]:not(.right):not(.wrong):not(.st) { background: #fff !important; border: 2px solid #C9D6DB !important; border-left-width: 9px !important; }
+.bin :is(.gopt, .gcan, .gcol, .gbc).tone0:not(.right):not(.wrong):not(.st) { border-left-color: #C62828 !important; }
+.bin :is(.gopt, .gcan, .gcol, .gbc).tone1:not(.right):not(.wrong):not(.st) { border-left-color: #E65100 !important; }
+.bin :is(.gopt, .gcan, .gcol, .gbc).tone2:not(.right):not(.wrong):not(.st) { border-left-color: #2E7D32 !important; }
+.bin :is(.gopt, .gcan, .gcol, .gbc).tone3:not(.right):not(.wrong):not(.st) { border-left-color: #1565C0 !important; }
+.bin :is(.gopt, .gcan, .gcol, .gbc).tone4:not(.right):not(.wrong):not(.st) { border-left-color: #4A148C !important; }
 /* Fact Attack */
 .gatkbar { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; color: var(--bay, #0A4A63); }
 .gcombo { padding: 4px 10px; border-radius: 12px; background: #fff; } .gcombo.hot { background: #FF6F00; color: #fff; animation: gpop .3s; }
