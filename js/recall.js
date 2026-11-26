@@ -1058,7 +1058,7 @@
       if (b.pic) { let py = b.cy2 + 7 * s + b.pfs * 0.85; const n = f.picMine ? "My picture:" : "Picture idea:";
         b.pic.forEach((ln, j) => { g += `<text class="rpic" x="${b.x1 + b.pad + 4 * s}" y="${py}" font-size="${b.pfs}" font-style="italic" fill="#4E5B66">${j === 0 ? `<tspan font-weight="700" font-style="normal" fill="${f.picMine ? BAY : "#5A6670"}">${esc(n)}</tspan>${esc(ln.slice(n.length))}` : esc(ln)}</text>`; py += b.pfs * 1.22; }); }
       const tip = b.pic || st || opts.custom ? "" : opts.ideas ? `Idea: ${f.idea.tip}. Or draw your own.` : "✎ Draw something that reminds you of this";
-      if (tip) g += `<text x="${b.x2 - 8}" y="${b.y2 - 6}" text-anchor="end" font-size="${7.2 * Math.min(Math.max(s, .8), 1.2)}" font-style="italic" fill="#8A959E">${esc(tip)}</text>`;
+      if (tip) g += `<text class="rtip" x="${b.x2 - 8}" y="${b.y2 - 6}" text-anchor="end" font-size="${7.2 * Math.min(Math.max(s, .8), 1.2)}" font-style="italic" fill="#8A959E">${esc(tip)}</text>`;
       g += `</g>`;
     });
     // the learner's own drawing, on top
@@ -1955,10 +1955,10 @@
       try { svg.setPointerCapture(e.pointerId); } catch (x) {}
     } else if (ST.tool === "sticker" || ST.tool === "look") {
       const call = e.target.closest && e.target.closest(".rcallout, .rthumb, .rthumbadd");
-      if (call && call.dataset.cap != null) {
+      if (call && call.dataset.cap != null && !(ST.tool === "look" && call.classList.contains("rcallout"))) {
         ST.sel = Number(call.dataset.cap); ST.branch = Number(call.dataset.pin); ST.tool = "sticker"; ST.focus = ST.sel; ST.focusBranch = ST.branch; render(); return;
       }
-      if (fi != null) { ST.sel = fi; ST.branch = null; ST.tool = "sticker"; ST.focus = fi; render(); }
+      if (fi != null && ST.tool !== "look") { ST.sel = fi; ST.branch = null; ST.tool = "sticker"; ST.focus = fi; render(); }
     }
   });
   const photoFrac = (d, p) => {
@@ -2213,6 +2213,59 @@
     stsongno: () => { ST.songPop = false; PG.song.asked = true; savePage(); },
     stplay: () => { playTune(mdl().song.tune); return false; },
   });
+
+  // Tap a box to read it big (Ken, Nov 26): tapping a fact or index card opens it enlarged at the top of the screen; tapping
+  // another box swaps it in, so only one is ever enlarged. Works on every recall map on screen, and in the builder's Look tool.
+  // It is a copy of the map zoomed to that box (same shapes, colors and pictures), never a second layout to keep in step.
+  let zoomTap = null;
+  function zoomTarget(t) {
+    if (!t || !t.closest) return null;
+    const svg = t.closest("svg.recallsvg"); if (!svg || svg.classList.contains("thumb")) return null;
+    if (svg.classList.contains("builder") && ST.tool !== "look") return null;
+    if (t.closest(".rpin, .rcap, .rhubpic, .rthumb, .rthumbadd")) return null;   // pictures keep their Replace menu
+    const el = t.closest(".rcard") || t.closest(".rfact"); return el ? { svg, el } : null;
+  }
+  function showZoom(svg, el) {
+    const inv = svg.getScreenCTM && svg.getScreenCTM(); if (!inv) return;
+    // the words and pictures, not the empty draw-your-own space around them, so the text comes up as big as it can
+    const parts = [...el.children].filter((x) => !x.matches("clipPath, .rspace, .rtip") && x.getBoundingClientRect().width > 0).map((x) => x.getBoundingClientRect());
+    const r0 = el.getBoundingClientRect(), r = parts.length ? { left: Math.min(...parts.map((x) => x.left)), top: Math.min(...parts.map((x) => x.top)), right: Math.max(...parts.map((x) => x.right)), bottom: Math.max(...parts.map((x) => x.bottom)) } : r0, m = inv.inverse();
+    const a = svg.createSVGPoint(), b = svg.createSVGPoint(); a.x = r.left; a.y = r.top; b.x = r.right; b.y = r.bottom;
+    const p = a.matrixTransform(m), q = b.matrixTransform(m), pad = 6;
+    const vb = [p.x - pad, p.y - pad, q.x - p.x + 2 * pad, q.y - p.y + 2 * pad];
+    if (!(vb[2] > 4 && vb[3] > 4)) return;
+    const c = svg.cloneNode(true);
+    c.removeAttribute("width"); c.removeAttribute("height"); c.setAttribute("class", "recallsvg rzoomsvg");
+    c.setAttribute("viewBox", vb.map((v) => v.toFixed(1)).join(" ")); c.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    let box = document.querySelector(".rzoom");
+    if (!box) {
+      box = document.createElement("div"); box.className = "rzoom"; box.setAttribute("role", "dialog"); box.setAttribute("aria-label", "Enlarged box");
+      box.innerHTML = '<div class="rzoombar"><span>Tap another box to switch</span><button type="button" class="rzoomx" aria-label="Close">Close ✕</button></div><div class="rzoombody"></div>';
+      document.body.appendChild(box);
+      box.querySelector(".rzoomx").addEventListener("click", hideZoom);
+    }
+    const body = box.querySelector(".rzoombody"); body.innerHTML = ""; body.appendChild(c);
+    body.style.aspectRatio = (vb[2] / vb[3]).toFixed(3);
+    document.querySelectorAll(".rzoomed").forEach((x) => x.classList.remove("rzoomed"));
+    el.classList.add("rzoomed");
+  }
+  function hideZoom() { const z = document.querySelector(".rzoom"); if (z) z.remove(); document.querySelectorAll(".rzoomed").forEach((x) => x.classList.remove("rzoomed")); }
+  document.addEventListener("pointerdown", (e) => {
+    const z = zoomTarget(e.target); zoomTap = z ? { z, x: e.clientX, y: e.clientY, t: Date.now() } : null;
+  }, true);
+  document.addEventListener("pointerup", (e) => {
+    const zt = zoomTap; zoomTap = null;
+    if (!zt || Math.hypot(e.clientX - zt.x, e.clientY - zt.y) > 8 || Date.now() - zt.t > 700) return;
+    // the map may have re-rendered under the finger; find the same box again
+    let { svg, el } = zt.z;
+    if (!el.isConnected) {
+      const cap = el.dataset.cap, pin = el.dataset.pin, fi = el.dataset.fi;
+      const n = cap != null ? document.querySelector(`svg.recallsvg:not(.thumb):not(.rzoomsvg) .rcard[data-cap="${cap}"][data-pin="${pin}"]`) : document.querySelector(`svg.recallsvg:not(.thumb):not(.rzoomsvg) .rfact[data-fi="${fi}"]`);
+      if (!n) return; el = n; svg = n.closest("svg");
+    }
+    showZoom(svg, el);
+  }, true);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideZoom(); });
 
   W.OB_STUDY = Object.assign(API(), { open, screen, hasPage, listPages, thumb, preparePrint, state: ST, afterRender });
 })();

@@ -653,3 +653,14 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
   .gdemo-cap span { position: static; opacity: 1; display: block; margin: 0 0 4px; }
   .gdemo-finger { left: 70%; top: 70%; }
 }
+
+/* Tap a box to read it big (Ken, Nov 26): one enlarged box at the top of the screen; tapping another swaps it in */
+.rzoom { position: fixed; left: 8px; right: 8px; top: max(8px, env(safe-area-inset-top)); z-index: 60; max-width: 720px; margin: 0 auto;
+  background: #fff; border-radius: 14px; box-shadow: 0 10px 30px rgba(10, 30, 45, .28); border: 1px solid #D5DDE2; padding: 6px 8px 10px; }
+.rzoombar { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #5A6670; padding: 2px 2px 6px; }
+.rzoomx { font: inherit; font-weight: 700; color: #0B4F6C; background: #EEF4F7; border: 0; border-radius: 999px; padding: 8px 14px; min-height: 40px; cursor: pointer; }
+.rzoombody { width: 100%; max-height: 46vh; margin: 0 auto; }
+.rzoombody svg { display: block; width: 100%; height: 100%; max-height: 46vh; }
+.recallsvg .rzoomed { filter: drop-shadow(0 0 4px rgba(11, 79, 108, .55)); }
+.recallsvg:not(.builder) .rfact, .recallsvg:not(.builder) .rcard, .stpaper.tool-look .rfact, .stpaper.tool-look .rcard { cursor: zoom-in; }
+@media print { .rzoom { display: none !important; } .recallsvg .rzoomed { filter: none; } }
