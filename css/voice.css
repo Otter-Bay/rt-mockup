@@ -783,3 +783,8 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .jsound .jbass.on { border-style: solid; background: #14222C; border-color: #14222C; color: #fff; }
 /* a picture being dragged over the otter or a card: the drop spot lights up (Ken, Nov 26) */
 .recallsvg .rdrop { filter: drop-shadow(0 0 5px #F1B92D) drop-shadow(0 0 2px #F1B92D); }
+/* a symbol on each way to study (Ken, Nov 26) */
+.binstyle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.binstyle .binsi { flex-shrink: 0; }
+.binhead small .binsi { width: 15px; height: 15px; vertical-align: -3px; margin-right: 4px; }
+@media (min-width: 700px) { .binstyles { grid-template-columns: repeat(4, 1fr); } }

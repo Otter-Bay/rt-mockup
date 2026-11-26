@@ -258,6 +258,14 @@
   const saveStyle = () => { try { localStorage.setItem(STYLE_KEY, JSON.stringify(STY)); } catch (e) {} };
   const saveTip = () => { try { localStorage.setItem(TIP_KEY, JSON.stringify(TIP)); } catch (e) {} };
   const STYLES = [["picture", "Picture"], ["jingle", "Jingle"], ["flash", "Flashcard"], ["game", "Game"]];
+  // a small symbol for each way to study (Ken, Nov 26), the joystick for Game; the same set is on the vetting pages' Study List
+  const SI = (d) => `<svg class="binsi" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const STYLE_ICON = {
+    picture: SI('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/>'),
+    jingle: SI('<path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>'),
+    flash: SI('<rect x="8" y="3" width="13" height="15" rx="2"/><path d="M5 7v12a2 2 0 0 0 2 2h10"/>'),
+    game: SI('<rect x="3" y="15" width="18" height="6" rx="2.5"/><path d="M12 15V9.5"/><circle cx="12" cy="6.5" r="3"/><path d="M7 18h.01M16.5 18h.01"/>'),
+  };
   const styleName = (s) => (STYLES.find((x) => x[0] === s) || [s, s])[1];
   function inferTaxonomy(k) {
     // The card's own outline (or the exam blueprint) wins. Never use the current question,
@@ -673,11 +681,12 @@
     const taskN = meta.taskName || meta.task || "", topicN = meta.topicName || meta.topic || "";
     const where = [taskN, topicN && topicN.toLowerCase() !== taskN.toLowerCase() ? topicN : ""].filter(Boolean).join(" · ");
     const lastLab = last ? "Last studied: " + styleName(last) : "Pick a study style";
+    const lastIcon = last && STYLE_ICON[last] ? STYLE_ICON[last] : "";
     const fresh = JUST_IMPORTED.includes(k);
     return `<li class="bincard${focused ? " focus" : ""}${fresh ? " fresh" : ""}" data-k="${k}"><div class="binhead"><b>${esc(W.SCALES[k].title)}</b>${fresh ? '<em class="freshtag">Just added</em>' : ""}
-        <small>${esc(lastLab)}${where ? " · " + esc(where) : ""}${focused ? ' <em class="focustag">Your focus</em>' : ""}</small></div>
+        <small>${lastIcon}${esc(lastLab)}${where ? " · " + esc(where) : ""}${focused ? ' <em class="focustag">Your focus</em>' : ""}</small></div>
         <div class="binstyles" role="group" aria-label="How to study ${esc(W.SCALES[k].title)}">${STYLES.map(([id, lab]) =>
-          `<button type="button" class="binstyle${last === id ? " on" : ""}" data-act="binstyle" data-k="${k}" data-s="${id}" aria-pressed="${last === id}">${esc(lab)}</button>`).join("")}</div></li>`;
+          `<button type="button" class="binstyle${last === id ? " on" : ""}" data-act="binstyle" data-k="${k}" data-s="${id}" aria-pressed="${last === id}">${STYLE_ICON[id] || ""}<span>${esc(lab)}</span></button>`).join("")}</div></li>`;
   }
   function binView() {
     ensureTags();

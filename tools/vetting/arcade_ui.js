@@ -106,9 +106,10 @@
 .binflag.obhave>span:first-child{color:#C99A2E}.binflag.obhave b{color:#14222C}
 .obhavego{margin-left:auto;font:inherit;font-size:13px;font-weight:700;color:#0B4F6C;background:#fff;border:2px solid #0B4F6C;border-radius:999px;padding:4px 12px;cursor:pointer;min-height:36px}
 .obarclist li{flex-wrap:wrap}
-.obarcstyles{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.obarcstyles{flex-basis:100%;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px}
 .obarcst{flex:1 1 auto;min-height:40px;padding:0 12px;border-radius:999px;border:2px solid #0B4F6C;background:#fff;color:#0B4F6C;font:inherit;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;white-space:nowrap}
-.obarcst:hover{background:#EEF4F7}`;
+.obarcst:hover{background:#EEF4F7}
+.obarcst{gap:6px}.obarcst svg{flex-shrink:0}.obarcext{font-size:12px;opacity:.7}`;
   document.head.appendChild(css);
 
   const origScale = W.scaleButtons;
@@ -153,10 +154,18 @@
   // How to study a topic lives on the Study List (Ken, Nov 26), the same four styles as the app. Jingle opens right here;
   // Picture, Flashcard and Game open the app with the list imported and that topic's style already open.
   const STYLES = [["picture", "Picture"], ["jingle", "Jingle"], ["flash", "Flashcard"], ["game", "Game"]];
+  // the same symbols as the app's Study List (js/bin.js), the joystick for Game (Ken, Nov 26)
+  const SI = (d) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const ICON = {
+    picture: SI('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/>'),
+    jingle: SI('<path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>'),
+    flash: SI('<rect x="8" y="3" width="13" height="15" rx="2"/><path d="M5 7v12a2 2 0 0 0 2 2h10"/>'),
+    game: SI('<rect x="3" y="15" width="18" height="6" rx="2.5"/><path d="M12 15V9.5"/><circle cx="12" cy="6.5" r="3"/><path d="M7 18h.01M16.5 18h.01"/>'),
+  };
   function styles(k) {
     return `<div class="obarcstyles" role="group" aria-label="How to study ${esc(W.SCALES[k].title)}">${STYLES.map(([s, t]) =>
-      s === "jingle" && W.OB_VET_JINGLE ? `<button type="button" class="obarcst" data-objing="${k}">♪ ${t}</button>`
-        : `<a class="obarcst" href="${esc(appHref() + "&study=" + encodeURIComponent(k + ":" + s))}" target="_blank" rel="noopener">${t}<span aria-hidden="true"> ↗</span></a>`).join("")}</div>`;
+      s === "jingle" && W.OB_VET_JINGLE ? `<button type="button" class="obarcst" data-objing="${k}">${ICON[s]}${t}</button>`
+        : `<a class="obarcst" href="${esc(appHref() + "&study=" + encodeURIComponent(k + ":" + s))}" target="_blank" rel="noopener" aria-label="${t} (opens ${esc(APP_NAME)})">${ICON[s]}${t}<span aria-hidden="true" class="obarcext">↗</span></a>`).join("")}</div>`;
   }
   function openPop(k, msg) {
     popKey = k || ""; popMsg = msg || "";
