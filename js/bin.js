@@ -776,6 +776,7 @@
         if (W.PAGE_ACTIONS && W.PAGE_ACTIONS.stopenpage) W.PAGE_ACTIONS.stopenpage({ dataset: { k } });
         if (W.OB_STUDY && W.OB_STUDY.state) {
           W.OB_STUDY.state.panel = st === "jingle" ? "song" : "";
+          W.OB_STUDY.state.jingle = st === "jingle";   // Jingle opens the jingle player (Ken, Nov 26)
           W.OB_STUDY.state.style = "map"; W.OB_STUDY.state.map = "build";
           W.OB_STUDY.state.from = "bin"; W.OB_STUDY.state.fromK = k;
         }

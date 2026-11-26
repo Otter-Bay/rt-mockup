@@ -675,3 +675,82 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .sthubgrid button:hover, .sthubgrid button:focus-visible { border-color: #0B4F6C; background: #EEF4F7; }
 .sthubgrid img { width: 72px; height: 72px; object-fit: contain; }
 .sthubgrid span { font-size: 11.5px; line-height: 1.2; color: #24313E; text-align: center; }
+
+/* Jingle player (Ken, Nov 26) */
+.jplayer { display: flex; flex-direction: column; gap: 10px; padding-bottom: 24px; }
+.jhead { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; background: #0B4F6C; color: #fff; margin: -4px -4px 4px; padding: 10px 12px; border-radius: 14px; }
+.jhead h2 { margin: 0; text-align: center; font-size: 20px; color: #fff; }
+.jhead button { background: none; border: 0; color: #fff; font: inherit; font-weight: 700; font-size: 16px; cursor: pointer; min-height: 40px; }
+.jfav { font-size: 24px !important; }
+.jfav.on { color: #FFD43B !important; }
+.jtitle { margin: 2px 0 0; font-size: 20px; color: #0B4F6C; }
+.jlinks, .jmy { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0; }
+.jlinks button, .jmy button { font: inherit; font-weight: 700; color: #0B4F6C; background: #fff; border: 2px solid #0B4F6C; border-radius: 999px; padding: 6px 14px; cursor: pointer; min-height: 38px; }
+.jmy { font-size: 14px; }
+.jplayer .asklabel { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 6px 0 2px; }
+.jplayer .asklabel span { font-weight: 400; color: #5A6670; }
+.jchips, .jtunes, .jtray { display: flex; flex-wrap: wrap; gap: 8px; }
+.jchips button, .jtunes button, .jtray button { font: inherit; font-weight: 700; color: #0B4F6C; background: #fff; border: 2px solid #C9D5DC; border-radius: 999px; padding: 7px 14px; cursor: pointer; min-height: 40px; }
+.jchips button.on, .jtunes button.on { background: #0B4F6C; color: #fff; border-color: #0B4F6C; }
+.jchips i { font-style: normal; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; margin-left: 4px; }
+.jchips i.ok { border: 2px solid #2E7D32; color: #2E7D32; } .jchips button.on i.ok { border-color: #fff; color: #fff; }
+.jchips i.warn { border: 2px solid #B08900; color: #B08900; }
+.jfit { margin: 4px 0 0; padding: 10px 12px; border-radius: 12px; border: 2px solid; font-size: 14.5px; line-height: 1.4; }
+.jfit.ok { border-color: #5DBB73; background: #EEF8F0; }
+.jfit.warn { border-color: #F1B92D; background: #FFF6DB; }
+.jfit button { font: inherit; font-weight: 700; color: #0B4F6C; background: #fff; border: 2px solid #0B4F6C; border-radius: 999px; padding: 4px 12px; margin-left: 4px; cursor: pointer; }
+.jtune { margin: 2px 0 0; font-size: 13px; color: #5A6670; }
+.jdraft { font-size: 12px; background: #FFF6DB; color: #7A5800 !important; border-radius: 999px; padding: 2px 8px; font-weight: 700 !important; }
+.jexs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.jex { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; background: #fff; border: 2px solid #D5DDE2; border-radius: 14px; font: inherit; cursor: pointer; min-height: 72px; text-align: center; }
+.jex b { color: #14222C; font-size: 14px; } .jex small { color: #5A6670; }
+.jex.on { border-color: #F1B92D; background: #FFF9E8; } .jex.on small { background: #F1B92D; color: #14222C; border-radius: 999px; padding: 1px 8px; font-weight: 700; }
+.jex.soon { opacity: .55; cursor: default; }
+.jexnote { margin: 0; font-size: 14px; } .jexnote button { font: inherit; font-weight: 700; color: #0B4F6C; background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.jtray button { border-color: #0B4F6C; touch-action: none; }
+.jtray button.on { background: #FFF6DB; border-color: #F1B92D; }
+.jtray button.lifted { opacity: .35; border-style: dashed; }
+.jghost { position: fixed; z-index: 70; pointer-events: none; transform: translate(-50%, -60%) rotate(-6deg); box-shadow: 0 6px 18px rgba(10, 30, 45, .3); background: #fff; font-weight: 700; color: #0B4F6C; border: 2px solid #0B4F6C; border-radius: 999px; padding: 7px 14px; }
+.jlines { display: flex; flex-direction: column; gap: 6px; }
+.jline { display: grid; grid-template-columns: 58px 1fr auto; align-items: center; gap: 8px; border-radius: 12px; }
+.jpart { font-size: 13px; font-weight: 700; color: #3B4A55; }
+.jline input { font: inherit; font-size: 15px; padding: 9px 12px; border: 2px solid #D5DDE2; border-radius: 12px; min-width: 0; background: #fff; }
+.jline em { font-style: normal; font-size: 11.5px; color: #5A6670; min-width: 54px; text-align: right; }
+.jline.on input { border-color: #F1B92D; background: #FFF9E8; }
+.jline.drop input { border: 2px dashed #F1B92D; background: #FFF6DB; }
+.jkara { margin-top: 6px; padding: 12px 14px; background: #fff; border: 2px solid #D5DDE2; border-radius: 14px; text-align: center; min-height: 64px; }
+.jkara small { display: block; font-size: 12px; color: #5A6670; font-weight: 700; }
+.jkara span { font-size: 21px; line-height: 1.5; color: #3B4A55; }
+.jkara b { font-weight: 600; border-radius: 8px; padding: 0 3px; transition: background .12s; }
+.jkara b.on { background: #F1B92D; color: #14222C; font-weight: 800; }
+.jcontrols { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.jcontrols button { font: inherit; font-size: 22px; background: none; border: 0; color: #0B4F6C; cursor: pointer; min-width: 44px; min-height: 44px; }
+.jcontrols .jloop { border: 3px solid #0B4F6C; border-radius: 50%; width: 50px; height: 50px; opacity: .5; }
+.jcontrols .jloop.on { opacity: 1; }
+.jcontrols .jplay { width: 74px; height: 74px; border-radius: 50%; background: #0B4F6C; color: #fff; font-size: 30px; }
+.jcontrols .jrec { font-size: 15px; font-weight: 700; color: #C2410C; border: 2px solid #C2410C; border-radius: 999px; padding: 8px 14px; }
+.jcontrols .jrec.on { background: #C2410C; color: #fff; }
+.jbottom { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.jtempo { display: inline-flex; border: 2px solid #0B4F6C; border-radius: 999px; overflow: hidden; }
+.jtempo button { font: inherit; font-weight: 700; color: #0B4F6C; background: #fff; border: 0; padding: 8px 14px; cursor: pointer; min-height: 40px; }
+.jtempo button.on { background: #0B4F6C; color: #fff; }
+.juse { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; color: #0B4F6C; border: 2px solid #0B4F6C; border-radius: 999px; padding: 6px 8px 6px 14px; }
+.juse.off { opacity: .5; }
+.juse input { width: 22px; height: 22px; accent-color: #0B4F6C; }
+.jrecmsg { margin: 0; padding: 8px 12px; background: #FFF6DB; border-radius: 10px; font-size: 14px; }
+.stjinglebtn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; margin: 8px 0; padding: 12px 14px; font: inherit; font-weight: 700; font-size: 16px; color: #fff; background: #0B4F6C; border: 0; border-radius: 14px; cursor: pointer; }
+.stjinglebtn small { font-weight: 400; font-size: 13px; opacity: .9; }
+@media (prefers-reduced-motion: reduce) { .jkara b { transition: none; } .jghost { transform: translate(-50%, -60%); } }
+/* the player stays in reach at the bottom of the screen while they scroll the lines */
+.jdock { position: sticky; bottom: 0; z-index: 5; display: flex; flex-direction: column; gap: 8px; margin: 6px -6px 0; padding: 8px 10px 10px; background: #F4F8FA; border-top: 1px solid #D5DDE2; border-radius: 16px 16px 0 0; box-shadow: 0 -6px 16px rgba(10, 30, 45, .08); }
+.jdock .jkara { margin-top: 0; min-height: 0; padding: 8px 12px; }
+.jdock .jcontrols .jplay { width: 62px; height: 62px; font-size: 26px; }
+.jdock { gap: 6px; padding: 6px 8px 8px; }
+.jdock .jkara span { font-size: 18px; }
+.jdock .jcontrols button { min-height: 40px; }
+.jdock .jcontrols .jloop { width: 42px; height: 42px; }
+.jdock .jcontrols .jplay { width: 54px; height: 54px; font-size: 22px; }
+.jdock .jcontrols .jrec { font-size: 14px; padding: 6px 12px; }
+.jdock .jbottom { flex-wrap: nowrap; gap: 6px; }
+.jdock .jtempo button { padding: 6px 10px; min-height: 36px; font-size: 14px; }
+.jdock .juse { font-size: 13.5px; padding: 4px 6px 4px 10px; gap: 6px; white-space: nowrap; }

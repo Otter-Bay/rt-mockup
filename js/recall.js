@@ -1435,7 +1435,7 @@
     ST.k = k; ST.q = o.q || ""; ST.answer = o.answer || ""; ST.related = o.related || []; ST.hit = o.hit || null;
     ST.sel = null; ST.mode = "filled"; ST.ideas = false; ST.celebrate = false; ST.msg = ""; ST.zoom = false; ST.panel = o.panel || ""; ST.songPop = false;
     ST.from = o.from || "ask"; ST.fromK = o.fromK || k; ST.focus = null; ST.branch = null; ST.focusBranch = null; ST.ppNote = null;
-    ST.replace = null; ST.slotDraw = null; ST.focusPaste = false;
+    ST.replace = null; ST.slotDraw = null; ST.focusPaste = false; ST.jingle = !!o.jingle;
     if (o.build) { ST.style = "map"; ST.map = "build"; }
     PG = fixPage(getPage(k)) || blankPage();
   }
@@ -1452,6 +1452,8 @@
   }
   function screen() {
     const m = mdl(); if (!m) return "";
+    // the jingle player (js/jingle.js) takes over the sheet while it's open; anywhere else its music stops
+    if (W.OB_JINGLE) { if (ST.jingle) return W.OB_JINGLE.html(m, PG); W.OB_JINGLE.stop(true); }
     const backLabel = ST.from === "bin" ? "Back to Study List" : ST.from === "settings" ? "Back to Settings" : "Back to the answer";
     let h = `<section class="stsheet" id="askRes"><div class="sthead"><button type="button" class="stback" data-act="stback">‹ ${backLabel}</button>
       <h2>Study sheet</h2><p class="stsub">Print the topic you asked about: <b>${esc(m.title)}</b></p>
@@ -1499,6 +1501,7 @@
       const T = TUNES[sg.tune];
       h += `<div class="stpanel stsong"><p class="sthelp">${sg.hasDefault ? "We wrote a starter jingle: one line for each fact. Sing it as is, or change any line to your own words." : "Pick a tune you know and write one short line for each fact."} Use a tune you already know well; a new tune makes it harder.</p>
         <p class="asklabel">Tune</p><div class="sttunes">${Object.entries(TUNES).map(([v, t]) => `<button type="button" data-act="sttune" data-v="${v}" aria-pressed="${sg.tune === v}" class="${sg.tune === v ? "on" : ""}">${esc(t.name)}${v === sg.suggested ? "<small>our pick</small>" : ""}</button>`).join("")}</div>
+        <button type="button" class="stjinglebtn" data-act="stjingle">♪ Open the jingle player <small>full song, karaoke, styles, record your voice</small></button>
         <p class="stmeter"><span>Each line: about <b>${T.beats} beats</b>, like “${esc(T.meter)}”.</span> <button type="button" class="stplay" data-act="stplay">▶ Hear the tune</button></p>`;
       sg.lines.forEach((l) => { const n = beats(l.text); h += `<div class="stlyric"><label for="stly${l.key}"><b>${esc(l.label)}</b><span class="sttag ${l.mine ? "mine" : ""}" data-tag="l${l.key}">${l.mine ? "Yours" : l.def ? "Suggested" : "Empty"}</span><span class="stbeats ${n === T.beats ? "ok" : ""}" data-beats="${l.key}">${l.text ? n + " beats" : ""}</span></label>
         <input id="stly${l.key}" type="text" data-stlyric="${l.key}" value="${esc(l.text)}" placeholder="${esc(l.def || "Your line for “" + l.label + "”")}" autocomplete="off">
@@ -2306,6 +2309,7 @@
     sttool: (b) => { ST.tool = b.dataset.v; ST.msg = ""; },
     stcolor: (b) => { ST.color = b.dataset.c; },
     stzoom: () => { ST.zoom = !ST.zoom; },
+    stjingle: () => { ST.jingle = true; setTimeout(() => W.scrollTo && W.scrollTo(0, 0), 0); },
     sthubmine: () => { ST.style = "map"; ST.hubSug = false; openReplace(0, null); savePref(); },
     sthubsuggest: () => { ST.style = "map"; ST.map = "build"; ST.replace = null; ST.slotDraw = null; ST.sel = 0; ST.branch = null; ST.hubSug = true; savePref();
       setTimeout(() => { const el = document.querySelector(".sthubsug"); if (el) el.scrollIntoView({ block: "start", behavior: "smooth" }); }, 60); },
@@ -2454,5 +2458,5 @@
   }, true);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideZoom(); });
 
-  W.OB_STUDY = Object.assign(API(), { open, screen, hasPage, listPages, thumb, preparePrint, printAllHtml, state: ST, afterRender });
+  W.OB_STUDY = Object.assign(API(), { open, screen, hasPage, listPages, thumb, preparePrint, printAllHtml, state: ST, afterRender, page: () => PG, savePage: () => savePage() });
 })();
