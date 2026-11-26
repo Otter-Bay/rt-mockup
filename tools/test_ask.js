@@ -108,7 +108,7 @@ let st = 0;
 const study = (name, ok, why) => { st++; if (!ok) bad++; console.log(`${ok ? "ok  " : "FAIL"} [study] ${name}${ok ? "" : "  <- " + why}`); };
 function loadStudy(exam) {
   const ctx = vm.createContext({ console }); ctx.window = ctx; ctx.EXAM = exam;
-  for (const f of ["js/scales.js", "js/sleep_scales.js", "js/cna_scales.js", "js/acronyms.js", "js/scale_outline.js", "js/memory_ideas.js", "js/recall.js"])
+  for (const f of ["js/scales.js", "js/sleep_scales.js", "js/cna_scales.js", "js/acronyms.js", "js/scale_outline.js", "js/memory_ideas.js", "js/stickers.js", "js/recall.js"])
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), ctx, { filename: f });
   return ctx;
 }
@@ -132,7 +132,8 @@ function loadStudy(exam) {
   study("draw-your-own space and prompt on every fact", (filled.match(/class="rspace"/g) || []).length === 4 && filled.includes("Draw something that reminds you of this"), "missing spaces or prompt");
   study("the row asked about is starred", filled.includes("You asked about this"), "no star");
   study("Practice hides the answers", (filled.match(/>Severe<\/text>/g) || []).length === 2 && (practice.match(/>Severe<\/text>/g) || []).length === 1, "answers still showing");
-  study("ideas are off unless asked for", !filled.includes('opacity=".55"') && SB.recallSvg(ahi, { ideas: true }).includes('opacity=".55"'), "ideas showing by default");
+  // Ken, Nov 25: no line art; every fact gets a related full-color sticker pulled from its words
+  study("no line art: every fact shows a pulled full-color sticker", (filled.match(/class="rauto"/g) || []).length === ahi.facts.length && !/<path[^>]*stroke-width="1\.6"/.test(filled), (filled.match(/class="rauto"/g) || []).length + " of " + ahi.facts.length);
   const gl = SB.model("gaslaws", {}), ideaOf = (l) => (gl.facts.find((f) => f.label.startsWith(l)) || { idea: {} }).idea.shape;
   study("gas-law ideas: Boyle syringe, Charles kettle, Henry bottle, Laplace bubble, Bernoulli wing, Venturi hourglass, Graham runner",
     ideaOf("Boyle") === "syringe" && ideaOf("Charles") === "kettle" && ideaOf("Henry") === "bottle" && ideaOf("Laplace") === "bubble" && ideaOf("Bernoulli") === "wing" && ideaOf("Venturi") === "hourglass" && ideaOf("Graham") === "runner",
@@ -152,7 +153,15 @@ function loadStudy(exam) {
   study("a built page prints the learner's drawing and shapes", built.includes('class="rink"') && /class="rsticker"[^>]*lungs\.webp/.test(built), "drawing missing");
   // Stickers (Ken, Nov 25): full-color artwork is never recolored; an old saved line drawing keeps working, in one ink, not the old tint
   const oldShape = SB.recallSvg(ahi, { custom: { stickers: { 3: { shape: "kettle", c: "#C62828" } } } });
-  study("stickers keep their own colors; old line-drawing pages still show, untinted", !/rsticker[^>]*(fill|stroke)=/.test(built) && oldShape.includes('stroke="#1E3A44" stroke-width="2.4"') && !oldShape.includes('stroke="#C62828" stroke-width="2.4"'), "tint still applied");
+  study("stickers keep their own colors; an old line-drawing page shows the matching sticker", !/rsticker[^>]*(fill|stroke)=/.test(built) && /class="rsticker"[^>]*teapot\.webp/.test(oldShape), "old page not mapped");
+  // related and unique (Ken, Nov 25): a sticker that fits the words, and never the same pulled sticker on two maps
+  const sug = (t) => SB.suggestStickers(t, 3);
+  study("pulled stickers are related to the words", sug("Blue lips, cyanosis")[0] === "cold-face" && sug("K-complex or sleep spindle").some((x) => /k-complex|sleep-spindle/.test(x)) && sug("Inhaled corticosteroid (for example fluticasone)")[0] === "pill" && sug("Heart rate and ECG")[0] === "anatomical-heart", [sug("Blue lips, cyanosis"), sug("K-complex or sleep spindle"), sug("Inhaled corticosteroid (for example fluticasone)"), sug("Heart rate and ECG")].join(" / "));
+  SB.resetPicks();
+  const pullA = SB.recallSvg(SB.model("abg", {}), { screen: true }), pullB = SB.recallSvg(SB.model("oxy", {}), { screen: true }), pullA2 = SB.recallSvg(SB.model("abg", {}), { screen: true });
+  const ids = (svg) => [...svg.matchAll(/class="rauto"[^>]*><image class="rsticker"[^>]*href="images\/stickers\/([^".]+)\.webp"/g)].map((x) => x[1]);
+  const a1 = ids(pullA), b1 = ids(pullB), a2 = ids(pullA2);
+  study("pulled stickers differ within a map and between maps, and stay put when a map is drawn again", a1.length > 3 && new Set(a1).size === a1.length && !a1.some((x) => b1.includes(x)) && a1.join() === a2.join(), JSON.stringify({ a1, b1, a2 }));
   // The builder and thumbnail tag the SVG by rewriting its class; if that rewrite stops matching, taps on the page do nothing (caught Nov 23)
   const scrSvg = SB.recallSvg(ahi, { screen: true }), tags = [...fs.readFileSync(path.join(ROOT, "js/recall.js"), "utf8").matchAll(/\.replace\('(class="recallsvg[^']*)'/g)].map((m) => m[1]);
   study("builder and thumbnail class tags match the drawn SVG", tags.length >= 2 && tags.every((t) => scrSvg.includes(t)), tags.join(" | "));
@@ -208,7 +217,7 @@ function loadStudy(exam) {
   study("nested bullets become sub-branches off the parent line", nest.items.length === 2 && nest.items[0].kids.length === 2 && nest.items[0].kids[0].text === "Tongue", JSON.stringify(nest.items));
   const withThumb = Object.assign({}, listSt, { thumbs: { 0: { shape: "photo", src: "data:image/png;base64,BBBB", w: 40, h: 40, scale: 1 } } });
   const thSvg = SB.recallSvg(ahi, { custom: { stickers: { 0: withThumb } }, screen: true, builder: true });
-  study("each card can show a fact picture without replacing the topic photo", thSvg.includes('class="rthumb"') && thSvg.includes('class="rphoto"') && thSvg.includes('class="rthumbadd"') && (thSvg.match(/class="rthumbadd"/g) || []).length >= 1, "thumb or topic photo missing");
+  study("each card can show a fact picture without replacing the topic photo; cards without one get a pulled sticker", thSvg.includes('class="rthumb"') && thSvg.includes('class="rphoto"') && /class="rthumb"[^>]*><image class="rsticker"/.test(thSvg), "thumb or topic photo missing");
   const tb = SB.thumbBox({ w: 200, h: 200, scale: 3 }), tbMin = SB.thumbBox({ scale: 0.2 });
   study("legacy branch thumbnails stay small (16–48 px)", tb.w <= 48 && tb.h <= 48 && tbMin.w >= 16, JSON.stringify({ tb, tbMin }));
   const longCap = { shape: "photo", src: "data:image/png;base64,AAAA", w: 200, h: 200, scale: 0.7, cap: "Tripod position\n  Leaning forward, hands on knees to open the chest\nNasal flaring\n  Esp. in infants" };

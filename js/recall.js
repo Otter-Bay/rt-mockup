@@ -218,21 +218,122 @@
   };
 
 
-  // Full-color stickers (Ken, Nov 25): image files in images/stickers/, shown as pictures and never recolored.
-  // Older pages saved a line-drawing name ({ shape: "lungs", c }); a name with artwork now shows that artwork, and the
-  // other old line drawings still show, in one dark ink instead of the old tint. Add a sticker: put the file in
-  // images/stickers/ and add a row here. Saved pages store only the name, so files can be redrawn later.
-  const ART = { lungs: ["lungs.webp", "Lungs", 317, 320], stethoscope: ["stethoscope.webp", "Stethoscope", 305, 320], "thumbs-up": ["thumbs-up.webp", "Thumbs up", 207, 320],
-    star: ["star.webp", "Star", 320, 315], "otter-celebrate": ["otter-celebrate.webp", "Otter celebrate", 253, 320], "otter-face": ["otter-face.webp", "Otter face", 279, 320] };
-  const INK = "#1E3A44";
+  // Full-color stickers (Ken, Nov 25): picture files in images/stickers/ (js/stickers.js lists them with related words),
+  // shown whole and never recolored. No line art anywhere: old pages that saved a line-drawing name show the matching
+  // sticker instead. Every fact without the learner's own picture gets a related sticker pulled from its words.
+  const STK = (W.OB_STICKERS && W.OB_STICKERS.length) ? W.OB_STICKERS : [["lungs", "Lungs", 317, 320], ["stethoscope", "Stethoscope", 305, 320], ["thumbs-up", "Thumbs up", 207, 320],
+    ["star", "Star", 320, 315], ["otter-celebrate", "Otter celebrate", 253, 320], ["otter-face", "Otter face", 279, 320]].map(([id, label, w, h]) => ({ id, label, w, h, cat: "Stickers", words: [] }));
+  const ART = {}; STK.forEach((t) => { ART[t.id] = [t.id + ".webp", t.label, t.w, t.h]; });
+  const OLD = { syringe: "syringe", kettle: "teapot", gauge: "stopwatch", layers: "books", bottle: "droplet", tube: "test-tube", bubble: "bubbles", wing: "wing",
+    hourglass: "hourglass-done", runner: "person-running", lungs: "lungs", heart: "anatomical-heart", drop: "droplet", brain: "cloud", moon: "crescent-moon",
+    clock: "alarm-clock", thermo: "thermometer", shield: "shield" };
+  const artId = (n) => ART[n] ? n : (OLD[n] && ART[OLD[n]] ? OLD[n] : "");
   const ART_BASE = (() => { try { const l = typeof document !== "undefined" && document.querySelector('link[href*="voice.css"]'); if (l && l.href) return l.href.replace(/css\/voice\.css.*$/, "") + "images/stickers/"; } catch (e) {} return "images/stickers/"; })();
-  const artSrc = (n) => ART[n] ? ART_BASE + ART[n][0] : "";
-  const hasSticker = (n) => !!(n && n !== "photo" && (ART[n] || SHAPES[n]));
-  // draw a sticker inside (x, y, w, h): artwork kept whole and centered (contain), or an old line drawing in ink
+  const artSrc = (n) => artId(n) ? ART_BASE + ART[artId(n)][0] : "";
+  const hasSticker = (n) => !!(n && n !== "photo" && artId(n));
+  // draw a sticker inside (x, y, w, h), whole and centered
   function stickerArt(n, x, y, w, h) {
-    if (ART[n]) { const src = esc(artSrc(n)); return `<image class="rsticker" href="${src}" xlink:href="${src}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, w).toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" preserveAspectRatio="xMidYMid meet"/>`; }
-    return SHAPES[n] ? SHAPES[n](x, y, w, h, INK) : "";
+    const id = artId(n); if (!id) return "";
+    const src = esc(artSrc(id));
+    return `<image class="rsticker" href="${src}" xlink:href="${src}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, w).toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" preserveAspectRatio="xMidYMid meet"/>`;
   }
+  // Related stickers for some words: a sticker scores for each of its word stems the text contains (whole words for
+  // short stems), so "SpO2 < 90%, blue lips" pulls the falling chart and the cold blue face.
+  const stkWords = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9%/+]+/g, " ").split(" ").filter(Boolean);   // "slow-wave" counts as slow + wave
+  function stickerScores(text) {
+    const ws = stkWords(text), joined = " " + ws.join(" ") + " ", out = {};
+    STK.forEach((t) => {
+      let sc = 0;
+      (t.words || []).forEach((st) => { const q = st.replace(/-/g, " "); if (q.includes(" ")) { if (joined.includes(" " + q + " ")) sc += 2; }
+        else if (q.length <= 3 ? ws.includes(q) : ws.some((w) => w.startsWith(q))) sc += q.length >= 6 ? 1.5 : 1; });
+      // a whole phrase from the fact (like "eyes closed" or "8 13 hz") is the strongest sign: graph close-ups win there
+      (t.phrases || []).forEach((ph) => { if (joined.includes(" " + stkWords(ph).join(" ") + " ")) sc += 3; });
+      if (sc > 0) out[t.id] = sc;
+    });
+    return out;
+  }
+  function suggestStickers(text, n) {
+    const sc = stickerScores(text), order = {}; STK.forEach((t, k) => { order[t.id] = k; });
+    const fam = {}; STK.forEach((t) => { fam[t.id] = t.same || t.id; });
+    const seen = new Set();   // one per family: a second drawing of the same idea only shows up when the first is used
+    return Object.keys(sc).sort((a, b) => sc[b] - sc[a] || order[a] - order[b]).filter((id) => !seen.has(fam[id]) && seen.add(fam[id])).slice(0, n || 8);
+  }
+  // one sticker per fact, different from the others on the same map; when no word matches, one that fits the field
+  const FIELD_STK = { sleep: ["crescent-moon", "zzz", "sleeping-face", "bed", "owl", "alarm-clock", "brain", "eye"], cna: ["hospital", "stethoscope", "clipboard", "person-in-bed", "shield", "older-person", "droplet", "thumbs-up"],
+    rt: ["lungs", "wind-face", "stethoscope", "balloon", "droplet", "gear", "drop-of-blood", "stopwatch"] };
+  // Pulled stickers are unique across all of a learner's maps (Ken, Nov 25: "unique stickers for every picture graph
+  // made even if it's the same info over two different picture graphs"). Each slot (topic, fact, card) keeps the sticker
+  // it was given, saved per exam on this device (obStickerPick:EXAM, a new key), and no other map's slot reuses it.
+  // When every sticker is taken, the least-used one is reused, so more stickers can simply be added to the library.
+  let AUTO_CARD = () => "";
+  const PICK_KEY = () => "obStickerPick:" + (W.EXAM || "RRT");
+  let PICKS = null;
+  function picks() {
+    if (PICKS) return PICKS;
+    try { PICKS = JSON.parse((typeof localStorage !== "undefined" && localStorage.getItem(PICK_KEY())) || "{}") || {}; } catch (e) { PICKS = {}; }
+    return PICKS;
+  }
+  function savePicks() { try { if (typeof localStorage !== "undefined") localStorage.setItem(PICK_KEY(), JSON.stringify(PICKS)); } catch (e) {} }
+  // slots: [{ key: "topic|f0" or "topic|f0|c2", text }] for one map; returns { key: stickerId }
+  const GRAPH = {}; STK.forEach((t) => { if (t.graph) GRAPH[t.id] = 1; });   // a graph close-up needs a strong match (several of its words, or a phrase)
+  function assignStickers(topic, slots, fieldName, reserved) {
+    const P = picks(), mine = (k) => k.split("|")[0] === topic, out = {}, here = new Set(reserved || []), count = {};
+    Object.keys(P).forEach((k) => { if (!mine(k) && ART[P[k]]) count[P[k]] = (count[P[k]] || 0) + 1; });
+    const takenElsewhere = (id) => !!count[id];
+    let changed = false;
+    slots.forEach((sl) => { const id = P[sl.key]; if (ART[id] && !takenElsewhere(id) && !here.has(id)) { out[sl.key] = id; here.add(id); } });
+    // best matches first across the whole map, so the fact that fits a sticker best gets it
+    const todo = slots.filter((sl) => !out[sl.key]).map((sl) => ({ sl, sc: stickerScores(sl.text) }));
+    const fresh = (id) => ART[id] && !here.has(id) && !takenElsewhere(id);
+    const give = (sl, id) => { out[sl.key] = id; here.add(id); if (P[sl.key] !== id) { P[sl.key] = id; changed = true; } };
+    for (;;) {
+      let best = null;
+      todo.forEach((t) => { if (out[t.sl.key]) return; Object.keys(t.sc).forEach((id) => { if (fresh(id) && !(GRAPH[id] && t.sc[id] < 3) && (!best || t.sc[id] > best.v)) best = { t, id, v: t.sc[id] }; }); });
+      if (!best) break;
+      give(best.t.sl, best.id);
+    }
+    const ex = String(W.EXAM || ""), field = FIELD_STK[fieldName] || FIELD_STK[/SDS|RPSGT/.test(ex) ? "sleep" : /CNA/.test(ex) ? "cna" : "rt"] || [];
+    todo.forEach((t) => {
+      if (out[t.sl.key]) return;
+      // a graph close-up only ever goes on a fact whose words call for it
+      const plainIds = STK.filter((x) => !x.graph).map((x) => x.id);
+      let id = field.find(fresh) || plainIds.find(fresh);
+      if (!id) id = Object.keys(t.sc).filter((x) => !(GRAPH[x] && t.sc[x] < 3)).concat(plainIds).filter((x) => ART[x] && !here.has(x)).sort((a, b) => (count[a] || 0) - (count[b] || 0))[0] || "";
+      if (id) give(t.sl, id);
+    });
+    if (changed) savePicks();
+    return out;
+  }
+
+  // where a sticker sits beside a fact without covering its words: next to the text box, on the side away from the
+  // slash (out toward the page edge), about as tall as the box. The learner's size setting scales it.
+  function stickerSpot(b, scale, Wd, ar) {
+    const bh = b.cy2 - b.cy1, sc = Math.min(1.3, Math.max(0.4, (scale == null ? 0.8 : scale) / 0.8));
+    const slashRight = b.ax != null ? b.ax >= (b.cx1 + b.cx2) / 2 : true;
+    if (ar) {
+      // a graph close-up: as large as the empty part of the fact's space allows, never over the words, the branch
+      // or the hint line (Ken, Nov 25: "a large part of the graph")
+      const m = 6, yb = b.y2 - 16, gx1 = slashRight ? b.x1 + m : b.cx1, gx2 = slashRight ? b.cx2 : b.x2 - m;
+      const R = [[b.x1 + m, b.y1 + m, b.cx1 - m, yb], [b.cx2 + m, b.y1 + m, b.x2 - m, yb], [gx1, b.y1 + m, gx2, b.cy1 - m], [gx1, b.cy2 + m, gx2, yb]]
+        .filter((r, k) => !(k === (slashRight ? 1 : 0)));
+      let best = null;
+      R.forEach(([x1, y1, x2, y2]) => {
+        const rw = x2 - x1, rh = y2 - y1; if (rw < 20 || rh < 14) return;
+        let w = Math.min(rw, rh / ar, 280 * sc), h = w * ar;
+        if (!best || w * h > best[2] * best[3]) best = [x1 + (rw - w) / 2, y1 + (rh - h) / 2, w, h];
+      });
+      if (best && best[2] >= 90) return best;
+    }
+    const side = Math.min(64, Math.max(34, bh + 14)) * sc;
+    const room = { L: b.cx1 - 6, R: (Wd || 400) - b.cx2 - 6 };
+    const pref = slashRight ? "L" : "R", other = pref === "L" ? "R" : "L";
+    const at = room[pref] >= side ? pref : room[other] >= side ? other : (room[pref] >= room[other] ? pref : other);
+    const s2 = Math.min(side, Math.max(0, room[at]));
+    if (s2 < 22) return null;   // no room beside the words: no sticker rather than one on top of them
+    const x = at === "L" ? b.cx1 - s2 - 4 : b.cx2 + 4;
+    return [x, (b.cy1 + b.cy2) / 2 - s2 / 2, s2, s2];
+  }
+  const isGraph = (n) => { const id = artId(n); const t = id && STK.find((x) => x.id === id); return t && t.graph ? t.h / t.w : 0; };
 
   // Photo and sticker size: 25–100% of the fact's drawing space, never overflowing (Ken, t193u).
   const clampScale = (v) => Math.min(1, Math.max(0.25, Number(v) || 0.7));
@@ -481,7 +582,8 @@
     const slot = hasPic || builder;
     const ar = hasPic ? picAR(th) : 1;
     const short = isShortFacts(item, inner);
-    const useBand = slot && (short || !facts.length);
+    const graphPic = hasPic && !th.src && !!isGraph(th.shape);   // a graph close-up runs the full card width, under the words
+    const useBand = slot && (short || !facts.length || graphPic);
     let blocks, textColW, textH, picW = 0, picH = 0, bodyH, textLayout, bandH = 0, imgRelX = 0, imgRelY = 0, textRelX;
     if (!slot) {
       textLayout = "full"; textColW = inner; blocks = factBlocks(item, inner); textH = blocksH(blocks);
@@ -489,9 +591,9 @@
     } else if (useBand) {
       textLayout = "band"; textColW = inner; blocks = factBlocks(item, inner); textH = blocks.length ? blocksH(blocks) : 0;
       bandH = blocks.length ? textH + 6 : 0;
-      picW = inner * frac; picH = picW / ar;
+      picW = inner * (graphPic && th.auto ? 1 : frac); picH = picW / ar;
       // under short text the picture may be bigger than the words, but not by much: about 3 lines of text tall at M
-      const want = Math.min(170, Math.max(64, (textH || 20) * 3) * frac * 1.5);
+      const want = graphPic ? picW / ar : Math.min(170, Math.max(64, (textH || 20) * 3) * frac * 1.5);
       const capH = Math.min(want, maxH ? Math.max(40, maxH - headH - bandH - pad * 2) : want);
       if (picH > capH) { picH = capH; picW = picH * ar; }
       if (picW > inner) { picW = inner; picH = picW / ar; }
@@ -583,12 +685,14 @@
     y = Math.min(photo.y + photo.h - h - 2, Math.max(photo.y + 2, y));
     return { x, y, w, h, fs, lines, tx, ty, photo };
   }
-  function calloutLayout(space, photo, st, tree, wide, builder) {
+  function calloutLayout(space, photo, st, tree, wide, builder, fi) {
     const items = tree.items || [], n = Math.max(items.length, 1);
     const sw = space.x2 - space.x1, sh = space.y2 - space.y1;
     const stacked = !wide && sw < 520;
     const pins = st.pins || [];
-    const thumbs = (st && st.thumbs) || {};
+    const own = (st && st.thumbs) || {}, thumbs = {};
+    // a card without the learner's picture shows the sticker pulled for it (unique across maps)
+    items.forEach((it, c) => { const a = !own[c] && fi != null ? AUTO_CARD(fi, c) : ""; thumbs[c] = own[c] || (a ? { shape: a, scale: 1, auto: true } : undefined); });
     const hub = hubGeom(space, st, tree.label || "", stacked);
     const both = !stacked && sw >= 520;
     function assignSide(i) {
@@ -642,7 +746,7 @@
           const pill = pillGeom(px, py, k);
           kids.push({ pill, item: k, color, leader: `M${card.cx.toFixed(1)} ${card.y2.toFixed(1)}L${pill.cx.toFixed(1)} ${pill.y1.toFixed(1)}` });
         });
-        nodes.push({ i: it.i, item: it.item, side, color, leader: route.d, card, hA, bA, elbowX: route.elbowX, hubTab, cardTab, hubDir, cardDir, kids, depth: 0, hx1: route.hx1, hx2: route.hx2, hy: route.hy });
+        nodes.push({ i: it.i, th: thumbs[it.i], item: it.item, side, color, leader: route.d, card, hA, bA, elbowX: route.elbowX, hubTab, cardTab, hubDir, cardDir, kids, depth: 0, hx1: route.hx1, hx2: route.hx2, hy: route.hy });
       });
     }
     if (stacked) {
@@ -666,7 +770,7 @@
         const elbowX = space.x1 + 6 + (i % 6) * 2.2, dropY = hub.y2 + 6 + (i % 6) * 1.6;
         const leader = `M${hubTab.cx.toFixed(1)} ${hubTab.cy.toFixed(1)}L${hubTab.cx.toFixed(1)} ${dropY.toFixed(1)}L${elbowX.toFixed(1)} ${dropY.toFixed(1)}L${elbowX.toFixed(1)} ${cardTab.cy.toFixed(1)}L${cardTab.cx.toFixed(1)} ${cardTab.cy.toFixed(1)}`;
         const color = BRANCH[i % BRANCH.length];
-        nodes.push({ i, item, side: "L", color, leader, card, hA: hB, bA, elbowX, hubTab, cardTab, hubDir: "U", cardDir: "R", kids: [], depth: 0, hx1: Math.min(elbowX, cardTab.cx), hx2: Math.max(elbowX, cardTab.cx), hy: cardTab.cy, stacked: true });
+        nodes.push({ i, th: thumbs[i], item, side: "L", color, leader, card, hA: hB, bA, elbowX, hubTab, cardTab, hubDir: "U", cardDir: "R", kids: [], depth: 0, hx1: Math.min(elbowX, cardTab.cx), hx2: Math.max(elbowX, cardTab.cx), hy: cardTab.cy, stacked: true });
         y = card.y2 + 10;
       });
     } else {
@@ -733,7 +837,7 @@
     return g;
   }
   function calloutEl(space, photo, st, tree, fi, practice, builder, selPin, wide) {
-    const L = calloutLayout(space, photo || {}, st, tree, wide, builder);
+    const L = calloutLayout(space, photo || {}, st, tree, wide, builder, fi);
     const cid = "rc" + SVGN + "f" + fi;
     const hub = L.hub, thumbs = (st && st.thumbs) || {};
     let g = `<g class="rdiagram" data-cap="${fi}" data-px="${hub.x1.toFixed(1)}" data-py="${hub.y1.toFixed(1)}" data-pw="${hub.w.toFixed(1)}" data-ph="${hub.h.toFixed(1)}" data-cx="${hub.cx.toFixed(1)}" data-cy="${hub.cy.toFixed(1)}" data-w="${hub.w.toFixed(1)}" data-h="${hub.h.toFixed(1)}" data-rx="${hub.rx.toFixed(1)}">`;
@@ -758,7 +862,7 @@
       g += `<g class="rcallout${on}" data-cap="${fi}" data-pin="${node.i}">`;
       g += `<path class="rleader" d="${node.leader}" fill="none" stroke="${node.color}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>`;
       g += `<line class="rrule" x1="${node.hx1.toFixed(1)}" y1="${node.hy.toFixed(1)}" x2="${node.hx2.toFixed(1)}" y2="${node.hy.toFixed(1)}" stroke="${node.color}" stroke-width="2.3" stroke-linecap="round"/>`;
-      if (!practice) g += cardFace(node.card, thumbs[node.i], node.color, fi, node.i, practice, builder, cid);
+      if (!practice) g += cardFace(node.card, node.th, node.color, fi, node.i, practice, builder, cid);
       (node.kids || []).forEach((k) => {
         const p = k.pill;
         g += `<path class="rleader" d="${k.leader}" fill="none" stroke="${k.color}" stroke-width="1.3" stroke-linecap="round"/>`;
@@ -848,6 +952,12 @@
     [[steps, 8.2, "#24313E"], [why, 7.2, "#5A6670"], [src, 7.2, "#5A6670"]].forEach(([t, fs, fill]) => rows.push({ h: lines(0, 0, t, fs, FW, "", fs * 1.3).h + 3, text: t, fs, fill }));
     const foot = rows.reduce((a, r) => a + r.h, 0) + 16;
     // the drawing area: screen keeps the text full size and grows taller; print shrinks first, then grows (and print fits the page)
+    // stickers pulled for each fact (one per fact without its own picture), chosen before the layout so a graph close-up
+    // can get a full-width space under its words (Ken, Nov 25: "a large part of the graph")
+    const topicKey = m.k || plain(m.title), cu0 = opts.custom || {}, fslots = [];
+    if (!opts.noAuto) m.facts.forEach((f, i) => { const st = (cu0.stickers || {})[i]; if (!st || !st.shape) fslots.push({ key: `${topicKey}|f${i}`, text: [f.label, ...(f.details || []).map((d) => d.text)].join(" ") }); });
+    const fpicked = fslots.length ? assignStickers(topicKey, fslots, m.field) : {};
+    opts = Object.assign({}, opts, { _gAR: m.facts.map((f, i) => isGraph(fpicked[`${topicKey}|f${i}`] || "")) });
     let H = scr ? 640 : land ? 756 : 792, out = null;
     const SCALES = scr ? [1.15, 1.08, 1] : land ? [1.2, 1.1, 1, 0.93, 0.86, 0.8, 0.74, 0.68] : [1.45, 1.3, 1.18, 1.08, 1, 0.93, 0.86, 0.8, 0.74, 0.68, 0.62, 0.58];
     if (scr) {
@@ -872,9 +982,18 @@
     // On a phone the index cards stack under the topic picture; the fact's space grows to hold every card, everything
     // below moves down, and the page gets taller (Ken, Nov 25: the cards ran past the map and over the footer).
     const listedAt = (b, i) => { const st = (cu.stickers || {})[i]; if (!(st && st.shape === "photo" && st.src)) return null; const tree = capItems(st, b.f, b); return tree.items && tree.items.length >= 2 ? { st, tree } : null; };
+    // stickers pulled for this map: one per fact without its own picture, and one per index card without one
+    const slots = [];
+    if (!opts.noAuto) boxes.forEach((b, i) => {
+      const L0 = listedAt(b, i);
+      if (L0) L0.tree.items.forEach((it, c) => { if (!((L0.st.thumbs || {})[c])) slots.push({ key: `${topicKey}|f${i}|c${c}`, text: [it.text, ...factLines(it)].join(" ") }); });
+    });
+    const picked = Object.assign({}, fpicked, slots.length ? assignStickers(topicKey, slots, m.field, Object.values(fpicked)) : {});
+    const autoStk = {}; boxes.forEach((b, i) => { autoStk[i] = picked[`${topicKey}|f${i}`] || ""; });
+    AUTO_CARD = (i, c) => picked[`${topicKey}|f${i}|c${c}`] || "";
     if (scr) boxes.map((b, i) => [b, i]).sort((p, q) => p[0].y1 - q[0].y1).forEach(([b, i]) => {
       const L0 = listedAt(b, i); if (!L0) return;
-      const CL = calloutLayout(b, composePhoto(b, L0.st, "list"), L0.st, L0.tree, false, opts.builder);
+      const CL = calloutLayout(b, composePhoto(b, L0.st, "list"), L0.st, L0.tree, false, opts.builder, i);
       const bottom = Math.max(CL.hub.y2, ...CL.nodes.map((n) => n.card.y2)) + 10, delta = bottom - b.y2;
       if (delta <= 0) return;
       boxes.forEach((o) => { if (o !== b && o.y1 >= b.y2 - 1) ["y1", "y2", "cy1", "cy2", "ay"].forEach((q) => { if (o[q] != null) o[q] += delta; }); });
@@ -915,8 +1034,12 @@
           g += photoElAt(st, ph, uid + "c" + i);
           g += capEl(st, ph, (tree.items[0] && tree.items[0].text) || tree.label, i, practice);
         }
-      } else if (st && hasSticker(st.shape)) g += `<g clip-path="url(#${uid}c${i})">${stickerArt(st.shape, ...scaledHr(hr, b, st)).replace(/stroke-width="1.6"/g, 'stroke-width="2.4"')}</g>`;
-      else if (opts.ideas) g += `<g opacity=".55" clip-path="url(#${uid}c${i})">${SHAPES[f.idea.shape](...hr, col)}</g>`;
+      } else {
+        // the learner's sticker, or one pulled from the fact's words (Ken, Nov 25: a related sticker for every fact)
+        const own = st && hasSticker(st.shape), id = own ? st.shape : autoStk[i];
+        const sq = id && (!own && b.gph && isGraph(id) ? [b.cx1 + Math.max(0, (b.cx2 - b.cx1) - b.gph / isGraph(id)) / 2, b.cy2 + b.gpy, Math.min(b.cx2 - b.cx1, b.gph / isGraph(id)), b.gph] : stickerSpot(b, own ? clampScale(st.scale == null ? 0.8 : st.scale) : 0.8, Wd, isGraph(id)));
+        if (sq) g += `<g class="${own ? "rsticked" : "rauto"}">${stickerArt(id, ...sq)}</g>`;
+      }
       // the fact itself — hidden when a photo is composing the words (Ken, t198u: not a stamp over the card)
       if (!(st && st.shape === "photo" && st.src)) {
       const cw = b.cx2 - b.cx1, ch = b.cy2 - b.cy1;
@@ -1029,7 +1152,10 @@
         let pic = f.pic && !opts.noPics ? wrap((f.picMine ? "My picture: " : "Picture idea: ") + f.pic, bw - 2 * pad - 8 * s, pfs) : null;
         // the builder keeps a fixed 3-line strip, so typing a new picture idea never moves the learner's drawing
         if (opts.builder) { if (pic && pic.length > 3) { pic = pic.slice(0, 3); pic[2] = clip(pic[2] + " …", bw - 2 * pad - 8 * s, pfs); } }
-        const sb = opts.builder ? 7 * s + 3 * pfs * 1.22 + 5 * s : pic ? 7 * s + pic.length * pfs * 1.22 + 5 * s : spB;
+        let sb = opts.builder ? 7 * s + 3 * pfs * 1.22 + 5 * s : pic ? 7 * s + pic.length * pfs * 1.22 + 5 * s : spB;
+        const gar = !listedF && opts._gAR && opts._gAR[boxes.length];
+        let gph = 0, gpy = 0;
+        if (gar) { gpy = (pic || opts.builder ? sb - 5 * s : 0) + 6 * s; gph = Math.min((bw - 2 * spX) * gar, 130 * s); sb = gpy + gph + 18 * s; }
         if (listedF) {
           const n = treeF.items.length, stacked = bw < 520;
           const fillH = Math.max(0, bot - top - 8);
@@ -1039,7 +1165,7 @@
           else h = h + (sb || 0);
           return { bw, label, lines, ch, pic, sb, h };
         }
-        return { bw, label, lines, ch, pic, sb, h: ch + spT + sb };
+        return { bw, label, lines, ch, pic, sb, h: ch + spT + sb, gph, gpy };
       });
       if (listedF && !done) {
         const z = sizes[0];
@@ -1067,7 +1193,7 @@
       const { r, z, side, ax, ay } = done;
       placed.push(r);
       const cx1 = r[0] + spX, cx2 = r[2] - spX, cy1 = r[1] + spT, cy2 = cy1 + z.ch;
-      boxes.push({ f, side, ax, ay: Math.min(Math.max(ay, cy1 + 4), cy2 - 4), x1: r[0], y1: r[1], x2: r[2], y2: r[3], cx1, cx2, cy1, cy2, label: z.label, lines: z.lines, pic: z.pic, pfs, lfs, dfs, pad });
+      boxes.push({ f, side, ax, ay: Math.min(Math.max(ay, cy1 + 4), cy2 - 4), x1: r[0], y1: r[1], x2: r[2], y2: r[3], cx1, cx2, cy1, cy2, label: z.label, lines: z.lines, pic: z.pic, pfs, lfs, dfs, pad, gph: z.gph, gpy: z.gpy });
       // keep the branch level: the branch leaves the slash at the fact's height
       const b = boxes[boxes.length - 1]; b.ax = slashX(b.ay);
       t = done.tt; pref = side === "up" ? "down" : "up";
@@ -1144,7 +1270,7 @@
     return hits;
   }
 
-  function API() { return { TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, photoCover, photoFitMode, FACT_FS, FACT_FS_SUB, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
+  function API() { return { suggestStickers, resetPicks: () => { PICKS = {}; }, TUNES, beats, songItems, model, recallSvg, traditionalHtml, layout, severity, idea, tables, SHAPES, SEV, WHY, plain, last: () => LAST, photoBox, clampScale, keywords, capItems, capLayout, calloutLayout, composePhoto, thumbBox, clampThumb, photoCover, photoFitMode, FACT_FS, FACT_FS_SUB, imageId, collectImageIds, printPageKey, findImageConflicts, topicMeta, cardGeom, tabRect, elbowLeader, HUB_TAB, CARD_TAB }; }
 
   // ======================= Screen: the study-sheet page inside Ask (browser only) =======================
   if (typeof document === "undefined") { W.OB_STUDY = API(); return; }
@@ -1169,6 +1295,17 @@
     return out.sort((a, b) => b.at - a.at);
   }
   const COLORS = [["#C62828", "Red"], ["#E65100", "Orange"], ["#B08900", "Gold"], ["#2E7D32", "Green"], ["#1565C0", "Blue"], ["#6A1B9A", "Purple"], ["#14222C", "Black"]];
+  const stkBtn = (id) => `<button type="button" data-act="ststicker" data-s="${id}" aria-label="${esc(ART[id][1])}"><img src="${esc(artSrc(id))}" alt="" width="44" height="44" loading="lazy"><span>${esc(ART[id][1])}</span></button>`;
+  // stickers related to the fact or card being decorated (the words the learner sees on it)
+  function stkSuggest() {
+    try {
+      const m = mdl(), f = ST.sel != null ? m.facts[ST.sel] : null; if (!f) return STK.slice(0, 8).map((t) => t.id);
+      let text = [f.label, ...(f.details || []).map((d) => d.text)].join(" ");
+      if (ST.branch != null) { const it = (capItems((PG.stickers || {})[ST.sel], f, ((LAST && LAST.boxes) || [])[ST.sel] || {}).items || [])[ST.branch]; if (it) text = [it.text, ...factLines(it)].join(" "); }
+      const ids = suggestStickers(text, 8);
+      return ids.length ? ids : STK.slice(0, 8).map((t) => t.id);
+    } catch (e) { return STK.slice(0, 8).map((t) => t.id); }
+  }
   const STICKERS = [["syringe", "Syringe"], ["kettle", "Kettle"], ["gauge", "Gauge"], ["layers", "Layers"], ["bottle", "Bottle"], ["tube", "Tube"], ["bubble", "Bubble"],
     ["wing", "Wing"], ["hourglass", "Venturi tube"], ["runner", "Runner"], ["lungs", "Lungs"], ["heart", "Heart"], ["drop", "Drop"], ["brain", "Cloud"], ["moon", "Moon"], ["clock", "Clock"], ["thermo", "Thermometer"], ["shield", "Shield"]];
   const PROMPTS = ["What does “{f}” remind you of? Draw it around the box.", "Picture “{f}” at the bedside. What would you see?",
@@ -1568,8 +1705,9 @@
         : ST.branch != null ? `Picture for “${esc(branchLab || "this fact")}”. It should show that fact, not a decoration.`
         : `Topic picture for “${esc(factLab)}”. It should show this topic itself, not a decoration. Tap a card to add a picture for one fact.`;
       h += `<p class="sthelp">${help}</p>
-      <p class="stsub">Stickers</p><div class="ststickers art">${Object.keys(ART).map((sh) => `<button type="button" data-act="ststicker" data-s="${sh}" aria-label="${esc(ART[sh][1])}"><img src="${esc(artSrc(sh))}" alt="" width="44" height="44" loading="lazy"><span>${esc(ART[sh][1])}</span></button>`).join("")}</div>
-      <p class="stsub">Line drawings</p><div class="ststickers">${STICKERS.filter(([sh]) => !ART[sh]).map(([sh, t]) => `<button type="button" data-act="ststicker" data-s="${sh}" aria-label="${t}"><svg viewBox="-30 -30 120 90" width="54" height="40" aria-hidden="true">${SHAPES[sh](0, 0, 60, 30, INK)}</svg><span>${t}</span></button>`).join("")}
+      <p class="stsub">Suggested for this fact</p><div class="ststickers art">${stkSuggest().map(stkBtn).join("")}</div>
+      ${[...new Set(STK.map((t) => t.cat))].map((cat) => `<details class="stcat"><summary>${esc(cat)}</summary><div class="ststickers art">${STK.filter((t) => t.cat === cat).map((t) => stkBtn(t.id)).join("")}</div></details>`).join("")}
+      <div class="ststickers">
       <button type="button" data-act="ststicker" data-s="" aria-label="No shape"><span class="none">✕</span><span>None</span></button></div>
       <div class="stpaste" id="stpaste">
         <div class="stpastebox" id="stpastebox" contenteditable="true" spellcheck="false" role="textbox" aria-label="Paste a sticker or photo, drop one here, or tap to choose" data-placeholder="Paste a sticker or photo, drop one here, or tap to choose"></div>
