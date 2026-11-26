@@ -51,7 +51,7 @@
   // Add to Study List offers only topics that aren't on the list yet (Ken, Nov 26); saved ones are named in one quiet line
   function flagSet(ks) {
     // every topic keeps its place (Ken, Nov 26: so it never looks forgotten): Add for new ones, a gold "already there" card for saved ones
-    const saved = (k) => `<div class="binflag obhave" role="note"><span aria-hidden="true">★</span><span><b>Already on your Study List</b><small>${esc(W.SCALES[k].title)}</small></span><button type="button" class="obhavego" data-act="obarcopen">See list</button></div>`;
+    const saved = (k) => `<div class="binflag obhave" role="note"><span aria-hidden="true">★</span><span><b>Already on your Study List</b><small>${esc(W.SCALES[k].title)}</small></span></div>`;   // See Study List sits just below, in the Study List bar
     return `<div class="obflagset" data-ks="${esc(ks.join(","))}"><div class="binflags">${ks.map((k) => inBin(k) ? saved(k) : flag(k)).join("")}</div></div>`;
   }
   function flags(q) {
