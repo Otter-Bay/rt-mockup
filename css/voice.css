@@ -781,3 +781,5 @@ html[data-view="desktop"] .ask .obscroll { padding: 20px 32px 32px; }
 .binflag.binhave .binsavedgo { margin-left: auto; font: inherit; font-weight: 700; color: #0B4F6C; background: #fff; border: 2px solid #0B4F6C; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
 .jsound .jbass { margin-left: 6px; border-style: dashed; }
 .jsound .jbass.on { border-style: solid; background: #14222C; border-color: #14222C; color: #fff; }
+/* a picture being dragged over the otter or a card: the drop spot lights up (Ken, Nov 26) */
+.recallsvg .rdrop { filter: drop-shadow(0 0 5px #F1B92D) drop-shadow(0 0 2px #F1B92D); }

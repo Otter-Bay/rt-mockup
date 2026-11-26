@@ -935,7 +935,7 @@
     if (st && st.placeholder && !wide) {
       // two choices on the placeholder (screen only): the learner's own picture, or pictures suggested from the topic's words
       const bw = Math.min(112, (hub.w - 40) / 2), bh = 28, by = hub.img.y + hub.img.h - bh - 12, gx = hub.cx;
-      g += phNote(by, "Make this map yours: add your own picture, or pick a suggested sticker or graph. Tap any card's picture to change it.", Math.min(11, Math.max(9, hub.w * 0.05)));
+      g += phNote(by, "Make this map yours: add your own picture (or drag one here), or pick a suggested sticker or graph. Tap any card's picture to change it.", Math.min(11, Math.max(9, hub.w * 0.05)));
       [["sthubmine", "📷 My picture", gx - bw - 4], ["sthubsuggest", "✨ Suggestions", gx + 4]].forEach(([act, t, x]) => {
         g += `<g class="rhubbtn" data-act="${act}" role="button" tabindex="0"><rect x="${x.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh}" rx="${bh / 2}" fill="#0B4F6C"/><text x="${(x + bw / 2).toFixed(1)}" y="${(by + bh / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(11.5, bw / 9.5).toFixed(1)}" font-weight="700" fill="#fff">${t}</text></g>`;
       });
@@ -1609,6 +1609,14 @@
     }
   }
   function afterRender() {
+    // a picture menu that just opened (My picture, or Replace on a card) comes into view; it opens above the map,
+    // so jumping to the map instead left it off screen and the button seemed to do nothing (Ken, Nov 26)
+    if (ST.replace && ST.replaceShown !== JSON.stringify(ST.replace)) {
+      ST.replaceShown = JSON.stringify(ST.replace); ST.focus = null; ST.focusBranch = null;
+      setTimeout(() => { const el = document.getElementById("streplace"); if (el) { el.scrollIntoView({ block: "start", behavior: "smooth" }); const f = el.querySelector("button, [tabindex]"); if (f) f.focus({ preventScroll: true }); } }, 0);
+      return;
+    }
+    if (!ST.replace) ST.replaceShown = "";
     if (ST.focus != null) { const i = ST.focus, br = ST.focusBranch; ST.focus = null; ST.focusBranch = null; setTimeout(() => showFact(i, br), 0); }
     if (ST.focusPaste) { ST.focusPaste = false; setTimeout(() => { const box = document.getElementById("streplacebox") || document.getElementById("stpastebox"); if (box) box.focus(); }, 0); }
   }
@@ -1745,9 +1753,10 @@
   }
   function replaceMenuHtml() {
     if (!ST.replace || ST.slotDraw) return "";
-    const lab = slotLabel();
-    return `<div class="streplace" id="streplace" role="dialog" aria-label="Replace picture">
-      <p class="streplacetitle">Replace this picture</p>
+    const lab = slotLabel(), st0 = ST.replace.branch == null ? (PG.stickers || {})[ST.replace.sel] : null;
+    const adding = !!(mdl() || {}).cards && ST.replace.sel === 0 && ST.replace.branch == null && !(st0 && st0.src && !st0.placeholder);
+    return `<div class="streplace" id="streplace" role="dialog" aria-label="${adding ? "Add your own picture" : "Replace picture"}">
+      <p class="streplacetitle">${adding ? "Add your own picture" : "Replace this picture"}</p>
       <p class="sthelp">“${esc(lab)}”. Paste, drop, pick from your photo gallery, take a photo, draw, or use a sticker. You come back here when you tap Done.</p>
       <div class="streplaceacts">
         <button type="button" data-act="streplacepaste">Paste</button>
@@ -2215,11 +2224,35 @@
     }, 0);
   });
   const dropHost = (el) => el && el.closest && el.closest("#stpaste, #streplace, #streplacebox, #stdrawslot");
-  document.addEventListener("dragover", (e) => { if (dropHost(e.target)) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; } });
+  // Drag a picture straight onto the map (Ken, Nov 26): onto the otter or the topic picture, or onto any card's picture. A file from
+  // the computer, or a picture dragged from a web page, goes in just like Photo gallery. The spot lights up while it's over it.
+  const mapTarget = (el) => {
+    const t = el && el.closest && el.closest("svg.recallsvg:not(.thumb) .rhubpic, svg.recallsvg:not(.thumb) .rthumb, svg.recallsvg:not(.thumb) .rthumbadd, svg.recallsvg:not(.thumb) .rcard");
+    return t && t.dataset.cap != null ? t : null;
+  };
+  const droppedImage = (e) => {
+    const f = imageFromClipboard(e); if (f) return f;
+    const dt = e.dataTransfer; if (!dt) return null;
+    const html = dt.getData && dt.getData("text/html"), m = html && /<img[^>]+src=["']([^"']+)["']/i.exec(html);
+    const url = (m && m[1]) || (dt.getData && (dt.getData("text/uri-list") || "").split(/\s+/)[0]) || "";
+    return /^(data:image\/|https?:\/\/)/.test(url) ? url : null;
+  };
+  let LIT = null;
+  const light = (el) => { if (LIT === el) return; if (LIT) LIT.classList.remove("rdrop"); LIT = el; if (el) el.classList.add("rdrop"); };
+  document.addEventListener("dragover", (e) => {
+    if (dropHost(e.target)) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; return; }
+    const t = mapTarget(e.target); light(t);
+    if (t) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; }
+  });
+  document.addEventListener("dragleave", (e) => { if (LIT && !(e.relatedTarget && LIT.contains(e.relatedTarget))) light(null); });
   document.addEventListener("drop", (e) => {
-    if (!dropHost(e.target)) return;
+    if (dropHost(e.target)) { e.preventDefault(); const f = imageFromClipboard(e); if (f) takeImage(f); return; }
+    const t = mapTarget(e.target); light(null); if (!t) return;
     e.preventDefault();
-    const f = imageFromClipboard(e); if (f) takeImage(f);
+    const img = droppedImage(e); if (!img) { ST.msg = "That didn't look like a picture. Try a photo or image file."; render(); return; }
+    ST.style = "map"; ST.map = "build"; ST.replace = null; ST.slotDraw = null; ST.hubSug = false;
+    ST.sel = Number(t.dataset.cap); ST.branch = t.classList.contains("rhubpic") || t.dataset.pin == null ? null : Number(t.dataset.pin);
+    takeImage(img);
   });
   document.addEventListener("change", (e) => {
     const id = e.target && e.target.id;
