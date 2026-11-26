@@ -227,7 +227,7 @@ function loadStudy(exam) {
   const fillBox = SB.last().boxes[0], fillH = SB.last().H;
   const fillL = SB.calloutLayout(fillBox, SB.composePhoto(fillBox, fillSt, "list"), fillSt, SB.capItems(fillSt, oneMap.facts[0], fillBox), true);
   const card = fillL.nodes[0].card;
-  study("card pictures fill the leftover body after the fact text", (card.textLayout === "band" && card.imgW / card.w >= 0.70 && card.bandH > 0 && card.imgH >= 24) || (card.imgW / card.w >= 0.40 && card.imgW / card.w <= 0.68 && card.textColW >= 72 && card.imgH >= card.h - card.headH - 1), "imgW=" + card.imgW + " W=" + card.w + " layout=" + card.textLayout + " imgH=" + card.imgH);
+  study("card pictures are whole at their own shape, and a side picture is never wider than the text column", Math.abs(card.imgW / card.imgH - 1) < 0.02 && (card.textLayout === "band" || card.imgW <= card.textColW), "imgW=" + card.imgW + " imgH=" + card.imgH + " text=" + card.textColW + " layout=" + card.textLayout);
   const hubInner = fillL.hub.w - 2 * fillL.hub.pad;
   study("the hub picture fills the well under the title", fillL.hub.img && Math.abs(fillL.hub.img.w - hubInner) < 1 && fillL.hub.img.h >= 24 && fillL.hub.img.y >= fillL.hub.y1 + 6 && fillL.hub.img.y + fillL.hub.img.h <= fillL.hub.y2 - 6, "hub img " + JSON.stringify(fillL.hub.img));
   const shortCap = "Tachypnea\n  RR > 20/min\n  Earliest sign";
@@ -239,7 +239,7 @@ function loadStudy(exam) {
   const shortL = SB.calloutLayout(shortBox, SB.composePhoto(shortBox, shortSt, "list"), shortSt, SB.capItems(shortSt, shortM.facts[0], shortBox), true);
   const shortCard = shortL.nodes[0].card;
   const shortArea = shortCard.imgW * shortCard.imgH, bodyArea = shortCard.w * (shortCard.h - shortCard.headH);
-  study("short fact text sits in a top band so a wide picture can fill most of the card", shortCard.textLayout === "band" && shortCard.bandH > 0 && shortCard.imgW / shortCard.w >= 0.70 && shortCard.imgH < shortCard.h - shortCard.headH && shortArea / bodyArea >= 0.55, JSON.stringify({ layout: shortCard.textLayout, imgW: shortCard.imgW, imgH: shortCard.imgH, W: shortCard.w, bandH: shortCard.bandH, share: shortArea / bodyArea }));
+  study("short fact text sits in a top band; the whole picture sits under it, about 3 text lines tall at M", shortCard.textLayout === "band" && shortCard.bandH > 0 && Math.abs(shortCard.imgW / shortCard.imgH - 512 / 220) < 0.05 && shortCard.imgH <= Math.max(64, shortCard.textH * 3) + 1 && shortCard.imgRelY >= shortCard.headH + shortCard.bandH, JSON.stringify({ layout: shortCard.textLayout, imgW: shortCard.imgW, imgH: shortCard.imgH, textH: shortCard.textH, bandH: shortCard.bandH }));
   const cov = SB.photoCover({ w: 100, h: 50, fit: { x: 0.2, y: 0.1, w: 0.5, h: 0.8 } }, { x: 0, y: 0, w: 40, h: 40 }, "cover");
   study("a photo with empty margins is zoomed to its content and still covers the slot", cov.w > 40 && cov.h > 40 && cov.x < 0, JSON.stringify(cov));
   const wide = SB.photoCover({ w: 200, h: 80 }, { x: 0, y: 0, w: 80, h: 80 }, "auto");
@@ -247,12 +247,20 @@ function loadStudy(exam) {
   study("fact text uses a fixed 10.5/9 pt size that is never reduced to make room for a picture", SB.FACT_FS === 10.5 && SB.FACT_FS_SUB === 9, "FACT_FS=" + SB.FACT_FS + " SUB=" + SB.FACT_FS_SUB);
   const longFacts = { text: "Alveolar gas equation", facts: ["The alveolar gas equation estimates PAO2 from PIO2, PaCO2 and the respiratory exchange ratio, and it is used at the bedside", "A second supporting detail that is also fairly long so the text column has to keep its size"] };
   const shortFacts = { text: "Tachypnea", facts: ["RR > 20/min", "Earliest sign"] };
-  const longCard = SB.cardGeom(200, 200, "R", longFacts, { w: 400, h: 400 }, 280, 200);
-  const shortPic = SB.cardGeom(200, 200, "R", shortFacts, { w: 400, h: 400 }, 280, 200);
+  const pic = { shape: "photo", src: "data:image/png;base64,AAAA", w: 400, h: 400 };
+  const longCard = SB.cardGeom(200, 200, "R", longFacts, pic, 280, 200);
+  const shortPic = SB.cardGeom(200, 200, "R", shortFacts, pic, 280, 200);
   const longFs = (longCard.blocks || []).map((b) => b.fs);
   const shortFs = (shortPic.blocks || []).map((b) => b.fs);
   const fsOk = (arr) => arr.length && arr.every((fs, i) => fs === (i === 0 ? SB.FACT_FS : SB.FACT_FS_SUB));
-  study("a long-text card keeps 10.5/9 pt fact text and shrinks the picture instead", fsOk(longFs) && fsOk(shortFs) && longCard.imgW < shortPic.imgW && longCard.textColW > shortPic.textColW, JSON.stringify({ longFs, shortFs, longImg: longCard.imgW, shortImg: shortPic.imgW, longText: longCard.textColW, shortText: shortPic.textColW }));
+  study("a long-text card keeps 10.5/9 pt fact text and every word, with the picture no wider than the text", fsOk(longFs) && fsOk(shortFs) && longCard.imgW <= longCard.textColW && longCard.blocks.map((bl) => bl.lines.join(" ")).join(" ") === longFacts.facts.join(" "), JSON.stringify({ longFs, shortFs, longImg: longCard.imgW, longText: longCard.textColW }));
+  // Ken, Nov 25: "the info is important to be no less prominent than the image" — no size setting lets the picture outgrow the words
+  const sizes = [0.5, 1, 1.5].map((sc) => SB.cardGeom(200, 200, "L", longFacts, Object.assign({}, pic, { scale: sc }), 280));
+  study("at S, M and L the picture grows but never gets wider than the text column", sizes[0].imgW < sizes[1].imgW && sizes[1].imgW < sizes[2].imgW && sizes.every((c) => c.imgW <= c.textColW + 0.01), sizes.map((c) => Math.round(c.imgW) + "/" + Math.round(c.textColW)).join(" "));
+  const fullCap = SB.capItems({ cap: "W\n  Alpha (8–13 Hz) over the occipital region in more than half the epoch, or eye blinks, reading or rapid eye movements with normal or high chin tone" }, null, {});
+  study("card text is the learner's words in full, not trimmed to keywords", fullCap.items[0].kids[0].text === "Alpha (8–13 Hz) over the occipital region in more than half the epoch, or eye blinks, reading or rapid eye movements with normal or high chin tone", fullCap.items[0].kids[0].text);
+  const numCap = SB.capItems({ cap: "pH\n  7.35 to 7.45\nBase excess\n  -2 to +2 mEq/L\n1. Listed item" }, null, {});
+  study("numbers that start a line are kept (7.35 is not a list number, -2 is not a bullet)", numCap.items[0].kids[0].text === "7.35 to 7.45" && numCap.items[1].kids[0].text === "-2 to +2 mEq/L" && numCap.items[2].text === "Listed item", JSON.stringify(numCap.items.map((x) => [x.text, (x.kids[0] || {}).text])));
   const tallTh = { w: 275, h: 512 };
   study("a tall photo in a short slot uses contain so the head and feet stay visible", SB.photoFitMode(tallTh, 166, 165, false, 277, 165) === "contain", SB.photoFitMode(tallTh, 166, 165, false, 277, 165));
   study("the card tab sits in a gutter and does not cover the picture", card.tabGutter >= 4 && card.imgW + card.tabGutter <= card.w - 4, JSON.stringify({ w: card.w, imgW: card.imgW, gutter: card.tabGutter }));

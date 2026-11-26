@@ -303,26 +303,29 @@
   const BRANCH = ["#0A4A63", "#B3261E", "#1565C0", "#2E7D32", "#E65100", "#6A1B9A", "#8A6D00"];
   const FILLER = /^(the|a|an|of|and|or|to|for|in|on|at|is|are|be|with|that|this|from|by|as|it)$/i;
   function keywords(s, max) {
-    const t = String(s || "").replace(/<[^>]+>/g, " ").replace(/^\s*(?:[•●▪◦\-–]|\d+[.)])\s*/, "").replace(/\s+/g, " ").trim();
+    const t = String(s || "").replace(/<[^>]+>/g, " ").replace(/^\s*(?:[•●▪◦\-–]|\d{1,2}[.)])\s+/, "").replace(/\s+/g, " ").trim();
     if (!t) return "";
     const words = t.split(" ");
     if (words.length <= (max || 7)) return t;
     const kept = words.filter((w, i) => i === 0 || !FILLER.test(w.replace(/[^A-Za-z]/g, "")));
     return (kept.length ? kept : words).slice(0, max || 7).join(" ");
   }
+  // Card text is the learner's facts word for word: never trimmed to keywords and never cut off (Ken, Nov 25:
+  // "the info is important to be no less prominent than the image"). Only extra spaces and bullets are cleaned up.
+  const clean = (s) => String(s || "").replace(/<[^>]+>/g, " ").replace(/^\s*(?:[•●▪◦\-–]|\d{1,2}[.)])\s+/, "").replace(/\s+/g, " ").trim();
   function capItems(st, f, b) {
-    const label = keywords(((b && b.label) || []).join(" ") || (f && (Array.isArray(f.label) ? f.label.join(" ") : f.label)) || "", 7);
+    const label = clean(((b && b.label) || []).join(" ") || (f && (Array.isArray(f.label) ? f.label.join(" ") : f.label)) || "");
     const raw = [];
     if (st && st.cap != null && String(st.cap).trim()) {
       String(st.cap).split(/\n/).forEach((line) => {
         const m = line.match(/^(\s*)(.*)$/);
-        const text = keywords(m ? m[2] : line, 8);
+        const text = clean(m ? m[2] : line);
         if (text) raw.push({ indent: m ? m[1].replace(/\t/g, "  ").length : 0, text });
       });
     } else {
       ((b && b.lines) || []).forEach((ln) => {
-        const head = keywords(ln.head || "", 6);
-        const text = keywords(ln.text || "", 8);
+        const head = clean(ln.head || "");
+        const text = clean(ln.text || "");
         if (head && text) raw.push({ indent: 0, text: head, facts: [text] });
         else if (text || head) raw.push({ indent: ln.indent ? 2 : 0, text: text || head });
       });
@@ -375,7 +378,7 @@
   const HUB_RX_RATIO = 0.22, CARD_RX = 6, HUB_TAB = { w: 4, h: 8 }, CARD_TAB = { w: 4, h: 8, rx: 2 };
   function hubGeom(space, st, title, stacked) {
     const sw = space.x2 - space.x1, sh = space.y2 - space.y1;
-    const reserve = stacked ? 12 : Math.max(86, Math.min(300, sw * 0.28));
+    const reserve = stacked ? 12 : Math.max(86, Math.min(320, sw * 0.31));   // room for cards wide enough to hold their words
     const maxSide = Math.min(sw - 2 * reserve, stacked ? sh * 0.48 : sh * 0.82, stacked ? 200 : 420);
     const minSide = 108;
     const sc = clampScale(st && st.scale != null ? st.scale : (stacked ? 0.7 : 0.85));
@@ -415,8 +418,8 @@
     const facts = factLines(item), blocks = [];
     (facts.length ? facts : [""]).forEach((f, i) => {
       if (!f && facts.length) return;
-      const fs = i === 0 ? FACT_FS : FACT_FS_SUB, bold = i === 0, cap = i === 0 ? 3 : 2;
-      blocks.push({ lines: wrap(String(f || ""), colW, fs, bold).slice(0, cap), fs, bold });
+      const fs = i === 0 ? FACT_FS : FACT_FS_SUB, bold = i === 0;
+      blocks.push({ lines: wrap(String(f || ""), colW, fs, bold), fs, bold });   // every line: the card grows instead of cutting text
     });
     if (!facts.length) return [];
     return blocks;
@@ -455,53 +458,65 @@
     const col = Math.max(52, Math.round((cardW || 176) * 0.40));
     return { w: col, h: col, scale: sc, col };
   }
-  function cardGeom(cx, cy, side, item, th, maxW, maxH) {
-    const W = Math.min(280, Math.max(156, maxW || 200));
-    const rx = CARD_RX, pad = 7, tabGutter = CARD_TAB.w + 3;
-    const available = W - pad * 2 - tabGutter;
-    const sc = clampThumb(th && th.scale != null ? th.scale : 1);
+  // Index card (Ken, Nov 25): the facts come first and are never cut, shrunk or crowded. The picture is shown whole
+  // (contain) at its own shape, sized by the learner's S/M/L (50–150%): in a side column it is never wider than the
+  // text column (L = as wide as the text), and with short text it sits under the text at up to the card's width.
+  // The card grows to fit both. maxH only limits the picture, never the words.
+  function picAR(th) {
+    if (!th) return 1;
+    if (th.shape === "photo") return th.w > 0 && th.h > 0 ? th.w / th.h : 1;
+    if (ART[th.shape]) return ART[th.shape][2] / ART[th.shape][3];
+    return 2;   // old line drawings are wide
+  }
+  function cardGeom(cx, cy, side, item, th, maxW, maxH, builder) {
+    const W = Math.min(300, Math.max(156, maxW || 200));
+    const rx = CARD_RX, pad = 7, tabGutter = CARD_TAB.w + 3, gap = 8;
+    const inner = W - pad * 2 - tabGutter;
+    const sc = clampThumb(th && th.scale != null ? th.scale : 1), frac = sc / 1.5;   // S .33, M .67, L 1
     const label = cardLabel(item);
     const facts = factLines(item);
-    const headFit = fitLines(label, W - 16, 11, 7, 2, true);
+    const headFit = fitLines(label, W - 16, 11, 10, 3, true);
     const headH = Math.max(22, headFit.h + 8);
-    const src = srcSize(th);
-    const short = isShortFacts(item, W - 2 * pad);
-    // Side column (default): leftover width after a readable fact column (keep at least 90px so short phrases don't wrap awkwardly).
-    const minText = 90, minImg = Math.max(52, Math.round(available * 0.40));
-    const maxImg = Math.max(minImg, available - minText);
-    let sideImgW = Math.round(maxImg * (sc >= 1 ? 1 : sc));
-    if (sc > 1) sideImgW = Math.round(minImg + (maxImg - minImg) * Math.min(1, (sc - 1) / 0.5));
-    sideImgW = Math.max(minImg, Math.min(maxImg, sideImgW));
-    while (sideImgW > minImg && !textColFits(available - sideImgW, item)) sideImgW -= 2;
-    const sideTextW = Math.max(48, available - sideImgW);
-    const sideBlocks = factBlocks(item, sideTextW);
-    const sideTextH = blocksH(sideBlocks);
-    const minBody = Math.max(sideTextH + pad * 2, 64);
-    let bodyH = Math.max(minBody, Math.round(sideImgW * 0.72));
-    if (maxH != null && maxH > 0) bodyH = Math.max(minBody, maxH - headH);
-    // Top band for short text, especially wide pictures: facts in a compact strip (one line when they fit), picture gets the rest (Ken t230u).
-    const bandW = W - 2 * pad;
-    const joined = facts.join("  ·  ");
-    const oneLine = short && facts.length && textW(joined, FACT_FS, true) <= bandW;
-    const bandBlocks = oneLine ? [{ lines: [joined], fs: FACT_FS, bold: true }] : factBlocks(item, bandW);
-    const bandH = short ? Math.max(16, blocksH(bandBlocks) + 6) : 0;
-    const bandImgW = W - pad - tabGutter;
-    const bandImgH = Math.max(24, bodyH - bandH);
-    const sideArea = containArea(src.w, src.h, sideImgW, bodyH);
-    const bandArea = containArea(src.w, src.h, bandImgW, bandImgH);
-    const srcAR = (src.w > 0 && src.h > 0) ? src.w / src.h : 1;
-    // Prefer a top band for short text on wide/square-ish art so the left side of the card isn't a mostly empty column.
-    const useBand = short && (src.w === 0 || srcAR >= 1.15 || bandArea >= sideArea * 0.95);
-    const textLayout = useBand ? "band" : "side";
-    const blocks = useBand ? bandBlocks : sideBlocks;
-    const textColW = useBand ? (W - 2 * pad) : sideTextW;
-    const imgW = useBand ? bandImgW : sideImgW;
-    const imgH = useBand ? bandImgH : bodyH;
-    const imgBox = { w: imgW, h: imgH, scale: sc, col: imgW };
-    const img = imgW;
+    const hasPic = !!(th && (th.src || hasSticker(th.shape)));
+    const slot = hasPic || builder;
+    const ar = hasPic ? picAR(th) : 1;
+    const short = isShortFacts(item, inner);
+    const useBand = slot && (short || !facts.length);
+    let blocks, textColW, textH, picW = 0, picH = 0, bodyH, textLayout, bandH = 0, imgRelX = 0, imgRelY = 0, textRelX;
+    if (!slot) {
+      textLayout = "full"; textColW = inner; blocks = factBlocks(item, inner); textH = blocksH(blocks);
+      bodyH = textH + pad * 2; textRelX = side === "R" ? tabGutter + pad : pad;
+    } else if (useBand) {
+      textLayout = "band"; textColW = inner; blocks = factBlocks(item, inner); textH = blocks.length ? blocksH(blocks) : 0;
+      bandH = blocks.length ? textH + 6 : 0;
+      picW = inner * frac; picH = picW / ar;
+      // under short text the picture may be bigger than the words, but not by much: about 3 lines of text tall at M
+      const want = Math.min(170, Math.max(64, (textH || 20) * 3) * frac * 1.5);
+      const capH = Math.min(want, maxH ? Math.max(40, maxH - headH - bandH - pad * 2) : want);
+      if (picH > capH) { picH = capH; picW = picH * ar; }
+      if (picW > inner) { picW = inner; picH = picW / ar; }
+      if (!hasPic) { picW = Math.min(inner, 120); picH = 52; }
+      bodyH = bandH + picH + pad * 2;
+      textRelX = side === "R" ? tabGutter + pad : pad;
+      imgRelX = textRelX + (inner - picW) / 2; imgRelY = headH + bandH + pad;
+    } else {
+      textLayout = "side";
+      const colMax = (inner - gap) / 2;   // the picture column is never wider than the text column
+      picW = colMax * frac; picH = picW / ar;
+      if (!hasPic) { picW = Math.min(colMax, 56); picH = 52; }
+      textColW = inner - gap - picW;
+      blocks = factBlocks(item, textColW); textH = blocksH(blocks);
+      const capH = maxH ? Math.max(textH, maxH - headH - pad * 2) : Math.max(textH, 170);
+      if (picH > capH) { picH = capH; picW = picH * ar; textColW = inner - gap - picW; blocks = factBlocks(item, textColW); textH = blocksH(blocks); }
+      bodyH = Math.max(textH, picH) + pad * 2;
+      const picOnRight = side === "L";   // nearest the hub
+      const colX = picOnRight ? pad + textColW + gap : tabGutter;
+      textRelX = picOnRight ? pad : tabGutter + picW + gap;
+      imgRelX = colX + (picOnRight ? (inner - gap - textColW - picW) / 2 : 0); imgRelY = headH + pad + (bodyH - pad * 2 - picH) / 2;
+    }
     const H = headH + bodyH;
-    return { shape: "card", cx, cy, w: W, h: H, rx, headH, headFit, blocks, img, imgW, imgH, imgBox, pad, tabGutter, side, textColW, label,
-      textLayout, bandH: useBand ? bandH : 0,
+    return { shape: "card", cx, cy, w: W, h: H, rx, headH, headFit, blocks, pad, tabGutter, side, textColW, label, textLayout, bandH,
+      textRelX, textH, hasPic, img: picW, imgW: picW, imgH: picH, imgRelX, imgRelY, imgBox: { w: picW, h: picH, scale: sc, col: picW },
       x1: cx - W / 2, y1: cy - H / 2, x2: cx + W / 2, y2: cy + H / 2 };
   }
   function pillGeom(cx, cy, item) {
@@ -568,7 +583,7 @@
     y = Math.min(photo.y + photo.h - h - 2, Math.max(photo.y + 2, y));
     return { x, y, w, h, fs, lines, tx, ty, photo };
   }
-  function calloutLayout(space, photo, st, tree, wide) {
+  function calloutLayout(space, photo, st, tree, wide, builder) {
     const items = tree.items || [], n = Math.max(items.length, 1);
     const sw = space.x2 - space.x1, sh = space.y2 - space.y1;
     const stacked = !wide && sw < 520;
@@ -583,25 +598,32 @@
     const left = [], right = [];
     items.forEach((item, i) => { (assignSide(i) === "L" ? left : right).push({ item, i }); });
     const nodes = [];
-    const cardW = stacked ? Math.min(sw - 36, 280) : Math.min(280, Math.max(168, (sw - hub.w - 56) / 2));
+    const cardW = stacked ? Math.min(sw - 36, 300) : Math.min(300, Math.max(168, (sw - hub.w - 56) / 2));
+    let tight = false;
     function placeGroup(list, side) {
       const m = list.length;
-      if (stacked) return;
-      const gap = 8;
-      const budget = (sh - 16 - Math.max(0, m - 1) * gap) / Math.max(m, 1);
-      const maxCardH = list.reduce((h, it) => Math.max(h, cardGeom(0, 0, side, it.item, thumbs[it.i], cardW, budget).h), 70);
-      const span = Math.max(sh - 16, maxCardH);
-      const top = space.y1 + 8 + maxCardH / 2;
-      const bot = space.y2 - 8 - maxCardH / 2;
-      const use = Math.max(bot - top, 1);
+      if (stacked || !m) return;
+      // Cards take the height their words need. When a side is too full, pictures get smaller first (never the text);
+      // if it still doesn't fit, the map is marked tight so the builder can suggest a second map.
+      const avail = sh - 16, minGap = 8;
+      let cap = null, geoms = list.map((it) => cardGeom(0, 0, side, it.item, thumbs[it.i], cardW, null, builder));
+      const total = (gs) => gs.reduce((a, g) => a + g.h, 0) + minGap * (m - 1);
+      for (let c = 200; total(geoms) > avail && c >= 30; c -= 10) { cap = c; geoms = list.map((it) => cardGeom(0, 0, side, it.item, thumbs[it.i], cardW, c + 40, builder)); }
+      if (total(geoms) > avail) tight = true;
+      const sumH = geoms.reduce((a, g) => a + g.h, 0);
+      const gapY = m > 1 ? Math.min(28, Math.max(minGap, (avail - sumH) / (m - 1))) : 0;
+      let y = space.y1 + 8 + Math.max(0, (avail - sumH - gapY * (m - 1)) / 2);
       list.forEach((it, k) => {
         const pin = pins[it.i] || {};
-        const t = m === 1 ? 0.5 : k / Math.max(m - 1, 1);
-        let cy = pin.y != null && pin.y >= 0 && pin.y <= 1 ? space.y1 + pin.y * sh : top + t * use;
         const cx = side === "L" ? space.x1 + cardW / 2 + 4 : space.x2 - cardW / 2 - 4;
-        const card = cardGeom(cx, cy, side, it.item, thumbs[it.i], cardW, budget);
-        if (card.y1 < space.y1 + 2) { card.cy += (space.y1 + 2 - card.y1); card.y1 = card.cy - card.h / 2; card.y2 = card.cy + card.h / 2; }
-        if (card.y2 > space.y2 - 2) { card.cy -= (card.y2 - (space.y2 - 2)); card.y1 = card.cy - card.h / 2; card.y2 = card.cy + card.h / 2; }
+        const g0 = geoms[k];
+        let cy = pin.y != null && pin.y >= 0 && pin.y <= 1 ? space.y1 + pin.y * sh : y + g0.h / 2;
+        y += g0.h + gapY;
+        const card = cardGeom(cx, cy, side, it.item, thumbs[it.i], cardW, cap == null ? null : cap + 40, builder);
+        if (!tight) {
+          if (card.y1 < space.y1 + 2) { card.cy += (space.y1 + 2 - card.y1); card.y1 = card.cy - card.h / 2; card.y2 = card.cy + card.h / 2; }
+          if (card.y2 > space.y2 - 2) { card.cy -= (card.y2 - (space.y2 - 2)); card.y1 = card.cy - card.h / 2; card.y2 = card.cy + card.h / 2; }
+        }
         const defaultY = card.cy;
         const hy = pin.y != null && pin.ang == null ? squircleAnchor(hub, side, space.y1 + (pin.y) * sh).y : squircleAnchor(hub, side, defaultY).y;
         const hA = squircleAnchor(hub, side, hy);
@@ -624,9 +646,9 @@
       });
     }
     if (stacked) {
-      let y = hub.y2 + 16;
+      let y = hub.y2 + 24;
       items.forEach((item, i) => {
-        const card = cardGeom((space.x1 + space.x2) / 2 + 10, y, "L", item, thumbs[i], cardW);
+        const card = cardGeom((space.x1 + space.x2) / 2 + 10, y, "L", item, thumbs[i], cardW, null, builder);
         card.cx = space.x1 + 22 + card.w / 2;
         card.cy = y + card.h / 2;
         card.x1 = card.cx - card.w / 2; card.x2 = card.cx + card.w / 2;
@@ -640,17 +662,18 @@
         const bA = { x: card.x1, y: card.cy, side: "L" };
         const hubTab = tabRect(hB.x, hB.y, "U", HUB_TAB);
         const cardTab = tabRect(bA.x, bA.y, "R", CARD_TAB);
-        const elbowX = hubTab.cx;
-        const leader = `M${hubTab.cx.toFixed(1)} ${hubTab.cy.toFixed(1)}L${hubTab.cx.toFixed(1)} ${cardTab.cy.toFixed(1)}L${cardTab.cx.toFixed(1)} ${cardTab.cy.toFixed(1)}`;
+        // down from the hub, left into the gutter beside the cards, then down to the card: never across a card's words
+        const elbowX = space.x1 + 6 + (i % 6) * 2.2, dropY = hub.y2 + 6 + (i % 6) * 1.6;
+        const leader = `M${hubTab.cx.toFixed(1)} ${hubTab.cy.toFixed(1)}L${hubTab.cx.toFixed(1)} ${dropY.toFixed(1)}L${elbowX.toFixed(1)} ${dropY.toFixed(1)}L${elbowX.toFixed(1)} ${cardTab.cy.toFixed(1)}L${cardTab.cx.toFixed(1)} ${cardTab.cy.toFixed(1)}`;
         const color = BRANCH[i % BRANCH.length];
-        nodes.push({ i, item, side: "L", color, leader, card, hA: hB, bA, elbowX, hubTab, cardTab, hubDir: "U", cardDir: "R", kids: [], depth: 0, hx1: Math.min(hubTab.cx, cardTab.cx), hx2: Math.max(hubTab.cx, cardTab.cx), hy: cardTab.cy, stacked: true });
+        nodes.push({ i, item, side: "L", color, leader, card, hA: hB, bA, elbowX, hubTab, cardTab, hubDir: "U", cardDir: "R", kids: [], depth: 0, hx1: Math.min(elbowX, cardTab.cx), hx2: Math.max(elbowX, cardTab.cx), hy: cardTab.cy, stacked: true });
         y = card.y2 + 10;
       });
     } else {
       placeGroup(left, "L");
       placeGroup(right, "R");
     }
-    return { photo: hub.img, label: tree.label, nodes, both, stacked, hub };
+    return { photo: hub.img, label: tree.label, nodes, both, stacked, hub, tight };
   }
   function photoElAt(st, r, clipId, cover) {
     const src = esc(st.src || "");
@@ -666,20 +689,14 @@
     return `<g class="rcap" data-cap="${i}" data-px="${photo.x.toFixed(1)}" data-py="${photo.y.toFixed(1)}" data-pw="${photo.w.toFixed(1)}" data-ph="${photo.h.toFixed(1)}">
       <rect class="rcapbg" x="${L.x.toFixed(1)}" y="${L.y.toFixed(1)}" width="${L.w.toFixed(1)}" height="${L.h.toFixed(1)}" rx="6" fill="#fff" fill-opacity=".86"/>${body}</g>`;
   }
-  function cardFace(card, th, color, fi, pin, practice, builder) {
-    const { x1, y1, w, h, rx, headH, headFit, blocks, pad, side } = card;
-    const colW = card.imgW != null ? card.imgW : card.img;
-    const gutter = card.tabGutter != null ? card.tabGutter : CARD_TAB.w + 3;
-    const picOnRight = side === "L"; // nearest the hub
+  function cardFace(card, th, color, fi, pin, practice, builder, idp) {
+    idp = idp || "";   // unique per drawing, so several maps on one print page never share clip paths
+    const { x1, y1, w, h, rx, headH, headFit, blocks, pad } = card;
     const band = card.textLayout === "band";
-    const bandH = band ? (card.bandH || 0) : 0;
-    const colH = card.imgH != null ? card.imgH : (h - headH - bandH);
-    const imgX = picOnRight ? x1 + w - gutter - colW : x1 + (band ? pad : gutter);
-    const imgY = y1 + headH + bandH;
-    const textX = band ? x1 + pad : (picOnRight ? x1 + pad : imgX + colW + pad);
-    const img = colW;
+    const imgX = x1 + card.imgRelX, imgY = y1 + card.imgRelY, colW = card.imgW, colH = card.imgH;
+    const textX = x1 + card.textRelX;
     let g = `<g class="rcard" data-cap="${fi}" data-pin="${pin}">`;
-    const cardClip = `rcardclip${fi}p${pin}`;
+    const cardClip = `${idp}rcardclip${fi}p${pin}`;
     g += `<clipPath id="${cardClip}"><rect x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}"/></clipPath>`;
     g += `<g class="rcardface" clip-path="url(#${cardClip})">`;
     g += `<rect class="rcardbg" x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" fill="#fff"/>`;
@@ -688,31 +705,27 @@
       headFit.lines.forEach((ln, j) => {
         g += `<text class="rkw" x="${(x1 + w / 2).toFixed(1)}" y="${(y1 + 5 + headFit.fs * 0.85 + j * headFit.fs * 1.18).toFixed(1)}" text-anchor="middle" font-size="${headFit.fs.toFixed(1)}" font-weight="700" fill="#fff">${esc(ln)}</text>`;
       });
-      let ty = y1 + headH + (band ? 4 : pad) + (blocks[0] ? blocks[0].fs * 0.9 : 0);
-      const textBottom = band ? y1 + headH + bandH - 2 : y1 + h - pad;
+      // every line is drawn: the card was sized to hold all of the text
+      let ty = y1 + headH + (band ? 5 : pad) + (blocks[0] ? blocks[0].fs * 0.9 : 0);
       blocks.forEach((b) => {
         b.lines.forEach((ln) => {
-          if (ty > textBottom) return;
           g += `<text class="rfactline" x="${textX.toFixed(1)}" y="${ty.toFixed(1)}" font-size="${b.fs.toFixed(1)}" font-weight="${b.bold ? 700 : 400}" fill="#14222C">${esc(ln)}</text>`;
           ty += b.fs * 1.28;
         });
         ty += 3;
       });
     }
-    const clip = `rcimg${fi}p${pin}`;
-    g += `<clipPath id="${clip}"><rect x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" rx="4"/></clipPath>`;
-    if (th && (th.src || hasSticker(th.shape))) {
-      if (th.shape === "photo" && th.src) {
-        const src = esc(th.src);
-        const mode = photoFitMode(th, colW, colH, band, w, h - headH);
-        const box = photoCover(th, { x: imgX, y: imgY, w: colW, h: colH }, mode);
-        const fit = box.slice ? "xMidYMid slice" : "xMidYMid meet";
-        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${box.x.toFixed(1)}" y="${box.y.toFixed(1)}" width="${box.w.toFixed(1)}" height="${box.h.toFixed(1)}" preserveAspectRatio="${fit}" clip-path="url(#${clip})"/></g>`;
-      } else {
-        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${ART[th.shape] ? stickerArt(th.shape, imgX + 4, imgY + 4, colW - 8, colH - 8) : stickerArt(th.shape, imgX, imgY + 4, colW, Math.max(12, colH * 0.7))}</g>`;
+    if (colW > 0 && colH > 0) {
+      const clip = `${idp}rcimg${fi}p${pin}`;
+      g += `<clipPath id="${clip}"><rect x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" rx="4"/></clipPath>`;
+      if (th && th.shape === "photo" && th.src) {
+        const src = esc(th.src);   // the slot already has the picture's shape, so it fills the slot and stays whole
+        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}"><image class="rthumbimg" href="${src}" xlink:href="${src}" x="${imgX.toFixed(1)}" y="${imgY.toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clip})"/></g>`;
+      } else if (th && hasSticker(th.shape)) {
+        g += `<g class="rthumb" data-cap="${fi}" data-pin="${pin}">${stickerArt(th.shape, imgX, imgY, colW, colH)}</g>`;
+      } else if (builder) {
+        g += `<g class="rthumbadd" data-cap="${fi}" data-pin="${pin}" transform="translate(${(imgX + colW / 2).toFixed(1)} ${(imgY + colH / 2).toFixed(1)})"><rect x="${(-colW / 2).toFixed(1)}" y="${(-colH / 2).toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" rx="4" fill="#F4F7F8" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 2"/><path d="M-6 0h12M0-6v12" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/></g>`;
       }
-    } else if (builder) {
-      g += `<g class="rthumbadd" data-cap="${fi}" data-pin="${pin}" transform="translate(${(imgX + colW / 2).toFixed(1)} ${(imgY + colH / 2).toFixed(1)})"><rect x="${(-colW / 2).toFixed(1)}" y="${(-colH / 2).toFixed(1)}" width="${colW.toFixed(1)}" height="${colH.toFixed(1)}" rx="4" fill="#F4F7F8" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 2"/><path d="M-6 0h12M0-6v12" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/></g>`;
     }
     g += `</g>`;
     g += `<rect class="rcardstroke" x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" fill="none" stroke="${color}" stroke-width="2.6"/>`;
@@ -720,7 +733,7 @@
     return g;
   }
   function calloutEl(space, photo, st, tree, fi, practice, builder, selPin, wide) {
-    const L = calloutLayout(space, photo || {}, st, tree, wide);
+    const L = calloutLayout(space, photo || {}, st, tree, wide, builder);
     const cid = "rc" + SVGN + "f" + fi;
     const hub = L.hub, thumbs = (st && st.thumbs) || {};
     let g = `<g class="rdiagram" data-cap="${fi}" data-px="${hub.x1.toFixed(1)}" data-py="${hub.y1.toFixed(1)}" data-pw="${hub.w.toFixed(1)}" data-ph="${hub.h.toFixed(1)}" data-cx="${hub.cx.toFixed(1)}" data-cy="${hub.cy.toFixed(1)}" data-w="${hub.w.toFixed(1)}" data-h="${hub.h.toFixed(1)}" data-rx="${hub.rx.toFixed(1)}">`;
@@ -745,7 +758,7 @@
       g += `<g class="rcallout${on}" data-cap="${fi}" data-pin="${node.i}">`;
       g += `<path class="rleader" d="${node.leader}" fill="none" stroke="${node.color}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>`;
       g += `<line class="rrule" x1="${node.hx1.toFixed(1)}" y1="${node.hy.toFixed(1)}" x2="${node.hx2.toFixed(1)}" y2="${node.hy.toFixed(1)}" stroke="${node.color}" stroke-width="2.3" stroke-linecap="round"/>`;
-      if (!practice) g += cardFace(node.card, thumbs[node.i], node.color, fi, node.i, practice, builder);
+      if (!practice) g += cardFace(node.card, thumbs[node.i], node.color, fi, node.i, practice, builder, cid);
       (node.kids || []).forEach((k) => {
         const p = k.pill;
         g += `<path class="rleader" d="${k.leader}" fill="none" stroke="${k.color}" stroke-width="1.3" stroke-linecap="round"/>`;
@@ -856,14 +869,20 @@
     const cu = opts.custom || {}, uid = "r" + (++SVGN);
     boxes.forEach((b, i) => { const mv = (cu.moves || {})[i]; if (!mv) return; ["x1", "x2", "cx1", "cx2"].forEach((q) => { b[q] += mv[0]; }); ["y1", "y2", "cy1", "cy2"].forEach((q) => { b[q] += mv[1]; }); });
     H = out.H;
+    // On a phone the index cards stack under the topic picture; the fact's space grows to hold every card, everything
+    // below moves down, and the page gets taller (Ken, Nov 25: the cards ran past the map and over the footer).
+    const listedAt = (b, i) => { const st = (cu.stickers || {})[i]; if (!(st && st.shape === "photo" && st.src)) return null; const tree = capItems(st, b.f, b); return tree.items && tree.items.length >= 2 ? { st, tree } : null; };
+    if (scr) boxes.map((b, i) => [b, i]).sort((p, q) => p[0].y1 - q[0].y1).forEach(([b, i]) => {
+      const L0 = listedAt(b, i); if (!L0) return;
+      const CL = calloutLayout(b, composePhoto(b, L0.st, "list"), L0.st, L0.tree, false, opts.builder);
+      const bottom = Math.max(CL.hub.y2, ...CL.nodes.map((n) => n.card.y2)) + 10, delta = bottom - b.y2;
+      if (delta <= 0) return;
+      boxes.forEach((o) => { if (o !== b && o.y1 >= b.y2 - 1) ["y1", "y2", "cy1", "cy2", "ay"].forEach((q) => { if (o[q] != null) o[q] += delta; }); });
+      b.y2 += delta; H += delta;
+    });
     const ang = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
     let g = "";
-    const pictorialWide = boxes.some((b, i) => {
-      const st = (cu.stickers || {})[i];
-      if (!(st && st.shape === "photo" && st.src)) return false;
-      const tree = capItems(st, b.f, b);
-      return tree.items && tree.items.length >= 2 && (b.x2 - b.x1) >= 520;
-    });
+    const pictorialWide = boxes.some((b, i) => !!listedAt(b, i) && (scr || (b.x2 - b.x1) >= 520));
     if (!pictorialWide) {
       g += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="${BAY}" stroke-width="4" stroke-linecap="round"/>`;
       g += `<circle cx="${x0}" cy="${y0}" r="5" fill="${BAY}"/><path d="M${x1} ${y1}l-14 1 6 9z" fill="${BAY}" transform="rotate(${ang + 135} ${x1} ${y1})" opacity="0"/>`;
@@ -873,7 +892,7 @@
       const f = b.f, sv = SEV[f.sev], col = sv ? sv.c : TIDE;
       const st = (cu.stickers || {})[i];
       const tree0 = (st && st.shape === "photo" && st.src) ? capItems(st, f, b) : null;
-      const listed0 = !!(tree0 && tree0.items.length >= 2 && (b.x2 - b.x1) >= 520);
+      const listed0 = !!(tree0 && tree0.items.length >= 2 && (scr || (b.x2 - b.x1) >= 520));
       // branch from the slash to the fact (follows the fact when the learner moves it)
       if (!listed0) {
       const ex = Math.abs(b.ax - b.cx1) < Math.abs(b.ax - b.cx2) ? b.cx1 : b.cx2, ey = Math.min(Math.max(b.ay, b.cy1 + 6), b.cy2 - 6);
