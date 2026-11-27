@@ -48,7 +48,7 @@
     niv: "bipap cpap noninvasive niv mask ventilation", cf: "cystic fibrosis sweat chloride", actionplan: "asthma action plan peak flow zone",
     staging: "sleep stage stages staging rem score scoring", arousal: "arousal", resp_adult: "apnea hypopnea rera score scoring respiratory event",
     hypopnea: "hypopnea score scoring cms aasm", peds_resp: "pediatric child children", plm: "periodic limb movement plm rls leg kick",
-    cardiac: "heart arrhythmia sleep cardiac", stats: "sleep efficiency latency total sleep time", tech: "filter setting sampling rate recording",
+    cardiac: "heart arrhythmia sleep cardiac", stats: "sleep efficiency total sleep time", latency: "latency latencies sleep onset fall asleep rem latency r latency mean sleep latency", tech: "filter setting sampling rate recording",
     titration: "cpap titration pressure", cms: "medicare compliance coverage cpap insurance", ess: "epworth sleepiness", stopbang: "stop bang screening",
     circadian: "circadian shift work delayed phase", mslt: "mslt mwt nap test narcolepsy", electrodes: "electrode sensor placement", infant: "infant baby",
     o2titr: "oxygen bleed titration", papmodes: "bilevel bipap apap asv pap mode", download: "download compliance leak", alt_tx: "oral appliance surgery alternative",

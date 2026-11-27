@@ -38,6 +38,11 @@ const CHECKS = [
   ["RRT", "glascow coma scale", "gcs", [], []],
   ["CNA", "normal pulse range", "vitals", [], []],
   ["SDS", "How is a hypopnea scored?", "hypopnea", [], ["IS"]],
+  // Latency definition (Ken, Nov 27)
+  ["SDS", "what is latency", "latency", [], []],
+  ["RPSGT", "define latency", "latency", [], []],
+  ["SDS", "what is rem latency", "latency", [], []],
+  ["SDS", "what does SL stand for", null, ["SL"], []],
   // Gas laws card (Ken, Nov 23: the kettle / syringe example)
   ["RRT", "what is boyles law", "gaslaws", [], []],
   ["RRT", "Charles's law", "gaslaws", [], []],
