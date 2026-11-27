@@ -79,7 +79,7 @@ function render() {
   const exam = S.mode === "exam";
   const PAGE = window.PAGES && window.PAGES[S.page];
   if (!PAGE) h += `<div class="appbar">${window.PAGES && window.PAGES.home ? `<button type="button" class="homebtn" data-act="go" data-v="home" aria-label="Home">${window.APP_LABEL || "RRT"}</button>` : `<b>${window.APP_LABEL || "RRT"}</b>`}<span class="mode ${exam ? "exam" : S.mode === "flash" ? "flash" : ""}">${exam ? "Exam <span id=\"timer\">" + fmt((S.results ? S.finishedMs : Date.now() - S.started)) + "</span>" : S.mode === "flash" ? "Flashcards" : "Study"}</span>
-    <span class="count">${S.page === "stats" ? "Stats" : S.results && !S.reviewing ? "Results" : (S.mode === "flash" ? "Card " : "Question ") + (S.qi + 1) + " of " + S.set.length}</span>
+    ${window.OB_QPICK && S.page === "quiz" && S.mode !== "flash" && !S.results && !S.reviewing && S.set.length > 1 ? OB_QPICK.button() : `<span class="count">${S.page === "stats" ? "Stats" : S.results && !S.reviewing ? "Results" : (S.mode === "flash" ? "Card " : "Question ") + (S.qi + 1) + " of " + S.set.length}</span>`}
     <button type="button" class="iconbtn" data-act="stats" aria-label="Stats and review list">${ICON.chart}</button>
     <button type="button" class="iconbtn" data-act="settings" aria-label="Settings">${ICON.gear}</button></div>`;
 
@@ -290,7 +290,9 @@ document.addEventListener("click", (e) => {
     c.done = true;
     recordAnswer(Q(), c);
     if (S.mode === "exam") {
-      if (S.qi < S.set.length - 1) { S.qi += 1; const ct = document.getElementById("content"); if (ct) ct.scrollTop = 0; }
+      // next unanswered question (students can jump around with the question picker); results once every one is answered
+      const left = S.run.map((r, i) => i).filter((i) => !S.run[i].done), nxt = left.find((i) => i > S.qi) ?? left[0];
+      if (nxt != null) { S.qi = nxt; const ct = document.getElementById("content"); if (ct) ct.scrollTop = 0; }
       else { S.results = true; S.finishedMs = Date.now() - S.started; }
     }
   }
