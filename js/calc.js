@@ -1,12 +1,12 @@
 /* On-screen calculator, like the one on the NBRC exam. Owner: Ken + Claude.
    A "Calc" button at the top of the answer ribbon opens a floating calculator over the question.
-   It leaves the A-D and Final buttons uncovered, can be dragged up or down, and (like the NBRC exam)
+   It leaves the A-D and Final buttons uncovered, can be dragged anywhere (up, down and side to side; Ken, Nov 27), and (like the NBRC exam)
    closes when you move to a new question. Works with taps, clicks, or the keyboard.
    It opens low, over the answer choices, and scrolls the question so the stem, values and any image
    stay readable above it.
    app.js calls calcButton() inside the ribbon, calcPanel() at the end of render(), and calcAfterRender() after drawing. */
 
-const CALC = { open: false, qid: null, y: null, justOpened: false, disp: "0", acc: null, op: null, fresh: false, mem: 0, err: "", expr: "" };
+const CALC = { open: false, qid: null, y: null, x: null, justOpened: false, disp: "0", acc: null, op: null, fresh: false, mem: 0, err: "", expr: "" };
 const CALC_SYM = { "+": "+", "-": "−", "*": "×", "/": "÷" };
 const CALC_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><path d="M8 6.5h8"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h.01M15.5 18h.01"/></svg>';
 
@@ -88,7 +88,7 @@ function calcButton() {
 function calcPanel() {
   const q = typeof Q === "function" ? Q() : null;
   if (!CALC.open || !q || CALC.qid !== q.id) { CALC.open = false; return ""; }
-  const pos = CALC.y === null ? "" : `top:${CALC.y}px;bottom:auto`;
+  const pos = (CALC.y === null ? "" : `top:${CALC.y}px;bottom:auto;`) + (CALC.x === null ? "" : `left:${CALC.x}px;`);
   return `<div class="calc" id="calc" role="dialog" aria-label="Calculator" style="${pos}">
     <div class="calchead" data-calc-drag title="Drag to move"><span class="calcgrip" aria-hidden="true"></span><div class="calcdisp" id="calcdisp">${calcDisplay()}</div><button type="button" class="calcx" data-calc="toggle" aria-label="Close calculator">${ICON.x}</button></div>
     <div class="calcmem">${CALC_MEM.map(([l, k, v]) => `<button type="button" class="ck m" data-calc="${k}" data-v="${v}" aria-label="${CALC_ARIA[l]}">${l}</button>`).join("")}</div>
@@ -102,7 +102,7 @@ function calcRefresh() { const d = document.getElementById("calcdisp"); if (d) d
 function calcToggle() {
   const q = Q(); if (!q) return;
   if (CALC.open && CALC.qid === q.id) CALC.open = false;
-  else { if (CALC.qid !== q.id) { calcReset(); CALC.y = null; } CALC.open = true; CALC.qid = q.id; CALC.justOpened = true; }
+  else { if (CALC.qid !== q.id) { calcReset(); CALC.y = null; CALC.x = null; } CALC.open = true; CALC.qid = q.id; CALC.justOpened = true; }
   render();
 }
 
@@ -167,21 +167,22 @@ document.addEventListener("keydown", (e) => {
   if (btn) { btn.classList.add("hit"); setTimeout(() => btn.classList.remove("hit"), 120); }
 }, true);
 
-// Drag the calculator up or down by its title bar.
+// Drag the calculator anywhere on the screen by its title bar (up, down and side to side).
 let calcDrag = null;
 document.addEventListener("pointerdown", (e) => {
   const h = e.target.closest("[data-calc-drag]");
   if (!h || e.target.closest("[data-calc]")) return;
   const el = document.getElementById("calc"), phone = document.getElementById("phone");
   const scale = phone.getBoundingClientRect().height / phone.offsetHeight || 1;
-  calcDrag = { el, phone, scale, y0: e.clientY, top0: el.offsetTop };
+  calcDrag = { el, phone, scale, x0: e.clientX, y0: e.clientY, left0: el.offsetLeft, top0: el.offsetTop };
   h.setPointerCapture(e.pointerId); e.preventDefault();
 });
 document.addEventListener("pointermove", (e) => {
   if (!calcDrag) return;
-  const { el, phone, scale, y0, top0 } = calcDrag;
-  const max = phone.clientHeight - el.offsetHeight - 8;
-  CALC.y = Math.round(Math.min(max, Math.max(8, top0 + (e.clientY - y0) / scale)));
-  el.style.top = CALC.y + "px"; el.style.bottom = "auto";
+  const { el, phone, scale, x0, y0, left0, top0 } = calcDrag;
+  const maxY = phone.clientHeight - el.offsetHeight - 8, maxX = phone.clientWidth - el.offsetWidth - 8;
+  CALC.y = Math.round(Math.min(maxY, Math.max(8, top0 + (e.clientY - y0) / scale)));
+  CALC.x = Math.round(Math.min(maxX, Math.max(8, left0 + (e.clientX - x0) / scale)));
+  el.style.top = CALC.y + "px"; el.style.bottom = "auto"; el.style.left = CALC.x + "px";
 });
 document.addEventListener("pointerup", () => { if (calcDrag) { calcDrag = null; calcAfterRender(); } });
