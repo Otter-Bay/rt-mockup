@@ -4,6 +4,7 @@
    the "Open in … Ready" link are the way to move the list into the app. Never stores question text, only card keys.
    Built into the vetting pages by tools/vetting/build_embed.js. */
 (function () {
+  const JUST = new Set();   // topics saved during this visit read "Saved to your Study List"
   const W = window, EXAM = W.EXAM || "RRT";
   const KEY = "obBin:" + EXAM;
   const APP = { SDS: "https://otter-bay.github.io/rt-mockup/sds/", RPSGT: "https://otter-bay.github.io/rt-mockup/rpsgt/",
@@ -51,7 +52,7 @@
   // Add to Study List offers only topics that aren't on the list yet (Ken, Nov 26); saved ones are named in one quiet line
   function flagSet(ks) {
     // every topic keeps its place (Ken, Nov 26: so it never looks forgotten): Add for new ones, a gold "already there" card for saved ones
-    const saved = (k) => `<div class="binflag obhave" role="note"><span aria-hidden="true">★</span><span><b>Already on your Study List</b><small>${esc(W.SCALES[k].title)}</small></span></div>`;   // See Study List sits just below, in the Study List bar
+    const saved = (k) => `<div class="binflag obhave" role="note"><span aria-hidden="true">★</span><span><b>${JUST.has(k) ? "Saved to your Study List" : "Already on your Study List"}</b><small>${esc(W.SCALES[k].title)}</small></span></div>`;   // See Study List sits just below, in the Study List bar
     return `<div class="obflagset" data-ks="${esc(ks.join(","))}"><div class="binflags">${ks.map((k) => inBin(k) ? saved(k) : flag(k)).join("")}</div></div>`;
   }
   function flags(q) {
@@ -185,7 +186,8 @@
       e.preventDefault(); e.stopPropagation();
       const k = f.dataset.k, was = inBin(k);
       toggle(k); copied = false; refresh();
-      if (!was && inBin(k)) openPop(k, "Saved to your Study List");
+      // stay on the question (Ken, Nov 27): the card turns gold, and See Study List is right below when they want it
+      if (!was && inBin(k)) JUST.add(k); refresh();
       return;
     }
     if (e.target.closest('[data-act="obarccopy"]')) { e.preventDefault(); e.stopPropagation(); copyList(); return; }
