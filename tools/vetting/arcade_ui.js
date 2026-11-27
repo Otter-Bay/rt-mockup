@@ -31,7 +31,8 @@
   }
   function flag(k) {
     if (!W.SCALES || !W.SCALES[k]) return "";
-    const on = inBin(k);
+    if (inBin(k)) return savedCard(k);   // saved topics always show the gold card, wherever the button sits
+    const on = false;
     const btn = `<button type="button" class="binflag${on ? " on" : ""}" data-act="binflag" data-k="${k}" aria-pressed="${on}"><span aria-hidden="true">${on ? "★" : "☆"}</span><span><b>${on ? "Saved to Study List" : "Add to Study List"}</b><small>${esc(W.SCALES[k].title)}</small></span></button>`;
     return btn;
   }
@@ -50,9 +51,10 @@
     return out.slice(0, 5);
   }
   // Add to Study List offers only topics that aren't on the list yet (Ken, Nov 26); saved ones are named in one quiet line
+  const savedCard = (k) => `<div class="binflag obhave" role="note" data-k="${esc(k)}"><span aria-hidden="true">★</span><span><b>${JUST.has(k) ? "Saved to your Study List" : "Already on your Study List"}</b><small>${esc(W.SCALES[k].title)}</small></span></div>`;
   function flagSet(ks) {
     // every topic keeps its place (Ken, Nov 26: so it never looks forgotten): Add for new ones, a gold "already there" card for saved ones
-    const saved = (k) => `<div class="binflag obhave" role="note"><span aria-hidden="true">★</span><span><b>${JUST.has(k) ? "Saved to your Study List" : "Already on your Study List"}</b><small>${esc(W.SCALES[k].title)}</small></span></div>`;   // See Study List sits just below, in the Study List bar
+    const saved = (k) => `<div class="binflag obhave" role="note" data-k="${esc(k)}"><span aria-hidden="true">★</span><span><b>${JUST.has(k) ? "Saved to your Study List" : "Already on your Study List"}</b><small>${esc(W.SCALES[k].title)}</small></span></div>`;   // See Study List sits just below, in the Study List bar
     return `<div class="obflagset" data-ks="${esc(ks.join(","))}"><div class="binflags">${ks.map((k) => inBin(k) ? saved(k) : flag(k)).join("")}</div></div>`;
   }
   function flags(q) {
@@ -134,6 +136,9 @@
   let pop = null, popKey = "", popMsg = "";
   function refresh() {
     document.querySelectorAll(".obflagset[data-ks]").forEach((el) => { el.outerHTML = flagSet(el.dataset.ks.split(",").filter(Boolean)); });
+    // a lone button, like the one on a card in the Ask window, turns into the gold saved card too (Ken, Nov 27: "nothing happens")
+    document.querySelectorAll('.binflag[data-k]').forEach((el) => { if (el.closest(".obflagset")) return; const k = el.dataset.k; if (!W.SCALES[k]) return;
+      const want = inBin(k) ? "saved" : "add", has = el.classList.contains("obhave") ? "saved" : "add"; if (want !== has || want === "saved") el.outerHTML = want === "saved" ? savedCard(k) : flag(k); });
     document.querySelectorAll(".obarcbar").forEach((el) => { el.outerHTML = bar(); });
   }
   function drawPop() {
